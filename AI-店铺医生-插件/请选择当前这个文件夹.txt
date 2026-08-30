@@ -3,4 +3,4 @@ Chrome / Edge 加载插件时：
 该目录内必须能看到 manifest.json。
 
 版本：0.6.7（可连接远程 API · DeepSeek 标题+关键词+类目+描述+GEO · 不保存 API Key）
-/workspace/AI-店铺医生-插件
+/Users/tao/Documents/Codex/2026-07-27/ni-h/work/broad-butterfly-3350/AI-店铺医生-插件

@@ -8,15 +8,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     const url = process.env.REDIS_URL || 'redis://localhost:6379';
+    const client = new Redis(url, {
+      maxRetriesPerRequest: 1,
+      lazyConnect: true,
+      retryStrategy: () => null,
+    });
+    // ioredis emits an `error` event in addition to rejecting connect().
+    // The listener prevents an optional cache outage from becoming noisy.
+    client.on('error', () => undefined);
     try {
-      this.client = new Redis(url, {
-        maxRetriesPerRequest: 1,
-        lazyConnect: true,
-      });
-      await this.client.connect();
-      const pong = await this.client.ping();
+      await client.connect();
+      const pong = await client.ping();
+      this.client = client;
       this.logger.log(`Redis connected (${pong})`);
     } catch (error) {
+      client.disconnect();
       this.logger.warn(
         `Redis unavailable — Phase 1 continues without cache. ${error instanceof Error ? error.message : 'unknown error'}`,
       );

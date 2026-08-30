@@ -64,6 +64,21 @@ pnpm dev:admin
 pnpm dev:extension
 ```
 
+### 只启动 AI 接口（无需 Docker）
+
+如果只需要让浏览器插件调用 DeepSeek，可在根目录 `.env` 中配置：
+
+```dotenv
+ALLOW_START_WITHOUT_DATABASE=true
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=你的密钥
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_FAST_MODEL=deepseek-v4-flash
+DEEPSEEK_PRO_MODEL=deepseek-v4-pro
+```
+
+然后运行 `pnpm dev:api`。此模式可使用 `/api/ai/*`，但数据库诊断、MIC 同步和管理后台数据功能不可用。API Key 只保存在后端 `.env`，不要写进插件或提交到 Git。
+
 其他命令：
 
 ```bash
