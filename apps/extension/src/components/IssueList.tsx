@@ -6,11 +6,13 @@ export function IssueList({
   onTitleAi,
   onKeywordAi,
   onCategoryAi,
+  onDescriptionAi,
 }: {
   issues: DiagnosisIssue[];
   onTitleAi?: () => void;
   onKeywordAi?: () => void;
   onCategoryAi?: () => void;
+  onDescriptionAi?: () => void;
 }) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
@@ -36,7 +38,9 @@ export function IssueList({
                   ? onKeywordAi
                   : issue.id === 'mic-category-relevance'
                     ? onCategoryAi
-                    : undefined
+                    : issue.id === 'content-description-exists' || issue.id === 'content-description-length'
+                      ? onDescriptionAi
+                      : undefined
             }
           />
         ))}

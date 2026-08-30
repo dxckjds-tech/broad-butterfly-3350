@@ -26,7 +26,9 @@ export function IssueCard({
   const titleIssue = issue.id.startsWith('mic-title');
   const keywordIssue = issue.id === 'google-keyword-count' || issue.id.startsWith('mic-primary-keyword');
   const categoryIssue = issue.id === 'mic-category-relevance';
-  const canAi = titleIssue || keywordIssue || categoryIssue;
+  const descriptionIssue =
+    issue.id === 'content-description-exists' || issue.id === 'content-description-length';
+  const canAi = titleIssue || keywordIssue || categoryIssue || descriptionIssue;
   return (
     <article className={`issue issue--${TONE[issue.severity]}`}>
       <div className="issue__meta">

@@ -66,6 +66,39 @@ export class MockLLMProvider implements LLMProvider {
       };
     }
 
+    if (input.schemaName === 'DescriptionOptimizeOutput') {
+      const original = this.extractField(input.prompt, 'description');
+      const specs = this.extractSpecs(input.prompt);
+      const specBody = specs.length
+        ? `Key specifications from the listing:\n${specs.map(([k, v]) => `${k}: ${v}`).join('\n')}`
+        : `Listed attributes for this ${core} include high suction and industrial use from the product name.`;
+      const overview =
+        `This ${core} is a heavy duty wet and dry vacuum cleaner for industrial use. ` +
+        `It is intended for workshop cleaning of dust and liquid, using high suction as stated in the listing.`;
+      const applications =
+        `Suitable for industrial workshop cleaning. Use this ${core} where the listing mentions industrial or workshop environments and wet and dry pickup.`;
+      const sections = [
+        { heading: 'OVERVIEW' as const, title: 'Product Overview', body: overview },
+        { heading: 'SPECIFICATIONS' as const, title: 'Key Specifications', body: specBody },
+        { heading: 'APPLICATIONS' as const, title: 'Applications', body: applications },
+      ];
+      const data = {
+        originalDescription: original,
+        problems: original
+          ? ['Description is short', 'Marketing fluff', 'Missing structured sections']
+          : ['No product description on the form', 'Missing structured sections'],
+        sections,
+        recommendedDescription: sections.map((s) => `## ${s.title}\n${s.body}`).join('\n\n'),
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
     if (input.schemaName === 'CategoryCheckOutput') {
       const category = this.extractField(input.prompt, 'category');
       const looksVacuum =
@@ -196,5 +229,16 @@ export class MockLLMProvider implements LLMProvider {
     const raw = this.extractField(prompt, field);
     if (!raw) return [];
     return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  private extractSpecs(prompt: string): Array<[string, string]> {
+    const block = prompt.split('specifications:')[1]?.split('description:')[0] ?? '';
+    const rows: Array<[string, string]> = [];
+    for (const line of block.split('\n')) {
+      const m = line.match(/^\s*([^:]{1,40}):\s*(.+)$/);
+      if (!m?.[1] || !m[2] || m[2].trim() === '(none)') continue;
+      rows.push([m[1].trim(), m[2].trim()]);
+    }
+    return rows;
   }
 }

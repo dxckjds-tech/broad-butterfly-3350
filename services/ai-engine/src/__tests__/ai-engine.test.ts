@@ -6,6 +6,7 @@ import { createLlmProvider } from '../factory';
 import { optimizeTitle } from '../tasks/optimize-title';
 import { optimizeKeywords } from '../tasks/optimize-keywords';
 import { checkCategory } from '../tasks/check-category';
+import { optimizeDescription } from '../tasks/optimize-description';
 import { TitleOptimizeOutputSchema, coerceTitleStyles } from '../schemas/title';
 import { isBannedHotTerm, isCenterTermRepeat } from '../schemas/keyword';
 import { CategoryCheckOutputSchema, coerceCategoryOutput, looksLikeMicTaxonomyId } from '../schemas/category';
@@ -50,6 +51,7 @@ describe('AI config + router', () => {
     });
     expect(routeModel('TITLE_OPTIMIZATION', cfg).model).toBe('deepseek-v4-flash');
     expect(routeModel('KEYWORD_OPTIMIZATION', cfg).model).toBe('deepseek-v4-flash');
+    expect(routeModel('DESCRIPTION_OPTIMIZATION', cfg).model).toBe('deepseek-v4-flash');
     expect(routeModel('CATEGORY_CHECK', cfg).model).toBe('deepseek-v4-pro');
     expect(routeModel('GEO_DEEP_ANALYSIS', cfg).model).toBe('deepseek-v4-pro');
   });
@@ -220,6 +222,58 @@ describe('checkCategory mock path', () => {
     const spy = vi.spyOn(provider, 'generateStructured');
     await checkCategory({ provider, config: cfg, input: SAMPLE });
     const second = await checkCategory({ provider, config: cfg, input: SAMPLE });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(second.meta.cached).toBe(true);
+  });
+});
+
+describe('optimizeDescription mock path', () => {
+  beforeEach(() => clearAiCache());
+
+  it('returns structured overview/specs/applications and strips marketing fluff', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
+    const provider = createLlmProvider(cfg);
+    const out = await optimizeDescription({
+      provider,
+      config: cfg,
+      input: {
+        ...SAMPLE,
+        description:
+          'High quality industrial cleaner. Best quality factory price. Welcome to inquiry our hot sale product.',
+        specifications: { Power: '3000W', Suction: 'High Suction', Application: 'Industrial workshop' },
+      },
+    });
+    expect(out.sections.length).toBeGreaterThanOrEqual(3);
+    expect(out.sections.map((s) => s.heading)).toEqual(
+      expect.arrayContaining(['OVERVIEW', 'SPECIFICATIONS', 'APPLICATIONS']),
+    );
+    expect(out.recommendedDescription).toMatch(/Product Overview/);
+    expect(out.recommendedDescription.toLowerCase()).toMatch(/vacuum/);
+    expect(out.recommendedDescription.toLowerCase()).not.toMatch(/factory price/);
+    expect(out.recommendedDescription.toLowerCase()).not.toMatch(/iso 9001/);
+    expect(out.meta.taskType).toBe('DESCRIPTION_OPTIMIZATION');
+    expect(out.meta.provider).toBe('mock');
+  });
+
+  it('works when the current description is empty', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const out = await optimizeDescription({
+      provider,
+      config: cfg,
+      input: { ...SAMPLE, description: '', url: 'https://membercenter.made-in-china.com/product/empty-desc' },
+    });
+    expect(out.sections).toHaveLength(3);
+    expect(out.recommendedDescription.length).toBeGreaterThan(60);
+  });
+
+  it('caches the second description call on the same page', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const input = { ...SAMPLE, url: 'https://membercenter.made-in-china.com/product/desc-cache' };
+    await optimizeDescription({ provider, config: cfg, input });
+    const second = await optimizeDescription({ provider, config: cfg, input });
     expect(spy).toHaveBeenCalledTimes(1);
     expect(second.meta.cached).toBe(true);
   });

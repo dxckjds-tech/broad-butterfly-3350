@@ -423,3 +423,15 @@ body {
   background: #eef2f6;
   color: #5c6e80;
 }
+
+.ai-desc__current,
+.ai-desc__body {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 6px 0;
+}
+
+.ai-desc__body {
+  color: var(--text);
+}

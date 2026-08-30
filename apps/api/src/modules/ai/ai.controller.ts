@@ -25,4 +25,9 @@ export class AiController {
   categoryCheck(@Body() dto: OptimizeTitleDto) {
     return this.ai.checkMicCategory(dto);
   }
+
+  @Post('mic/optimize-description')
+  optimizeDescription(@Body() dto: OptimizeTitleDto) {
+    return this.ai.optimizeMicDescription(dto);
+  }
 }

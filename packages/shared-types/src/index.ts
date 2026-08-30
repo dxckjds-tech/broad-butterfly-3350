@@ -461,6 +461,43 @@ export interface CategoryCheckPayload {
   };
 }
 
+export type DescriptionSectionHeading =
+  | 'OVERVIEW'
+  | 'SPECIFICATIONS'
+  | 'APPLICATIONS'
+  | 'CUSTOMIZATION'
+  | 'PACKING';
+
+export interface DescriptionSection {
+  heading: DescriptionSectionHeading;
+  title: string;
+  body: string;
+}
+
+export interface DescriptionOptimizePayload {
+  originalDescription: string;
+  problems: string[];
+  sections: DescriptionSection[];
+  recommendedDescription: string;
+  factGuard: {
+    ok: boolean;
+    warnings: string[];
+    removed: Array<{ key: string; value: string }>;
+  };
+  meta: {
+    taskType: string;
+    provider: string;
+    model: string;
+    latency: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    promptVersion: string;
+    cached: boolean;
+    engineVersion: string;
+  };
+}
+
 export interface ShopSummary {
   id: string;
   companyName: string;

@@ -36,3 +36,9 @@ export {
   CATEGORY_CHECK_SYSTEM,
   buildCategoryCheckUserPrompt,
 } from './mic/category-check';
+
+export {
+  DESCRIPTION_OPTIMIZER_PROMPT_VERSION,
+  DESCRIPTION_OPTIMIZER_SYSTEM,
+  buildDescriptionOptimizerUserPrompt,
+} from './mic/description-optimizer';
