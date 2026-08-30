@@ -1,0 +1,28 @@
+{
+  "name": "@trade-ai/extension",
+  "version": "0.6.5",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node ../../scripts/copy-extension-load-dir.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@trade-ai/diagnosis-engine": "workspace:*",
+    "@trade-ai/platform-adapters": "workspace:*",
+    "@trade-ai/shared-types": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "2.0.0-beta.28",
+    "@types/chrome": "^0.0.313",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14"
+  }
+}
