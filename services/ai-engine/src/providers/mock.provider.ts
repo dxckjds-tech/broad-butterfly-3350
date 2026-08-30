@@ -1,0 +1,200 @@
+import { detectCoreProductTerm } from '@trade-ai/scoring-rules';
+import { emptyPageData } from '@trade-ai/shared-types';
+import type { PlatformPageData } from '@trade-ai/shared-types';
+import type { AiRuntimeConfig } from '../config';
+import type {
+  GenerateStructuredInput,
+  GenerateStructuredResult,
+  GenerateTextInput,
+  GenerateTextResult,
+  HealthCheckResult,
+  LLMProvider,
+  LlmAnalyzeResult,
+} from '../provider';
+
+export class MockLLMProvider implements LLMProvider {
+  readonly name: string = 'mock';
+
+  constructor(private readonly config?: AiRuntimeConfig) {}
+
+  async generateText(input: GenerateTextInput): Promise<GenerateTextResult> {
+    return {
+      text: `[mock:${this.name}] ${input.prompt.slice(0, 80)}`,
+      model: 'mock',
+      usage: { inputTokens: 0, outputTokens: 0 },
+    };
+  }
+
+  async generateStructured(input: GenerateStructuredInput): Promise<GenerateStructuredResult> {
+    const title = this.extractField(input.prompt, 'productName') || 'Product';
+    const current = this.extractList(input.prompt, 'currentKeywords');
+    const page = emptyPageData({
+      productName: title,
+      title,
+      platform: 'MADE_IN_CHINA',
+      pageType: 'MIC_PRODUCT_EDIT',
+    });
+    const detected = detectCoreProductTerm(page).coreProductTerm;
+    const core =
+      /\bvacuum cleaner\b/i.test(title)
+        ? 'vacuum cleaner'
+        : detected || 'product';
+
+    if (input.schemaName === 'KeywordOptimizeOutput') {
+      const mic = [
+        { keyword: `industrial ${core}`, priority: 'HIGH' as const, reason: 'Lead with product noun and use case.' },
+        { keyword: `heavy duty ${core}`, priority: 'HIGH' as const, reason: 'Matches listed duty rating.' },
+        { keyword: `wet dry ${core}`, priority: 'HIGH' as const, reason: 'Keeps wet/dry capability from the title.' },
+        { keyword: 'workshop vacuum', priority: 'MEDIUM' as const, reason: 'Application phrase for buyers.' },
+        { keyword: 'high suction vacuum', priority: 'MEDIUM' as const, reason: 'Uses the listed suction fact.' },
+      ];
+      const data = {
+        currentKeywords: current,
+        problems: ['Mock provider: no live LLM key', 'Keywords may overlap the title'],
+        primaryKeywords: [{ keyword: `industrial ${core}`, reason: 'Core product phrase.', usedFacts: [title], warnings: [] }],
+        secondaryKeywords: [{ keyword: 'high suction vacuum', reason: 'Attribute phrase.', usedFacts: ['high suction'], warnings: [] }],
+        buyerIntentKeywords: [{ keyword: `heavy duty ${core}`, reason: 'Buyer search phrase.', usedFacts: ['heavy duty'], warnings: [] }],
+        applicationKeywords: [{ keyword: 'workshop vacuum', reason: 'Scene phrase.', usedFacts: ['industrial'], warnings: [] }],
+        micKeywords: mic,
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
+    if (input.schemaName === 'CategoryCheckOutput') {
+      const category = this.extractField(input.prompt, 'category');
+      const looksVacuum =
+        /vacuum|wet and dry|wet\/dry/.test(title.toLowerCase()) || /\bvacuum\b/i.test(core);
+      const looksSteamCat = /steam/.test(category.toLowerCase());
+      const usedFacts = [title, category].filter(Boolean);
+
+      if (!category.trim()) {
+        const data = {
+          currentCategory: '（未识别类目）',
+          verdict: 'UNCERTAIN' as const,
+          confidence: 0.2,
+          reason: '当前类目为空，无法判断是否与产品匹配。',
+          suggestedCategoryConcept: looksVacuum ? 'Wet and Dry Vacuum Cleaner' : title.slice(0, 80),
+          usedFacts,
+        };
+        return {
+          data,
+          raw: JSON.stringify(data),
+          model: 'mock',
+          usage: { inputTokens: 0, outputTokens: 0 },
+          repaired: false,
+        };
+      }
+
+      if (looksVacuum && looksSteamCat) {
+        const data = {
+          currentCategory: category,
+          verdict: 'POSSIBLE_MISMATCH' as const,
+          confidence: 0.86,
+          reason:
+            '标题和关键词更接近 Wet and Dry Vacuum Cleaner，而不是 Steam Cleaner。当前类目偏向蒸汽清洁，与湿干吸尘产品事实不一致。',
+          suggestedCategoryConcept: 'Wet and Dry Vacuum Cleaner',
+          usedFacts,
+        };
+        return {
+          data,
+          raw: JSON.stringify(data),
+          model: 'mock',
+          usage: { inputTokens: 0, outputTokens: 0 },
+          repaired: false,
+        };
+      }
+
+      const data = {
+        currentCategory: category,
+        verdict: 'MATCH' as const,
+        confidence: 0.72,
+        reason: `当前类目 ${category} 与标题 ${title} 方向基本一致。`,
+        suggestedCategoryConcept: category,
+        usedFacts,
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
+    const data = {
+      originalTitle: title,
+      coreProductTerm: core,
+      problems: ['Mock provider: no live LLM key', 'Title may lack buyer-intent phrasing'],
+      recommendedTitles: [
+        {
+          style: 'SEO_BALANCED',
+          title: `${title}`.slice(0, 120),
+          reason: 'Keep the original facts and a readable English order.',
+          usedFacts: [title],
+          warnings: ['Generated by MockProvider'],
+        },
+        {
+          style: 'BUYER_INTENT',
+          title: `${core} for Industrial Use`.slice(0, 120),
+          reason: 'Lead with the product noun buyers search.',
+          usedFacts: [core],
+          warnings: ['Generated by MockProvider'],
+        },
+        {
+          style: 'GEO_FRIENDLY',
+          title: `Industrial ${core}`.slice(0, 120),
+          reason: 'Short entity-clear title for AI citation.',
+          usedFacts: [core],
+          warnings: ['Generated by MockProvider'],
+        },
+      ],
+      keywordSuggestions: [core, 'industrial cleaner', 'wet dry vacuum'].slice(0, 3),
+    };
+    return {
+      data,
+      raw: JSON.stringify(data),
+      model: 'mock',
+      usage: { inputTokens: 0, outputTokens: 0 },
+      repaired: false,
+    };
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    return {
+      ok: true,
+      provider: 'mock',
+      model: 'mock',
+      latencyMs: 0,
+      status: 'mock',
+      error: this.config?.fallbackReason,
+    };
+  }
+
+  async analyze(pageData: PlatformPageData): Promise<LlmAnalyzeResult> {
+    return {
+      summary: `Mock analysis for ${pageData.productName || pageData.title || 'unknown page'}. Provider=${this.name}.`,
+      suggestions: [
+        'Clarify the product focus keyword in the title.',
+        'Add structured specifications and OEM capability.',
+        'Publish FAQ and application scenarios for GEO.',
+      ],
+    };
+  }
+
+  private extractField(prompt: string, field: string): string {
+    const m = prompt.match(new RegExp(`${field}:\\s*(.+)`));
+    return m?.[1]?.trim() && m[1] !== '(none)' ? m[1].trim() : '';
+  }
+
+  private extractList(prompt: string, field: string): string[] {
+    const raw = this.extractField(prompt, field);
+    if (!raw) return [];
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+}

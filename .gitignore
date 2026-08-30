@@ -1,0 +1,14 @@
+node_modules
+dist
+.turbo
+.env
+.env.local
+*.log
+coverage
+.DS_Store
+backups
+apps/api/generated
+apps/extension/dist
+apps/admin/dist
+.vscode
+*.tsbuildinfo
