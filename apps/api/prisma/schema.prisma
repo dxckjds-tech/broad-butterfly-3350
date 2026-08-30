@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  shops     Shop[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shop {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform        String
+  companyName     String
+  shopUrl         String
+  lastDiagnosisAt DateTime?
+  pilot           Boolean            @default(true)
+  products        Product[]
+  reports         DiagnosisReport[]
+  micConnection   MicAccountConnection?
+  micSyncJobs     MicSyncJob[]
+  micProducts     MicProductRecord[]
+  micInquiries    MicInquiryRecord[]
+  micSourcing     MicSourcingRequest[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([platform, companyName])
+}
+
+model Product {
+  id                String             @id @default(cuid())
+  shopId            String
+  shop              Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  platformProductId String?
+  name              String
+  url               String
+  category          String?
+  reports           DiagnosisReport[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([shopId])
+  @@index([url])
+}
+
+model DiagnosisReport {
+  id          String            @id @default(cuid())
+  shopId      String
+  shop        Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  pageUrl     String
+  pageType    String
+  totalScore  Int
+  rawPageData Json
+  score       DiagnosisScore?
+  issues      DiagnosisIssue[]
+  createdAt   DateTime          @default(now())
+
+  @@index([shopId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model DiagnosisScore {
+  id                String          @id @default(cuid())
+  diagnosisReportId String          @unique
+  report            DiagnosisReport @relation(fields: [diagnosisReportId], references: [id], onDelete: Cascade)
+  micSeo            Int
+  googleSeo         Int
+  geo               Int
+  contentQuality    Int
+  b2bConversion     Int
+  compliance        Int?
+}
+
+model DiagnosisIssue {
+  id                String          @id @default(cuid())
+  diagnosisReportId String
+  report            DiagnosisReport @relation(fields: [diagnosisReportId], references: [id], onDelete: Cascade)
+  category          String
+  severity          String
+  title             String
+  description       String
+  suggestion        String
+  scoreImpact       Int
+  createdAt         DateTime        @default(now())
+
+  @@index([diagnosisReportId])
+  @@index([severity])
+}
+
+model MicAccountConnection {
+  id                    String   @id @default(cuid())
+  shopId                String   @unique
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  accountLabel          String
+  accountType           String
+  permissions           Json
+  lastLoginDetectedAt   DateTime?
+  inquiryRetentionDays  Int      @default(90)
+  lastSyncAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model MicSyncJob {
+  id                 String   @id @default(cuid())
+  shopId             String
+  shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  modules            Json
+  status             String
+  productsSynced     Int      @default(0)
+  inquiriesSynced    Int      @default(0)
+  sourcingSynced     Int      @default(0)
+  actor              String   @default("system")
+  dataMode           String   @default("LIVE")
+  dryRun             Boolean  @default(true)
+  aborted            Boolean  @default(false)
+  parserValidation   Json?
+  errors             Json?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime @default(now())
+}
+
+model MicSyncCursor {
+  id                    String   @id @default(cuid())
+  shopId                String   @unique
+  productsCursor        String?
+  inquiriesCursor       String?
+  sourcingCursor        String?
+  lastSuccessfulSyncAt  DateTime?
+  productHashes         Json
+  updatedAt             DateTime @updatedAt
+}
+
+model MicProductRecord {
+  id                 String   @id @default(cuid())
+  shopId             String
+  shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  micProductId       String
+  productName        String
+  productUrl         String
+  model              String   @default("")
+  category           String   @default("")
+  status             String
+  keywords           Json
+  isFeaturedProduct  Boolean  @default(false)
+  featuredScore      Int?
+  updatedAtRemote    DateTime?
+  rawSourceHash      String
+  idConfidence       Float
+  source             String   @default("MIC_VIRTUAL_OFFICE")
+  evidenceLevel      String   @default("VERIFIED")
+  dataMode           String   @default("LIVE")
+  syncedAt           DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([shopId, micProductId])
+  @@index([shopId, status])
+}
+
+model MicInquiryRecord {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  micInquiryId     String
+  subject          String
+  buyerName        String
+  buyerCompany     String
+  buyerCountry     String
+  productId        String   @default("")
+  productName      String   @default("")
+  receivedAt       DateTime?
+  status           String
+  messagePreview   String
+  encryptedPayload String?
+  lastReplyAt      DateTime?
+  idConfidence     Float
+  source           String   @default("MIC_VIRTUAL_OFFICE")
+  evidenceLevel    String   @default("VERIFIED")
+  dataMode         String   @default("LIVE")
+  syncedAt         DateTime
+  analyses         InquiryAnalysis[]
+  drafts           InquiryReplyDraft[]
+  createdAt        DateTime @default(now())
+
+  @@unique([shopId, micInquiryId])
+  @@index([shopId, status])
+}
+
+model MicSourcingRequest {
+  id           String    @id @default(cuid())
+  shopId       String
+  shop         Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  micRequestId String
+  title        String
+  category     String    @default("")
+  country      String    @default("")
+  quantity     String    @default("")
+  unit         String    @default("")
+  publishedAt  DateTime?
+  deadline     DateTime?
+  status       String    @default("UNKNOWN")
+  dataMode     String    @default("LIVE")
+  syncedAt     DateTime
+  matches      RfqMatch[]
+  createdAt    DateTime  @default(now())
+
+  @@unique([shopId, micRequestId])
+}
+
+model MicOpportunitySnapshot {
+  id        String   @id @default(cuid())
+  shopId    String
+  payload   Json
+  syncedAt  DateTime
+  createdAt DateTime @default(now())
+}
+
+model InquiryAnalysis {
+  id          String           @id @default(cuid())
+  inquiryId   String
+  inquiry     MicInquiryRecord @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  payload     Json
+  createdAt   DateTime         @default(now())
+}
+
+model InquiryReplyDraft {
+  id          String           @id @default(cuid())
+  inquiryId   String
+  inquiry     MicInquiryRecord @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  payload     Json
+  createdAt   DateTime         @default(now())
+}
+
+model RfqMatch {
+  id          String              @id @default(cuid())
+  sourcingId  String
+  sourcing    MicSourcingRequest  @relation(fields: [sourcingId], references: [id], onDelete: Cascade)
+  payload     Json
+  createdAt   DateTime            @default(now())
+}
+
+model ProductionErrorLog {
+  id        String   @id @default(cuid())
+  code      String
+  message   String
+  shopId    String?
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([code, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  shopId    String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+}
+
+model BackupRecord {
+  id           String   @id @default(cuid())
+  kind         String
+  filePath     String
+  createdAt    DateTime @default(now())
+  retainUntil  DateTime
+}
