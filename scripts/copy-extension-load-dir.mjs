@@ -45,6 +45,17 @@ for (const target of targets) {
   copyLoadDir(target);
 }
 
+const { execSync } = await import('node:child_process');
+const zipPath = path.join(root, 'AI-店铺医生-插件.zip');
+execSync(`rm -f ${JSON.stringify(zipPath)} && zip -r ${JSON.stringify(zipPath)} AI-店铺医生-插件 -x "*.DS_Store"`, {
+  cwd: root,
+  stdio: 'inherit',
+});
+for (const dir of [path.join(home, 'Desktop'), path.join(home, '桌面')]) {
+  mkdirSync(dir, { recursive: true });
+  cpSync(zipPath, path.join(dir, 'AI-店铺医生-插件.zip'));
+}
+
 console.log('Chrome 加载时请选择下面任一目录（不要选上一级）：');
 for (const target of targets) {
   console.log(target);

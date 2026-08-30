@@ -130,6 +130,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@trade-ai/diagnosis-engine':
+        specifier: workspace:*
+        version: link:../../services/diagnosis-engine
       '@trade-ai/platform-adapters':
         specifier: workspace:*
         version: link:../../packages/platform-adapters

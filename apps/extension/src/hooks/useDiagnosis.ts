@@ -62,22 +62,15 @@ export function useDiagnosis() {
     setState('ANALYZING');
     setError('');
     const online = await pingHealth();
-    if (!online) {
-      setState('OFFLINE');
-      setError('后端离线，请确认 API 已启动（http://localhost:3000/api/health）。');
-      return;
-    }
     try {
       const next = await diagnosePage(page);
       setResult(next);
       setState('SUCCESS');
+      if (!online || next.diagnosisId === 'local-offline') {
+        setError('后端未连接：本次使用本地规则诊断，结果未写入数据库。本机启动 pnpm dev:api 后可入库。');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '分析失败';
-      if (message === 'OFFLINE') {
-        setState('OFFLINE');
-        setError('后端离线或无法连接。');
-        return;
-      }
       setState('FAILED');
       setError(message);
     }

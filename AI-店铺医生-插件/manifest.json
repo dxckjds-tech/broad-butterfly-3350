@@ -42,7 +42,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-BgVIaDcs.js"
+        "assets/index.ts-loader-BrHuCoxs.js"
       ],
       "matches": [
         "*://*.made-in-china.com/*",
@@ -60,7 +60,8 @@
         "http://localhost:5173/*"
       ],
       "resources": [
-        "assets/index.ts-BfnrnpIj.js"
+        "assets/index-CiW3AalA.js",
+        "assets/index.ts-DCtLuzmk.js"
       ],
       "use_dynamic_url": false
     }

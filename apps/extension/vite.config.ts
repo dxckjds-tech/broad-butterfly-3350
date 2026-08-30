@@ -13,6 +13,17 @@ export default defineConfig({
         __dirname,
         '../../packages/platform-adapters/src/index.ts',
       ),
+      '@trade-ai/diagnosis-engine': path.resolve(
+        __dirname,
+        '../../services/diagnosis-engine/src/index.ts',
+      ),
+      '@trade-ai/mic-rule-engine': path.resolve(
+        __dirname,
+        '../../services/mic-rule-engine/src/index.ts',
+      ),
+      '@trade-ai/scoring-rules': path.resolve(__dirname, '../../packages/scoring-rules/src/index.ts'),
+      '@trade-ai/geo-engine': path.resolve(__dirname, '../../services/geo-engine/src/index.ts'),
+      '@trade-ai/seo-engine': path.resolve(__dirname, '../../services/seo-engine/src/index.ts'),
     },
   },
 });

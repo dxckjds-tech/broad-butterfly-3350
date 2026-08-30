@@ -10,6 +10,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@trade-ai/diagnosis-engine": "workspace:*",
     "@trade-ai/platform-adapters": "workspace:*",
     "@trade-ai/shared-types": "workspace:*",
     "react": "^18.3.1",

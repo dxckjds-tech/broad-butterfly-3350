@@ -42,7 +42,10 @@ export function PanelApp() {
         <StatusBlock title="页面读取失败" detail="无法读取当前标签页。请刷新页面后重试，或确认已授权读取该站点。" />
       )}
       {state === 'OFFLINE' && (
-        <StatusBlock title="后端离线" detail={error || '无法连接 API。请先启动 pnpm dev:api。'} />
+        <StatusBlock
+          title="后端离线"
+          detail={error || '本机未启动 API。仍可点击开始诊断，将使用本地规则（结果不入库）。'}
+        />
       )}
       {state === 'FAILED' && (
         <StatusBlock title="分析失败" detail={error || '诊断请求失败，请稍后重试。'} />
@@ -62,6 +65,7 @@ export function PanelApp() {
 
       {result && state === 'SUCCESS' && (
         <>
+          {error ? <StatusBlock title="说明" detail={error} /> : null}
           <section className="health">
             <span>综合健康度</span>
             <strong>
