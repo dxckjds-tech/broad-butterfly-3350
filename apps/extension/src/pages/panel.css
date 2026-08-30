@@ -390,3 +390,36 @@ body {
   color: #17663a;
   font-weight: 600;
 }
+
+.ai-cat p {
+  margin: 6px 0;
+}
+
+.ai-cat__verdict {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ai-cat__verdict--match {
+  background: #e8f6ee;
+  color: #17663a;
+}
+
+.ai-cat__verdict--possible-mismatch {
+  background: #fff4e5;
+  color: #b45309;
+}
+
+.ai-cat__verdict--mismatch {
+  background: #fde8ea;
+  color: #9b1c2c;
+}
+
+.ai-cat__verdict--uncertain {
+  background: #eef2f6;
+  color: #5c6e80;
+}

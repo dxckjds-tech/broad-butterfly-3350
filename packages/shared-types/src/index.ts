@@ -433,6 +433,34 @@ export interface KeywordOptimizePayload {
   };
 }
 
+export type CategoryCheckVerdict = CategoryRelevanceStatus;
+
+export interface CategoryCheckPayload {
+  currentCategory: string;
+  verdict: CategoryCheckVerdict;
+  confidence: number;
+  reason: string;
+  suggestedCategoryConcept: string;
+  usedFacts: string[];
+  factGuard: {
+    ok: boolean;
+    warnings: string[];
+    removed: Array<{ key: string; value: string }>;
+  };
+  meta: {
+    taskType: string;
+    provider: string;
+    model: string;
+    latency: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    promptVersion: string;
+    cached: boolean;
+    engineVersion: string;
+  };
+}
+
 export interface ShopSummary {
   id: string;
   companyName: string;

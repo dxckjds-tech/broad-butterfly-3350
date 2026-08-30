@@ -1,4 +1,4 @@
-import type { AiHealthPayload, KeywordOptimizePayload, TitleOptimizePayload } from '@trade-ai/shared-types';
+import type { AiHealthPayload, CategoryCheckPayload, KeywordOptimizePayload, TitleOptimizePayload } from '@trade-ai/shared-types';
 import { API_BASE_URL } from '../utils/config';
 
 export const AI_UNAVAILABLE_COPY = 'AI服务暂时不可用，本地规则诊断仍然有效。';
@@ -58,4 +58,25 @@ export async function optimizeMicKeywords(input: {
     body: JSON.stringify(input),
   });
   return readEnvelope<KeywordOptimizePayload>(res);
+}
+
+export async function checkMicCategory(input: {
+  productName: string;
+  category?: string;
+  keywords?: string[];
+  currentKeywords?: string[];
+  centerTerms?: string[];
+  specifications?: Record<string, string>;
+  description?: string;
+  certifications?: string[];
+  url?: string;
+  moq?: string;
+  deliveryTime?: string;
+}): Promise<CategoryCheckPayload> {
+  const res = await fetch(`${API_BASE_URL}/ai/mic/category-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return readEnvelope<CategoryCheckPayload>(res);
 }

@@ -5,10 +5,12 @@ export function IssueList({
   issues,
   onTitleAi,
   onKeywordAi,
+  onCategoryAi,
 }: {
   issues: DiagnosisIssue[];
   onTitleAi?: () => void;
   onKeywordAi?: () => void;
+  onCategoryAi?: () => void;
 }) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
@@ -32,7 +34,9 @@ export function IssueList({
                 ? onTitleAi
                 : issue.id === 'google-keyword-count' || issue.id.startsWith('mic-primary-keyword')
                   ? onKeywordAi
-                  : undefined
+                  : issue.id === 'mic-category-relevance'
+                    ? onCategoryAi
+                    : undefined
             }
           />
         ))}

@@ -5,8 +5,10 @@ import { applyFactGuard } from '../fact-guard';
 import { createLlmProvider } from '../factory';
 import { optimizeTitle } from '../tasks/optimize-title';
 import { optimizeKeywords } from '../tasks/optimize-keywords';
+import { checkCategory } from '../tasks/check-category';
 import { TitleOptimizeOutputSchema, coerceTitleStyles } from '../schemas/title';
 import { isBannedHotTerm, isCenterTermRepeat } from '../schemas/keyword';
+import { CategoryCheckOutputSchema, coerceCategoryOutput, looksLikeMicTaxonomyId } from '../schemas/category';
 import { clearAiCache } from '../cache';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
@@ -158,6 +160,68 @@ describe('keyword sanitizer helpers', () => {
     expect(isCenterTermRepeat('wet dry vacuum cleaner', ['cleaner'])).toBe(false);
     expect(isBannedHotTerm('cheap wholesale', '')).toBe(true);
     expect(isBannedHotTerm('industrial vacuum', '')).toBe(false);
+  });
+});
+
+describe('category schema coerce', () => {
+  it('normalizes percent confidence and taxonomy-looking IDs', () => {
+    const coerced = coerceCategoryOutput(
+      {
+        verdict: 'possible mismatch',
+        confidence: 86,
+        reason: '标题和关键词更接近 Wet and Dry Vacuum Cleaner，而不是 Steam Cleaner。',
+        suggestedCategoryConcept: '100200300',
+      },
+      'Steam Cleaner',
+    );
+    const parsed = CategoryCheckOutputSchema.parse(coerced);
+    expect(parsed.verdict).toBe('POSSIBLE_MISMATCH');
+    expect(parsed.confidence).toBeCloseTo(0.86);
+    expect(parsed.suggestedCategoryConcept).toBe('Steam Cleaner');
+    expect(looksLikeMicTaxonomyId('100200300')).toBe(true);
+    expect(looksLikeMicTaxonomyId('Wet and Dry Vacuum Cleaner')).toBe(false);
+  });
+});
+
+describe('checkCategory mock path', () => {
+  beforeEach(() => clearAiCache());
+
+  it('flags vacuum vs Steam Cleaner as possible mismatch', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
+    const provider = createLlmProvider(cfg);
+    const out = await checkCategory({ provider, config: cfg, input: SAMPLE });
+    expect(out.verdict).toBe('POSSIBLE_MISMATCH');
+    expect(out.currentCategory).toBe('Steam Cleaner');
+    expect(out.suggestedCategoryConcept.toLowerCase()).toMatch(/vacuum/);
+    expect(out.reason).toMatch(/Wet and Dry Vacuum Cleaner/);
+    expect(out.reason).toMatch(/Steam Cleaner/);
+    expect(out.confidence).toBeGreaterThan(0.5);
+    expect(out.meta.taskType).toBe('CATEGORY_CHECK');
+    expect(out.meta.provider).toBe('mock');
+  });
+
+  it('returns UNCERTAIN without calling the LLM when category is empty', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const out = await checkCategory({
+      provider,
+      config: cfg,
+      input: { ...SAMPLE, category: '', url: 'https://membercenter.made-in-china.com/product/empty-cat' },
+    });
+    expect(out.verdict).toBe('UNCERTAIN');
+    expect(spy).not.toHaveBeenCalled();
+    expect(out.meta.model).toBe('none');
+  });
+
+  it('caches the second category call on the same page', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    await checkCategory({ provider, config: cfg, input: SAMPLE });
+    const second = await checkCategory({ provider, config: cfg, input: SAMPLE });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(second.meta.cached).toBe(true);
   });
 });
 

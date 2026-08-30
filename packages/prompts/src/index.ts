@@ -30,3 +30,9 @@ export {
   KEYWORD_OPTIMIZER_SYSTEM,
   buildKeywordOptimizerUserPrompt,
 } from './mic/keyword-optimizer';
+
+export {
+  CATEGORY_CHECK_PROMPT_VERSION,
+  CATEGORY_CHECK_SYSTEM,
+  buildCategoryCheckUserPrompt,
+} from './mic/category-check';

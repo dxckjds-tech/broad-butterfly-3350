@@ -20,4 +20,9 @@ export class AiController {
   optimizeKeywords(@Body() dto: OptimizeTitleDto) {
     return this.ai.optimizeMicKeywords(dto);
   }
+
+  @Post('mic/category-check')
+  categoryCheck(@Body() dto: OptimizeTitleDto) {
+    return this.ai.checkMicCategory(dto);
+  }
 }

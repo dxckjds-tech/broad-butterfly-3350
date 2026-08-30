@@ -66,6 +66,67 @@ export class MockLLMProvider implements LLMProvider {
       };
     }
 
+    if (input.schemaName === 'CategoryCheckOutput') {
+      const category = this.extractField(input.prompt, 'category');
+      const looksVacuum =
+        /vacuum|wet and dry|wet\/dry/.test(title.toLowerCase()) || /\bvacuum\b/i.test(core);
+      const looksSteamCat = /steam/.test(category.toLowerCase());
+      const usedFacts = [title, category].filter(Boolean);
+
+      if (!category.trim()) {
+        const data = {
+          currentCategory: '（未识别类目）',
+          verdict: 'UNCERTAIN' as const,
+          confidence: 0.2,
+          reason: '当前类目为空，无法判断是否与产品匹配。',
+          suggestedCategoryConcept: looksVacuum ? 'Wet and Dry Vacuum Cleaner' : title.slice(0, 80),
+          usedFacts,
+        };
+        return {
+          data,
+          raw: JSON.stringify(data),
+          model: 'mock',
+          usage: { inputTokens: 0, outputTokens: 0 },
+          repaired: false,
+        };
+      }
+
+      if (looksVacuum && looksSteamCat) {
+        const data = {
+          currentCategory: category,
+          verdict: 'POSSIBLE_MISMATCH' as const,
+          confidence: 0.86,
+          reason:
+            '标题和关键词更接近 Wet and Dry Vacuum Cleaner，而不是 Steam Cleaner。当前类目偏向蒸汽清洁，与湿干吸尘产品事实不一致。',
+          suggestedCategoryConcept: 'Wet and Dry Vacuum Cleaner',
+          usedFacts,
+        };
+        return {
+          data,
+          raw: JSON.stringify(data),
+          model: 'mock',
+          usage: { inputTokens: 0, outputTokens: 0 },
+          repaired: false,
+        };
+      }
+
+      const data = {
+        currentCategory: category,
+        verdict: 'MATCH' as const,
+        confidence: 0.72,
+        reason: `当前类目 ${category} 与标题 ${title} 方向基本一致。`,
+        suggestedCategoryConcept: category,
+        usedFacts,
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
     const data = {
       originalTitle: title,
       coreProductTerm: core,

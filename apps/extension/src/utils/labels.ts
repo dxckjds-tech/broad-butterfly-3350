@@ -24,3 +24,11 @@ export function severityLabel(severity: IssueSeverity): string {
   if (severity === 'MEDIUM' || severity === 'LOW') return '建议';
   return severity;
 }
+
+export function categoryVerdictLabel(verdict: string): string {
+  if (verdict === 'MATCH') return '匹配';
+  if (verdict === 'POSSIBLE_MISMATCH') return '可能不匹配';
+  if (verdict === 'MISMATCH') return '不匹配';
+  if (verdict === 'UNCERTAIN') return '不确定';
+  return verdict;
+}

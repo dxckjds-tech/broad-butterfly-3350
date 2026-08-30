@@ -3,10 +3,12 @@ import {
   AI_UNAVAILABLE_MESSAGE,
   AiUnavailableError,
   checkAiHealth,
+  checkCategory,
   createLlmProvider,
   loadAiConfig,
   optimizeKeywords,
   optimizeTitle,
+  type CategoryCheckResult,
   type KeywordOptimizeResult,
   type LLMProvider,
   type TitleOptimizeResult,
@@ -140,6 +142,62 @@ export class AiService {
         );
       }
       this.logger.warn(`AI keyword optimize failed: ${err instanceof Error ? err.message : 'unknown'}`);
+      throw new HttpException(
+        { message: AI_UNAVAILABLE_MESSAGE, code: 'AI_UNAVAILABLE' },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  async checkMicCategory(dto: OptimizeTitleDto): Promise<CategoryCheckResult> {
+    const started = Date.now();
+    try {
+      const result = await checkCategory({
+        provider: this.provider,
+        config: this.config,
+        input: {
+          productName: dto.productName,
+          category: dto.category,
+          keywords: dto.keywords ?? dto.currentKeywords ?? [],
+          currentKeywords: dto.currentKeywords ?? dto.keywords ?? [],
+          centerTerms: dto.centerTerms,
+          specifications: dto.specifications,
+          description: dto.description,
+          certifications: dto.certifications,
+          url: dto.url,
+          moq: dto.moq,
+          deliveryTime: dto.deliveryTime,
+        },
+      });
+      await this.logCall({
+        taskType: result.meta.taskType,
+        provider: result.meta.provider,
+        model: result.meta.model,
+        latency: result.meta.latency,
+        inputTokens: result.meta.inputTokens,
+        outputTokens: result.meta.outputTokens,
+        status: result.meta.status,
+        pageUrl: dto.url,
+      });
+      return result;
+    } catch (err) {
+      await this.logCall({
+        taskType: 'CATEGORY_CHECK',
+        provider: this.provider.name,
+        model: this.config.deepseek.proModel,
+        latency: Date.now() - started,
+        inputTokens: null,
+        outputTokens: null,
+        status: 'error',
+        pageUrl: dto.url,
+      });
+      if (err instanceof AiUnavailableError) {
+        throw new HttpException(
+          { message: err.message, code: 'AI_UNAVAILABLE' },
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+      this.logger.warn(`AI category check failed: ${err instanceof Error ? err.message : 'unknown'}`);
       throw new HttpException(
         { message: AI_UNAVAILABLE_MESSAGE, code: 'AI_UNAVAILABLE' },
         HttpStatus.SERVICE_UNAVAILABLE,

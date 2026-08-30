@@ -7,6 +7,7 @@ import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
 import { TitleOptimizePanel } from '../components/TitleOptimizePanel';
 import { KeywordOptimizePanel } from '../components/KeywordOptimizePanel';
+import { CategoryCheckPanel } from '../components/CategoryCheckPanel';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
@@ -15,6 +16,7 @@ export function PanelApp() {
   const { state, page, result, error, loadPage, run } = useDiagnosis();
   const [titleTrigger, setTitleTrigger] = useState(0);
   const [keywordTrigger, setKeywordTrigger] = useState(0);
+  const [categoryTrigger, setCategoryTrigger] = useState(0);
 
   useEffect(() => {
     void loadPage();
@@ -27,7 +29,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.1</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.2</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -69,6 +71,7 @@ export function PanelApp() {
 
       <TitleOptimizePanel page={page} trigger={titleTrigger} />
       <KeywordOptimizePanel page={page} trigger={keywordTrigger} />
+      <CategoryCheckPanel page={page} trigger={categoryTrigger} />
 
       <div className="panel__cta">
         <button
@@ -101,6 +104,7 @@ export function PanelApp() {
             issues={result.issues}
             onTitleAi={() => setTitleTrigger((n) => n + 1)}
             onKeywordAi={() => setKeywordTrigger((n) => n + 1)}
+            onCategoryAi={() => setCategoryTrigger((n) => n + 1)}
           />
         </>
       )}

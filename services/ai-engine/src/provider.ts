@@ -1,9 +1,13 @@
 import type { PlatformPageData } from '@trade-ai/shared-types';
 
-export const AI_ENGINE_VERSION = 'AI_ENGINE_1.1.1';
+export const AI_ENGINE_VERSION = 'AI_ENGINE_1.1.2';
 export const AI_UNAVAILABLE_MESSAGE = 'AI服务暂时不可用，本地规则诊断仍然有效。';
 
-export const ENABLED_AI_TASKS = new Set(['TITLE_OPTIMIZATION', 'KEYWORD_OPTIMIZATION'] as const);
+export const ENABLED_AI_TASKS = new Set([
+  'TITLE_OPTIMIZATION',
+  'KEYWORD_OPTIMIZATION',
+  'CATEGORY_CHECK',
+] as const);
 
 export interface GenerateTextInput {
   prompt: string;
