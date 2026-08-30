@@ -84,14 +84,25 @@ pnpm typecheck
 
 ## 加载 Chrome 插件
 
-1. 运行 `pnpm dev:extension` 或 `pnpm --filter @trade-ai/extension build`
-2. 打开 Chrome `chrome://extensions`
-3. 开启「开发者模式」
-4. 「加载已解压的扩展程序」
-5. 选择目录：`apps/extension/dist`（dev 模式下以 CRXJS 输出目录为准，通常仍是 `apps/extension/dist`）
-6. 打开 Made-in-China.com 产品页，或打开本地演示页
-7. 点击工具栏图标打开 Side Panel（不支持时使用 Popup）
-8. 点击「开始诊断」
+Chrome 文件选择器里请选仓库根目录的 **`AI-店铺医生-插件`**（里面有 `manifest.json`）。
+
+不要选 `apps/extension`，那是源码，加载会失败。
+
+```bash
+pnpm --filter @trade-ai/extension build
+# 会打印可加载的完整路径，并复制到：
+#   ./AI-店铺医生-插件
+#   ~/AI-店铺医生-插件
+```
+
+1. 打开 `chrome://extensions`
+2. 开启「开发者模式」
+3. 「加载已解压的扩展程序」
+4. 选择 `AI-店铺医生-插件`
+5. 打开 Made-in-China.com 产品页，或 http://localhost:5173/demo/mic-product.html
+6. 点击工具栏图标打开 Side Panel，点「开始诊断」
+
+更短说明见仓库根目录 `如何加载插件.md`。
 
 ## 数据库表
 

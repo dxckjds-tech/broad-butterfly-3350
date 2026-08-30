@@ -12,6 +12,7 @@
     "dev:api": "pnpm --filter @trade-ai/api dev",
     "dev:admin": "pnpm --filter @trade-ai/admin dev",
     "dev:extension": "pnpm --filter @trade-ai/extension dev",
+    "extension:dir": "node scripts/copy-extension-load-dir.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
