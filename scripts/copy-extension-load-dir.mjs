@@ -5,8 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = path.join(root, 'apps/extension/dist');
-const repoLoadDir = path.join(root, 'AI-店铺医生-插件');
-const homeLoadDir = path.join(homedir(), 'AI-店铺医生-插件');
+const home = homedir();
+const targets = [
+  path.join(root, 'AI-店铺医生-插件'),
+  path.join(home, 'AI-店铺医生-插件'),
+  path.join(home, 'Desktop', 'AI-店铺医生-插件'),
+  path.join(home, '桌面', 'AI-店铺医生-插件'),
+];
 
 if (!existsSync(path.join(src, 'manifest.json'))) {
   console.error('未找到构建产物。请先运行：pnpm --filter @trade-ai/extension build');
@@ -14,6 +19,7 @@ if (!existsSync(path.join(src, 'manifest.json'))) {
 }
 
 function copyLoadDir(target) {
+  mkdirSync(path.dirname(target), { recursive: true });
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });
   cpSync(src, target, {
@@ -27,7 +33,7 @@ function copyLoadDir(target) {
       '请选中「AI-店铺医生-插件」这一层文件夹（本文件所在目录）。',
       '该目录内必须能看到 manifest.json。',
       '',
-      `本机完整路径：`,
+      '本机完整路径：',
       target,
       '',
     ].join('\n'),
@@ -35,9 +41,11 @@ function copyLoadDir(target) {
   );
 }
 
-copyLoadDir(repoLoadDir);
-copyLoadDir(homeLoadDir);
+for (const target of targets) {
+  copyLoadDir(target);
+}
 
 console.log('Chrome 加载时请选择下面任一目录（不要选上一级）：');
-console.log(repoLoadDir);
-console.log(homeLoadDir);
+for (const target of targets) {
+  console.log(target);
+}

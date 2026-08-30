@@ -92,7 +92,8 @@ Chrome 文件选择器里请选仓库根目录的 **`AI-店铺医生-插件`**�
 pnpm --filter @trade-ai/extension build
 # 会打印可加载的完整路径，并复制到：
 #   ./AI-店铺医生-插件
-#   ~/AI-店铺医生-插件
+#   ~/Desktop/AI-店铺医生-插件
+#   ~/桌面/AI-店铺医生-插件
 ```
 
 1. 打开 `chrome://extensions`
