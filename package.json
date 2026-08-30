@@ -1,0 +1,43 @@
+{
+  "name": "trade-ai-store-doctor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "外贸 AI 店铺医生 — Trade AI Store Doctor",
+  "packageManager": "pnpm@10.6.5",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:api": "pnpm --filter @trade-ai/api dev",
+    "dev:admin": "pnpm --filter @trade-ai/admin dev",
+    "dev:extension": "pnpm --filter @trade-ai/extension dev",
+    "extension:dir": "node scripts/copy-extension-load-dir.mjs",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "pnpm --filter @trade-ai/platform-adapters test && pnpm --filter @trade-ai/scoring-rules test && pnpm --filter @trade-ai/inquiry-engine test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "pnpm --filter @trade-ai/api prisma:migrate",
+    "db:generate": "pnpm --filter @trade-ai/api prisma:generate",
+    "db:studio": "pnpm --filter @trade-ai/api prisma:studio",
+    "db:push": "pnpm --filter @trade-ai/api prisma:push"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines"
+    ]
+  }
+}
