@@ -320,6 +320,26 @@ body {
 .ai-status--down strong {
   color: var(--high);
 }
+.ai-status__api {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.ai-status__api span {
+  color: var(--muted);
+}
+.ai-status__api input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.ai-status button {
+  margin-top: 8px;
+}
 
 .ai-title {
   background: var(--white);

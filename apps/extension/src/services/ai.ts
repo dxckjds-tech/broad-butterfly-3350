@@ -6,7 +6,7 @@ import type {
   KeywordOptimizePayload,
   TitleOptimizePayload,
 } from '@trade-ai/shared-types';
-import { API_BASE_URL } from '../utils/config';
+import { getApiBaseUrl } from '../utils/config';
 
 export const AI_UNAVAILABLE_COPY = 'AI服务暂时不可用，本地规则诊断仍然有效。';
 
@@ -21,8 +21,19 @@ async function readEnvelope<T>(res: Response): Promise<T> {
   return json.data;
 }
 
-export async function fetchAiHealth(): Promise<AiHealthPayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/health`);
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const base = await getApiBaseUrl();
+  const res = await fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return readEnvelope<T>(res);
+}
+
+export async function fetchAiHealth(baseOverride?: string): Promise<AiHealthPayload> {
+  const base = baseOverride || (await getApiBaseUrl());
+  const res = await fetch(`${base}/ai/health`);
   return readEnvelope<AiHealthPayload>(res);
 }
 
@@ -38,12 +49,7 @@ export async function optimizeMicTitle(input: {
   moq?: string;
   deliveryTime?: string;
 }): Promise<TitleOptimizePayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/mic/optimize-title`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return readEnvelope<TitleOptimizePayload>(res);
+  return postJson<TitleOptimizePayload>('/ai/mic/optimize-title', input);
 }
 
 export async function optimizeMicKeywords(input: {
@@ -59,12 +65,7 @@ export async function optimizeMicKeywords(input: {
   moq?: string;
   deliveryTime?: string;
 }): Promise<KeywordOptimizePayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/mic/optimize-keywords`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return readEnvelope<KeywordOptimizePayload>(res);
+  return postJson<KeywordOptimizePayload>('/ai/mic/optimize-keywords', input);
 }
 
 export async function checkMicCategory(input: {
@@ -80,12 +81,7 @@ export async function checkMicCategory(input: {
   moq?: string;
   deliveryTime?: string;
 }): Promise<CategoryCheckPayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/mic/category-check`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return readEnvelope<CategoryCheckPayload>(res);
+  return postJson<CategoryCheckPayload>('/ai/mic/category-check', input);
 }
 
 export async function optimizeMicDescription(input: {
@@ -101,12 +97,7 @@ export async function optimizeMicDescription(input: {
   moq?: string;
   deliveryTime?: string;
 }): Promise<DescriptionOptimizePayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/mic/optimize-description`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return readEnvelope<DescriptionOptimizePayload>(res);
+  return postJson<DescriptionOptimizePayload>('/ai/mic/optimize-description', input);
 }
 
 export async function analyzeMicGeo(input: {
@@ -123,10 +114,5 @@ export async function analyzeMicGeo(input: {
   moq?: string;
   deliveryTime?: string;
 }): Promise<GeoAnalysisPayload> {
-  const res = await fetch(`${API_BASE_URL}/ai/mic/geo-analysis`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  return readEnvelope<GeoAnalysisPayload>(res);
+  return postJson<GeoAnalysisPayload>('/ai/mic/geo-analysis', input);
 }

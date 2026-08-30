@@ -5,7 +5,7 @@ export default defineManifest({
   name: 'AI 店铺医生',
   short_name: '店铺医生',
   description: 'Trade AI Store Doctor — diagnose Made-in-China.com listings',
-  version: '0.6.6',
+  version: '0.6.7',
   action: {
     default_title: 'AI 店铺医生',
     default_popup: 'src/pages/popup/index.html',
@@ -28,6 +28,7 @@ export default defineManifest({
     default_path: 'src/pages/sidepanel/index.html',
   },
   permissions: ['sidePanel', 'tabs', 'storage', 'activeTab', 'scripting'],
+  optional_host_permissions: ['http://*/*', 'https://*/*'],
   host_permissions: [
     'https://*.made-in-china.com/*',
     'http://localhost:3000/*',

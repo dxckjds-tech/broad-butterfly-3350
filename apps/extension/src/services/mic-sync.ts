@@ -1,9 +1,10 @@
 import { assembleVirtualOfficeData, MIC_VO_URLS } from '@trade-ai/platform-adapters';
 import type { MICVirtualOfficeData } from '@trade-ai/shared-types';
-import { API_BASE_URL } from '../utils/config';
+import { getApiBaseUrl } from '../utils/config';
 
 export async function previewMicSync(payload: MICVirtualOfficeData) {
-  const res = await fetch(`${API_BASE_URL}/integrations/mic/sync/preview`, {
+  const base = await getApiBaseUrl();
+  const res = await fetch(`${base}/integrations/mic/sync/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -14,7 +15,8 @@ export async function previewMicSync(payload: MICVirtualOfficeData) {
 }
 
 export async function postMicSync(payload: MICVirtualOfficeData, confirmed = false) {
-  const res = await fetch(`${API_BASE_URL}/integrations/mic/sync`, {
+  const base = await getApiBaseUrl();
+  const res = await fetch(`${base}/integrations/mic/sync`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, confirmed, actor: 'extension' }),
