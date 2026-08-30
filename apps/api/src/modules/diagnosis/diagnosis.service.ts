@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { diagnosePage } from '@trade-ai/diagnosis-engine';
 import type { DashboardStats, DiagnosisResult, PlatformPageData } from '@trade-ai/shared-types';
 import { PrismaService } from '../../common/prisma.service';
@@ -9,7 +9,7 @@ const SYSTEM_EMAIL = 'system@trade-ai-doctor.local';
 export class DiagnosisService {
   private readonly logger = new Logger(DiagnosisService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async diagnoseAndPersist(page: PlatformPageData): Promise<DiagnosisResult> {
     this.logger.log(`Diagnosis start platform=${page.platform} type=${page.pageType} url=${page.url}`);

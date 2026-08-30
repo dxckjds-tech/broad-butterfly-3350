@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -7,10 +6,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
 
-  constructor(private readonly config: ConfigService) {}
-
   async onModuleInit(): Promise<void> {
-    const url = this.config.get<string>('REDIS_URL', 'redis://localhost:6379');
+    const url = process.env.REDIS_URL || 'redis://localhost:6379';
     try {
       this.client = new Redis(url, {
         maxRetriesPerRequest: 1,

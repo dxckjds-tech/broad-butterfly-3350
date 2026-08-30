@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Logger, Post } from '@nestjs/common';
 import type { PlatformPageData } from '@trade-ai/shared-types';
 import { DiagnosisService } from './diagnosis.service';
 import { PlatformPageDataDto } from './dto/page-data.dto';
@@ -7,7 +7,7 @@ import { PlatformPageDataDto } from './dto/page-data.dto';
 export class DiagnosisController {
   private readonly logger = new Logger(DiagnosisController.name);
 
-  constructor(private readonly diagnosis: DiagnosisService) {}
+  constructor(@Inject(DiagnosisService) private readonly diagnosis: DiagnosisService) {}
 
   @Post('page')
   async diagnosePage(@Body() body: PlatformPageDataDto) {

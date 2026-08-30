@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { ShopSummary } from '@trade-ai/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 
 @Injectable()
 export class ShopsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async listSummaries(): Promise<ShopSummary[]> {
     const shops = await this.prisma.shop.findMany({

@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { PrismaModule } from './common/prisma.module';
@@ -27,6 +27,6 @@ import { UsersModule } from './modules/users/users.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+    consumer.apply(RequestLoggerMiddleware).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
   }
 }
