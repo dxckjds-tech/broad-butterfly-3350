@@ -33,7 +33,7 @@ function copyLoadDir(target) {
       '请选中「AI-店铺医生-插件」这一层文件夹（本文件所在目录）。',
       '该目录内必须能看到 manifest.json。',
       '',
-      '版本：0.6.1（MIC 后台产品编辑页表单解析 · 不保存密码/Cookie）',
+      '版本：0.6.2（DeepSeek 标题优化 · 不保存 API Key / 密码 / Cookie）',
       target,
       '',
     ].join('\n'),

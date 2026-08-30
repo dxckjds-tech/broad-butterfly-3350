@@ -16,7 +16,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "pnpm --filter @trade-ai/platform-adapters test && pnpm --filter @trade-ai/scoring-rules test && pnpm --filter @trade-ai/inquiry-engine test && pnpm --filter @trade-ai/production-safety test",
+    "test": "pnpm --filter @trade-ai/platform-adapters test && pnpm --filter @trade-ai/scoring-rules test && pnpm --filter @trade-ai/inquiry-engine test && pnpm --filter @trade-ai/production-safety test && pnpm --filter @trade-ai/ai-engine test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @trade-ai/api prisma:migrate",

@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AiStatusBar } from '../components/AiStatusBar';
 import { IssueList } from '../components/IssueList';
 import { MicSyncBar } from '../components/MicSyncBar';
 import { ParseStatus } from '../components/ParseStatus';
 import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
+import { TitleOptimizePanel } from '../components/TitleOptimizePanel';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
 
 export function PanelApp() {
   const { state, page, result, error, loadPage, run } = useDiagnosis();
+  const [titleTrigger, setTitleTrigger] = useState(0);
 
   useEffect(() => {
     void loadPage();
@@ -22,7 +25,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -56,9 +59,13 @@ export function PanelApp() {
       )}
       {state === 'ANALYZING' && <StatusBlock title="正在分析" detail="规则引擎正在评估当前页面，请稍候…" />}
 
+      <AiStatusBar />
+
       <MicSyncBar pageUrl={page?.url} />
 
       {page && page.platform !== 'UNKNOWN' && state !== 'ANALYZING' ? <ParseStatus page={page} /> : null}
+
+      <TitleOptimizePanel page={page} trigger={titleTrigger} />
 
       <div className="panel__cta">
         <button
@@ -87,7 +94,7 @@ export function PanelApp() {
             <ScoreCard label="内容质量" value={result.scores.contentQuality} />
             <ScoreCard label="B2B 转化" value={result.scores.b2bConversion} />
           </div>
-          <IssueList issues={result.issues} />
+          <IssueList issues={result.issues} onTitleAi={() => setTitleTrigger((n) => n + 1)} />
         </>
       )}
     </div>

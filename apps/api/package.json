@@ -19,6 +19,7 @@
     "@nestjs/core": "^11.0.12",
     "@nestjs/platform-express": "^11.0.12",
     "@prisma/client": "^6.5.0",
+    "@trade-ai/ai-engine": "workspace:*",
     "@trade-ai/diagnosis-engine": "workspace:*",
     "@trade-ai/inquiry-engine": "workspace:*",
     "@trade-ai/mic-rule-engine": "workspace:*",

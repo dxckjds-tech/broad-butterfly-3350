@@ -12,6 +12,7 @@ import { RulesModule } from './modules/rules/rules.module';
 import { ShopsModule } from './modules/shops/shops.module';
 import { UsersModule } from './modules/users/users.module';
 import { MicModule } from './modules/mic/mic.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MicModule } from './modules/mic/mic.module';
     DiagnosisModule,
     RulesModule,
     MicModule,
+    AiModule,
     ProductionModule,
   ],
 })

@@ -1,6 +1,5 @@
 /**
- * Prompt templates for later AI analysis phases.
- * Phase 1 does not call real LLMs.
+ * Prompt templates. Versioned MIC prompts live under ./mic.
  */
 
 export const DIAGNOSIS_SYSTEM_PROMPT = `You are Trade AI Store Doctor, a B2B listing diagnostic expert.
@@ -19,3 +18,9 @@ export const prompts = {
   geo: GEO_SYSTEM_PROMPT,
   seo: SEO_SYSTEM_PROMPT,
 } as const;
+
+export {
+  TITLE_OPTIMIZER_PROMPT_VERSION,
+  TITLE_OPTIMIZER_SYSTEM,
+  buildTitleOptimizerUserPrompt,
+} from './mic/title-optimizer';

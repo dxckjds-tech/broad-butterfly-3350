@@ -1,7 +1,13 @@
 import type { DiagnosisIssue } from '@trade-ai/shared-types';
 import { IssueCard } from './IssueCard';
 
-export function IssueList({ issues }: { issues: DiagnosisIssue[] }) {
+export function IssueList({
+  issues,
+  onTitleAi,
+}: {
+  issues: DiagnosisIssue[];
+  onTitleAi?: () => void;
+}) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
   const advice = issues.filter((item) => item.severity === 'MEDIUM' || item.severity === 'LOW').length;
@@ -16,7 +22,7 @@ export function IssueList({ issues }: { issues: DiagnosisIssue[] }) {
       </div>
       <div className="issue-list">
         {issues.map((issue) => (
-          <IssueCard key={issue.id} issue={issue} />
+          <IssueCard key={issue.id} issue={issue} onAiGenerate={onTitleAi} />
         ))}
       </div>
     </section>

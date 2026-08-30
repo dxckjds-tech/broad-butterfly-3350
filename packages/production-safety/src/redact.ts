@@ -1,4 +1,4 @@
-const SECRET_KEYS = /password|passwd|cookie|set-cookie|token|captcha|sms|otp|sessionid|authorization/i;
+const SECRET_KEYS = /password|passwd|cookie|set-cookie|token|captcha|sms|otp|sessionid|authorization|apikey|api_key|openai|deepseek/i;
 
 export function redactAuditPayload(input: unknown): unknown {
   if (input == null) return input;

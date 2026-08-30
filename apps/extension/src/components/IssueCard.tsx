@@ -8,7 +8,22 @@ const TONE: Record<IssueSeverity, string> = {
   LOW: 'low',
 };
 
-export function IssueCard({ issue }: { issue: DiagnosisIssue }) {
+async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function IssueCard({
+  issue,
+  onAiGenerate,
+}: {
+  issue: DiagnosisIssue;
+  onAiGenerate?: () => void;
+}) {
+  const titleIssue = issue.id.startsWith('mic-title');
   return (
     <article className={`issue issue--${TONE[issue.severity]}`}>
       <div className="issue__meta">
@@ -22,10 +37,10 @@ export function IssueCard({ issue }: { issue: DiagnosisIssue }) {
         {issue.suggestion}
       </p>
       <div className="issue__actions">
-        <button type="button" disabled>
+        <button type="button" disabled={!titleIssue} onClick={() => titleIssue && onAiGenerate?.()}>
           AI生成
         </button>
-        <button type="button" disabled>
+        <button type="button" onClick={() => void copyText(issue.suggestion)}>
           复制建议
         </button>
         <button type="button" disabled>

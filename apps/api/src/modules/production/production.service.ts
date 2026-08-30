@@ -77,8 +77,16 @@ export class ProductionService {
     }
 
     const redis: CheckStatus = this.redis.isReady() ? 'PASS' : 'WARNING';
-    const llm = process.env.LLM_PROVIDER || 'mock';
-    const ai: CheckStatus = llm === 'mock' && safety.micDataMode === 'live' ? 'WARNING' : llm ? 'PASS' : 'FAIL';
+    const llm = process.env.LLM_PROVIDER || 'deepseek';
+    const hasLlmKey = Boolean((process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '').trim());
+    const ai: CheckStatus =
+      llm === 'mock' && safety.micDataMode === 'live'
+        ? 'WARNING'
+        : llm === 'deepseek' && !hasLlmKey
+          ? 'WARNING'
+          : llm
+            ? 'PASS'
+            : 'FAIL';
     const search: CheckStatus = process.env.SERP_API_KEY || process.env.SEARCH_PROVIDER ? 'PASS' : 'WARNING';
 
     const login: CheckStatus = conn ? 'PASS' : safety.micDataMode === 'live' ? 'FAIL' : 'WARNING';

@@ -350,6 +350,48 @@ export interface HealthPayload {
   service: string;
 }
 
+export interface AiHealthPayload {
+  provider: string;
+  model: string;
+  status: 'connected' | 'unavailable' | 'mock';
+  latency: number;
+}
+
+export type TitleOptimizeStyle = 'SEO_BALANCED' | 'BUYER_INTENT' | 'GEO_FRIENDLY';
+
+export interface RecommendedTitle {
+  style: TitleOptimizeStyle;
+  title: string;
+  reason: string;
+  usedFacts: string[];
+  warnings: string[];
+}
+
+export interface TitleOptimizePayload {
+  originalTitle: string;
+  coreProductTerm: string;
+  problems: string[];
+  recommendedTitles: RecommendedTitle[];
+  keywordSuggestions: string[];
+  factGuard: {
+    ok: boolean;
+    warnings: string[];
+    removed: Array<{ key: string; value: string }>;
+  };
+  meta: {
+    taskType: string;
+    provider: string;
+    model: string;
+    latency: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    promptVersion: string;
+    cached: boolean;
+    engineVersion: string;
+  };
+}
+
 export interface ShopSummary {
   id: string;
   companyName: string;

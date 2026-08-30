@@ -285,3 +285,19 @@ model BackupRecord {
   createdAt    DateTime @default(now())
   retainUntil  DateTime
 }
+
+model AiCallLog {
+  id           String   @id @default(cuid())
+  taskType     String
+  provider     String
+  model        String
+  latency      Int
+  inputTokens  Int?
+  outputTokens Int?
+  status       String
+  pageUrl      String?
+  createdAt    DateTime @default(now())
+
+  @@index([taskType, createdAt])
+  @@index([status, createdAt])
+}
