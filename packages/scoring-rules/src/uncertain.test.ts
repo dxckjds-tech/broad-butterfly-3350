@@ -15,7 +15,7 @@ describe('uncertain scoring', () => {
       fieldStatus: { specifications: 'UNCERTAIN', productName: 'FOUND' },
       parseQuality: { score: 40, foundFields: ['productName'], missingFields: ['specifications'], warnings: [] },
     });
-    const spec = runScoringRules(page).find((item) => item.id === 'has-specifications');
+    const spec = runScoringRules(page).find((item) => item.id === 'content-specification-coverage');
     expect(spec?.title).toBe('规格参数暂未成功识别');
     expect(spec?.severity).toBe('LOW');
   });
@@ -33,7 +33,7 @@ describe('uncertain scoring', () => {
       fieldStatus: { specifications: 'MISSING', productName: 'FOUND', companyName: 'FOUND' },
       parseQuality: { score: 80, foundFields: ['productName'], missingFields: ['specifications'], warnings: [] },
     });
-    const spec = runScoringRules(page).find((item) => item.id === 'has-specifications');
+    const spec = runScoringRules(page).find((item) => item.id === 'content-specification-coverage');
     expect(spec?.title).toBe('产品参数信息不足');
     expect(spec?.severity).toBe('HIGH');
   });

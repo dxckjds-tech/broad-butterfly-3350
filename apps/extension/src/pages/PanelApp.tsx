@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { IssueList } from '../components/IssueList';
+import { MicSyncBar } from '../components/MicSyncBar';
 import { ParseStatus } from '../components/ParseStatus';
 import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
@@ -21,7 +22,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · 本地规则诊断</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC 后台同步</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -51,6 +52,8 @@ export function PanelApp() {
         <StatusBlock title="分析失败" detail={error || '诊断请求失败，请稍后重试。'} />
       )}
       {state === 'ANALYZING' && <StatusBlock title="正在分析" detail="规则引擎正在评估当前页面，请稍候…" />}
+
+      <MicSyncBar pageUrl={page?.url} />
 
       {page && page.platform !== 'UNKNOWN' && state !== 'ANALYZING' ? <ParseStatus page={page} /> : null}
 

@@ -33,7 +33,7 @@ function copyLoadDir(target) {
       '请选中「AI-店铺医生-插件」这一层文件夹（本文件所在目录）。',
       '该目录内必须能看到 manifest.json。',
       '',
-      '版本：0.1.3（侧栏应显示「v0.1.3 · 本地规则诊断」和解析状态）',
+      '版本：0.6.0（侧栏可同步 MIC Virtual Office 结构化数据，不保存密码/Cookie）',
       target,
       '',
     ].join('\n'),

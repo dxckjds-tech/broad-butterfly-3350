@@ -1,12 +1,13 @@
 import { Card, Col, Row, Statistic } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStats } from '../services/api';
+import { fetchMicOverview, fetchStats } from '../services/api';
 
 export function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['stats'],
     queryFn: fetchStats,
   });
+  const mic = useQuery({ queryKey: ['mic-overview'], queryFn: fetchMicOverview });
 
   const stats = data ?? {
     shopCount: 0,
@@ -34,19 +35,24 @@ export function DashboardPage() {
           <Statistic title="平均健康度" value={stats.averageHealth} suffix="/ 100" />
         </Card>
       </Col>
-      <Col xs={24} sm={12} lg={8}>
-        <Card loading={isLoading}>
-          <Statistic title="严重问题数量" value={stats.criticalIssueCount} />
+      <Col xs={24} sm={12} lg={6}>
+        <Card loading={mic.isLoading}>
+          <Statistic title="MIC 产品" value={Number(mic.data?.products ?? 0)} />
         </Card>
       </Col>
-      <Col xs={24} sm={12} lg={8}>
-        <Card loading={isLoading}>
-          <Statistic title="平均 MIC SEO" value={stats.averageMicSeo} />
+      <Col xs={24} sm={12} lg={6}>
+        <Card loading={mic.isLoading}>
+          <Statistic title="MIC 询盘" value={Number(mic.data?.inquiries ?? 0)} />
         </Card>
       </Col>
-      <Col xs={24} sm={12} lg={8}>
-        <Card loading={isLoading}>
-          <Statistic title="平均 GEO" value={stats.averageGeo} />
+      <Col xs={24} sm={12} lg={6}>
+        <Card loading={mic.isLoading}>
+          <Statistic title="待回复" value={Number(mic.data?.unreplied ?? 0)} />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card loading={mic.isLoading}>
+          <Statistic title="RFQ" value={Number(mic.data?.sourcing ?? 0)} />
         </Card>
       </Col>
     </Row>

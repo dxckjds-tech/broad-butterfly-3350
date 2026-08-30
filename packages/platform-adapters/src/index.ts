@@ -35,3 +35,4 @@ export { detectMicPageType, isMadeInChinaHost } from './made-in-china/detector';
 export { computeParseQuality, fieldLabel } from './made-in-china/quality';
 export { getAllTexts, getFirstAttribute, getFirstText } from './base/query';
 export type { PlatformAdapter } from './base/adapter';
+export * from './made-in-china/virtual-office';

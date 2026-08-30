@@ -16,6 +16,10 @@ const items = [
   { key: '/', icon: <BarChartOutlined />, label: '仪表盘' },
   { key: '/shops', icon: <ShopOutlined />, label: '店铺管理' },
   { key: '/products', icon: <AppstoreOutlined />, label: '产品诊断' },
+  { key: '/mic/products', icon: <AppstoreOutlined />, label: 'MIC 产品中心' },
+  { key: '/mic/inquiries', icon: <FileSearchOutlined />, label: '询盘中心' },
+  { key: '/mic/opportunities', icon: <ThunderboltOutlined />, label: '商机中心' },
+  { key: '/mic/sourcing', icon: <GlobalOutlined />, label: '采购需求' },
   { key: '/reports', icon: <FileSearchOutlined />, label: '诊断报告' },
   { key: '/rules', icon: <ThunderboltOutlined />, label: '规则中心' },
   { key: '/geo', icon: <GlobalOutlined />, label: 'GEO 分析' },
@@ -56,7 +60,7 @@ export function AppLayout() {
             alignItems: 'center',
           }}
         >
-          <Typography.Text style={{ color: '#4a5b6c' }}>Made-in-China.com · Phase 1</Typography.Text>
+          <Typography.Text style={{ color: '#4a5b6c' }}>Made-in-China.com · Phase 4.2 · v0.6.0</Typography.Text>
         </Header>
         <Content style={{ padding: 24, background: '#f4f6f9' }}>
           <Outlet />

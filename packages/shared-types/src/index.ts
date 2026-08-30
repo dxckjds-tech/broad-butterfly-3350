@@ -114,6 +114,60 @@ export const SEVERITY_PENALTY: Record<IssueSeverity, number> = {
   LOW: 3,
 };
 
+export const RULES_VERSION = 'MIC_RULES_1.0.0';
+
+export const RULE_STATUSES = ['PASS', 'FAIL', 'UNCERTAIN', 'SKIPPED'] as const;
+export type RuleStatus = (typeof RULE_STATUSES)[number];
+
+export const ISSUE_PRIORITIES = ['P0', 'P1', 'P2', 'P3'] as const;
+export type IssuePriority = (typeof ISSUE_PRIORITIES)[number];
+
+export const SUGGESTION_TYPES = ['FIX', 'ENHANCEMENT'] as const;
+export type SuggestionType = (typeof SUGGESTION_TYPES)[number];
+
+export const PRODUCT_TYPE_PROFILES = [
+  'GENERAL',
+  'MACHINERY',
+  'INDUSTRIAL_COMPONENT',
+  'CONSUMER_GOODS',
+  'CUSTOM_MANUFACTURING',
+] as const;
+export type ProductTypeProfile = (typeof PRODUCT_TYPE_PROFILES)[number];
+
+export const DIAGNOSIS_CONFIDENCE_LEVELS = ['HIGH', 'MEDIUM', 'LOW'] as const;
+export type DiagnosisConfidenceLevel = (typeof DIAGNOSIS_CONFIDENCE_LEVELS)[number];
+
+export interface DiagnosisConfidence {
+  score: number;
+  level: DiagnosisConfidenceLevel;
+}
+
+export interface RuleResult {
+  ruleId: string;
+  category: IssueCategory;
+  status: RuleStatus;
+  confidence: number;
+  severity: IssueSeverity;
+  priority: IssuePriority;
+  title: string;
+  description: string;
+  suggestion: string;
+  suggestionType: SuggestionType;
+  scoreImpact: number;
+  evidence: Record<string, unknown>;
+  fieldSource?: string;
+  relatedRuleIds?: string[];
+}
+
+export interface RuleRegistryEntry {
+  id: string;
+  name: string;
+  category: IssueCategory;
+  priority: IssuePriority;
+  enabled: boolean;
+  version: string;
+}
+
 export interface DiagnosisIssue {
   id: string;
   category: IssueCategory;
@@ -122,6 +176,36 @@ export interface DiagnosisIssue {
   description: string;
   suggestion: string;
   scoreImpact: number;
+  evidence?: Record<string, unknown>;
+  priority?: IssuePriority;
+  suggestionType?: SuggestionType;
+  relatedRuleIds?: string[];
+  confidence?: number;
+  fieldSource?: string;
+  status?: RuleStatus;
+  collapsedTitle?: string;
+}
+
+export interface DimensionBreakdown {
+  titleQuality?: number;
+  topicClarity?: number;
+  contentRelevance?: number;
+  specificationQuality?: number;
+  categoryEntity?: number;
+  other?: number;
+  descriptionQuality?: number;
+  imageQuality?: number;
+  evidenceDensity?: number;
+  inquiryReadiness?: number;
+  customization?: number;
+  keywordCoverage?: number;
+  entityClarity?: number;
+}
+
+export interface CategoryScoreDetail {
+  score: number;
+  confidence: number;
+  breakdown: DimensionBreakdown;
 }
 
 export interface DiagnosisScores {
@@ -133,11 +217,26 @@ export interface DiagnosisScores {
   compliance?: number | null;
 }
 
+export interface DiagnosisScoreDetails {
+  micSeo: CategoryScoreDetail;
+  googleSeo: CategoryScoreDetail;
+  geo: CategoryScoreDetail;
+  contentQuality: CategoryScoreDetail;
+  b2bConversion: CategoryScoreDetail;
+}
+
 export interface DiagnosisResult {
   diagnosisId: string;
   totalScore: number;
   scores: DiagnosisScores;
   issues: DiagnosisIssue[];
+  topIssues?: DiagnosisIssue[];
+  diagnosisConfidence?: DiagnosisConfidence;
+  rulesVersion?: string;
+  ruleResults?: RuleResult[];
+  productTypeProfile?: ProductTypeProfile;
+  scoreDetails?: DiagnosisScoreDetails;
+  parseQualityScore?: number;
 }
 
 export interface ApiSuccessResponse<T> {
@@ -180,6 +279,8 @@ export interface DashboardStats {
   averageMicSeo: number;
   averageGeo: number;
 }
+
+export * from './mic';
 
 export function emptyPageData(overrides: Partial<PlatformPageData> = {}): PlatformPageData {
   return {

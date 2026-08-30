@@ -10,6 +10,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { RulesModule } from './modules/rules/rules.module';
 import { ShopsModule } from './modules/shops/shops.module';
 import { UsersModule } from './modules/users/users.module';
+import { MicModule } from './modules/mic/mic.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UsersModule } from './modules/users/users.module';
     ProductsModule,
     DiagnosisModule,
     RulesModule,
+    MicModule,
   ],
   providers: [RedisService],
 })

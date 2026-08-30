@@ -13,3 +13,19 @@ export async function getData<T>(url: string): Promise<T> {
   }
   return data.data;
 }
+
+export async function postData<T>(url: string, body?: unknown): Promise<T> {
+  const { data } = await api.post<ApiResponse<T>>(url, body);
+  if (!data.success) {
+    throw new Error(data.message || 'Request failed');
+  }
+  return data.data;
+}
+
+export async function deleteData<T>(url: string): Promise<T> {
+  const { data } = await api.delete<ApiResponse<T>>(url);
+  if (!data.success) {
+    throw new Error(data.message || 'Request failed');
+  }
+  return data.data;
+}

@@ -20,3 +20,27 @@ export function fetchRules() {
 export function fetchProducts() {
   return getData<unknown[]>('/products');
 }
+
+export function fetchMicOverview() {
+  return getData<Record<string, unknown>>('/mic/overview');
+}
+
+export function fetchMicProducts() {
+  return getData<{ items: Array<Record<string, unknown>>; total: number }>('/mic/products');
+}
+
+export function fetchMicInquiries() {
+  return getData<Array<Record<string, unknown>>>('/mic/inquiries');
+}
+
+export function fetchMicSourcing() {
+  return getData<Array<Record<string, unknown>>>('/mic/sourcing');
+}
+
+export function fetchMicOpportunities() {
+  return getData<Record<string, unknown>>('/mic/opportunities');
+}
+
+export function fetchMicStatus() {
+  return getData<Record<string, unknown>>('/integrations/mic/status');
+}

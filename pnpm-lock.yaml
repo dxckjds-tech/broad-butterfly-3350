@@ -90,9 +90,15 @@ importers:
       '@trade-ai/diagnosis-engine':
         specifier: workspace:*
         version: link:../../services/diagnosis-engine
+      '@trade-ai/inquiry-engine':
+        specifier: workspace:*
+        version: link:../../services/inquiry-engine
       '@trade-ai/mic-rule-engine':
         specifier: workspace:*
         version: link:../../services/mic-rule-engine
+      '@trade-ai/platform-adapters':
+        specifier: workspace:*
+        version: link:../../packages/platform-adapters
       '@trade-ai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -227,6 +233,22 @@ importers:
       '@trade-ai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+
+  services/inquiry-engine:
+    dependencies:
+      '@trade-ai/platform-adapters':
+        specifier: workspace:*
+        version: link:../../packages/platform-adapters
+      '@trade-ai/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+    devDependencies:
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.13))
 
   services/mic-rule-engine:
     dependencies:

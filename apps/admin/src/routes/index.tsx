@@ -2,6 +2,10 @@ import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { DashboardPage } from '../pages/DashboardPage';
 import { GeoPage } from '../pages/GeoPage';
+import { MicInquiriesPage } from '../pages/MicInquiriesPage';
+import { MicOpportunitiesPage } from '../pages/MicOpportunitiesPage';
+import { MicProductsPage } from '../pages/MicProductsPage';
+import { MicSourcingPage } from '../pages/MicSourcingPage';
 import { ProductsPage } from '../pages/ProductsPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { RulesPage } from '../pages/RulesPage';
@@ -18,6 +22,10 @@ export const router = createBrowserRouter([
       { path: 'shops', element: <ShopsPage /> },
       { path: 'shops/:id', element: <ShopDetailPage /> },
       { path: 'products', element: <ProductsPage /> },
+      { path: 'mic/products', element: <MicProductsPage /> },
+      { path: 'mic/inquiries', element: <MicInquiriesPage /> },
+      { path: 'mic/opportunities', element: <MicOpportunitiesPage /> },
+      { path: 'mic/sourcing', element: <MicSourcingPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'rules', element: <RulesPage /> },
       { path: 'geo', element: <GeoPage /> },
