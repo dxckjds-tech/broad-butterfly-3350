@@ -1,0 +1,15 @@
+# Reserved for production reverse proxy.
+# Development uses direct ports: API 3000, Admin 5173.
+
+# server {
+#   listen 80;
+#   server_name localhost;
+#
+#   location /api/ {
+#     proxy_pass http://api:3000;
+#   }
+#
+#   location / {
+#     proxy_pass http://admin:5173;
+#   }
+# }
