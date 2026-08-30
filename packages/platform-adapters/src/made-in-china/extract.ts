@@ -281,10 +281,10 @@ export function extractRawText(doc: Document, max = 40000): string {
     clone
       .querySelectorAll('script,style,nav,footer,header,iframe,noscript,[class*="cookie"],[id*="cookie"]')
       .forEach((el) => el.remove());
-    return normalizeText(clone.innerText).slice(0, max);
+    return normalizeText(clone.innerText || clone.textContent).slice(0, max);
   } catch {
     try {
-      return normalizeText(doc.body?.innerText).slice(0, max);
+      return normalizeText(doc.body?.innerText || doc.body?.textContent).slice(0, max);
     } catch {
       return '';
     }

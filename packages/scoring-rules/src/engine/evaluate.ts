@@ -489,7 +489,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
       severity: imgSev,
       scoreImpact: imgStatus === 'UNCERTAIN' ? 0 : undefined,
       evidence: {
-        imageCount: ctx.page.images.length,
+        imageCount: ctx.page.imageCount ?? ctx.page.images.length,
         uniqueCount: ctx.uniqueImageCount,
         mainImageCount: ctx.mainImageCount,
         detailImageCount: ctx.detailImageCount,

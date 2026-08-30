@@ -163,6 +163,8 @@ export interface PlatformPageData {
   description: string;
   keywords: string[];
   images: string[];
+  /** Visible product-image count when an edit page does not expose image URLs. */
+  imageCount?: number;
   specifications: Record<string, string>;
   category: string;
   moq: string;
@@ -592,6 +594,7 @@ export function emptyPageData(overrides: Partial<PlatformPageData> = {}): Platfo
     description: '',
     keywords: [],
     images: [],
+    imageCount: 0,
     specifications: {},
     category: '',
     moq: '',

@@ -81,4 +81,32 @@ describe('MIC product edit realistic fixture', () => {
     expect(page.keywords.length).toBeGreaterThanOrEqual(5);
     expect(page.categoryRelevance?.status).toBe('POSSIBLE_MISMATCH');
   });
+
+  it('reads live MIC counters and visible-text fallbacks without inventing company or description data', () => {
+    const live = new JSDOM(`<!doctype html><html><head><title>修改产品</title></head><body>
+      <h1>修改产品</h1><form>
+        <div>已选子目录： Steam Cleaner 产品名称</div>
+        <label>产品名称</label><input value="High Pressure Portable Steam Cleaner for Home and Car Cleaning">
+        <div class="form-item"><label>关键词</label><input value="Portable Steam Cleaner"></div>
+        <div class="form-item"><label>中心词</label><label><input type="checkbox" checked>cleaner</label></div>
+        <div class="form-item"><label>产品属性</label></div>
+        <div class="form-item"><label>功率</label><select><option selected>1500W-2000W</option></select></div>
+        <div class="form-item"><label>容量</label><input value="2L"></div>
+        <div class="upload-zone"><span>图片(5/6)</span></div>
+        <section><h3>FOB价格设置</h3><div class="form-item"><label>最小起订量</label><input value="1000"></div></section>
+        <div class="company-name">如何设置产品描述？</div>
+        <div class="form-item"><label>产品描述</label><input type="checkbox" checked value="true"></div>
+        <button>提交审核</button>
+      </form></body></html>`).window.document;
+    const parsed = parseMadeInChinaPage(live, url);
+
+    expect(parsed.category).toBe('Steam Cleaner');
+    expect(parsed.imageCount).toBe(5);
+    expect(parsed.fieldStatus?.images).toBe('FOUND');
+    expect(parsed.specifications['功率']).toBe('1500W-2000W');
+    expect(parsed.specifications['容量']).toBe('2L');
+    expect(parsed.moq).toBe('1000');
+    expect(parsed.companyName).toBe('');
+    expect(parsed.description).toBe('');
+  });
 });

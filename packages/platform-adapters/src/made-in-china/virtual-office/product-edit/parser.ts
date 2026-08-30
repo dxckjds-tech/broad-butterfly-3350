@@ -64,7 +64,7 @@ function analyzeCategoryRelevance(title: string, category: string) {
   return { status: 'UNCERTAIN' as const, title, category, message: '类目匹配度需要人工确认。' };
 }
 
-function collectBackendImages(doc: Document): { urls: string[]; state: SectionLoadState } {
+function collectBackendImages(doc: Document, rawText: string): { urls: string[]; count: number; state: SectionLoadState } {
   const section = findSectionRoot(doc, PRODUCT_EDIT_LABELS.images);
   const roots = [section, doc.querySelector('[class*="upload"]'), doc.querySelector('[class*="prod-pic"]')].filter(
     Boolean,
@@ -115,14 +115,24 @@ function collectBackendImages(doc: Document): { urls: string[]; state: SectionLo
     });
   };
 
-  if (roots.length) roots.forEach(scan);
-  else scan(doc);
+  roots.forEach(scan);
+  scan(doc);
+  const countMatch = rawText.match(/(?:产品)?图片\s*[（(]\s*(\d+)\s*\/\s*\d+\s*[）)]/i);
+  const count = Math.max(urls.length, Number(countMatch?.[1] || 0));
 
   let state: SectionLoadState = 'NOT_LOADED';
-  if (section && !sectionLooksCollapsed(section)) state = urls.length ? 'LOADED' : 'PARTIAL';
-  else if (urls.length) state = 'LOADED';
+  if (section && !sectionLooksCollapsed(section)) state = count ? 'LOADED' : 'PARTIAL';
+  else if (count) state = 'LOADED';
   else if (section) state = 'PARTIAL';
-  return { urls, state };
+  return { urls, count, state };
+}
+
+function validCompanyName(value: string): boolean {
+  return value.length >= 3 && value.length <= 120 && !/如何设置|产品描述|帮助|提示|how\s+to|description/i.test(value);
+}
+
+function validDescription(value: string): boolean {
+  return value.length >= 20 && !/^(true|false|on|yes|no|1|0)$/i.test(value);
 }
 
 function readiness(items: DataReadinessItem[]) {
@@ -135,6 +145,7 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
   const evidence: Record<string, FieldEvidenceSource> = {};
   const matchedSelectors: Record<string, string> = {};
   const warnings: string[] = [];
+  const rawText = extractRawText(doc);
 
   let productName = '';
   const nameFromLabel = readFieldByLabel(doc, PRODUCT_EDIT_LABELS.productName);
@@ -171,10 +182,10 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
 
   const companyHit = getFirstText(doc, MIC_SELECTORS.companyName);
   let companyName = companyHit?.text ?? '';
-  if (companyHit) {
+  if (companyHit && validCompanyName(companyName)) {
     matchedSelectors.companyName = companyHit.matched;
     evidence.companyName = 'BACKEND_TEXT';
-  }
+  } else companyName = '';
 
   const kw = parseKeywords(doc);
   const keywords = kw.keywords.filter((item) => item !== productName && item !== companyName);
@@ -204,13 +215,22 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
       evidence.category = 'BACKEND_FORM';
     }
   }
+  if (!category) {
+    const match = rawText.match(/已选子目录\s*[:：]?\s*([^\n]{2,80}?)(?=\s*(?:产品名称|关键词|中心词|产品属性|$))/i);
+    if (match?.[1]) {
+      category = match[1].trim();
+      categorySource = 'BACKEND_VISIBLE_TEXT';
+      matchedSelectors.category = 'visible-category-text';
+      evidence.category = 'BACKEND_TEXT';
+    }
+  }
 
   const specs = parseSpecificationsForm(doc);
   if (specs.matched) matchedSelectors.specifications = specs.matched;
   evidence.specifications = specs.status === 'FOUND' ? 'BACKEND_FORM' : 'UNKNOWN';
 
-  const images = collectBackendImages(doc);
-  if (images.urls.length) {
+  const images = collectBackendImages(doc, rawText);
+  if (images.count) {
     matchedSelectors.images = 'upload-area';
     evidence.images = 'BACKEND_FORM';
   } else {
@@ -228,14 +248,16 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
   }
 
   const descHit = readFieldByLabel(doc, [/产品描述/, /product\s*description/i]);
-  const description = descHit.value;
+  const description = validDescription(descHit.value) ? descHit.value : '';
   if (description) {
     matchedSelectors.description = descHit.matched;
     evidence.description = 'BACKEND_FORM';
   }
 
-  const rawText = extractRawText(doc);
-  if (!companyName) companyName = extractCompanyFromText(`${productName} ${rawText}`);
+  if (!companyName) {
+    const inferred = extractCompanyFromText(`${productName} ${rawText}`);
+    if (validCompanyName(inferred)) companyName = inferred;
+  }
 
   const sections: Record<string, SectionLoadState> = {
     BASIC_INFO: productName ? 'LOADED' : 'PARTIAL',
@@ -254,7 +276,7 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
     companyName: field(companyName.length >= 3, false),
     description: field(description.length >= 40, !description && sections.BASIC_INFO === 'LOADED'),
     images:
-      images.urls.length > 0
+      images.count > 0
         ? 'FOUND'
         : images.state === 'NOT_LOADED' || images.state === 'PARTIAL'
           ? 'UNCERTAIN'
@@ -286,7 +308,7 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
       ok: specs.specDebug.rawSpecificationCount > 0,
       detail: String(specs.specDebug.rawSpecificationCount),
     },
-    { key: 'images', label: '图片', ok: images.urls.length > 0, detail: images.state === 'LOADED' ? `${images.urls.length}` : '区域未完整加载' },
+    { key: 'images', label: '图片', ok: images.count > 0, detail: images.state === 'LOADED' ? `${images.count}` : '区域未完整加载' },
     { key: 'moq', label: 'MOQ', ok: Boolean(trade.moq), detail: trade.moq || '区域未加载' },
     { key: 'oem', label: 'OEM', ok: trade.oemKnown, detail: trade.oemKnown ? String(trade.oemAvailable) : '区域未加载' },
   ];
@@ -343,6 +365,7 @@ export function parseMicProductEditPage(doc: Document, url: string): PlatformPag
     centerTerms: center.terms,
     centerTermCount: center.terms.length,
     images: images.urls,
+    imageCount: images.count,
     specifications: specs.specifications,
     specDebug: specs.specDebug,
     category,

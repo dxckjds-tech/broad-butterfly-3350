@@ -19,7 +19,7 @@ export const PRODUCT_EDIT_LABELS = {
   editProduct: [/修改产品/, /edit\s*product/, /product\s*edit/i],
   specifications: [/规格参数/, /产品属性/, /specifications?/, /product\s*attributes?/i],
   images: [/产品图片/, /图片管理/, /photo/, /image\s*upload/i],
-  trade: [/贸易信息/, /trade\s*information/, /minimum\s*order/, /\bmoq\b/i],
+  trade: [/贸易信息/, /FOB\s*价格/, /价格设置/, /trade\s*information/, /minimum\s*order/, /\bmoq\b/i],
   oem: [/\boem\b/i, /\bodm\b/i, /定制/, /customization/i],
   moq: [/最小起订/, /起订量/, /minimum\s*order/, /\bmoq\b/i],
   delivery: [/交货期/, /交期/, /lead\s*time/, /delivery\s*time/, /production\s*time/i],

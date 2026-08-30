@@ -36,7 +36,7 @@ export function ParseStatus({ page }: { page: PlatformPageData }) {
       <ul>
         <li>标题：{statusText(status.productName)}</li>
         <li>公司：{statusText(status.companyName)}</li>
-        <li>图片：{page.images.length} 张{status.images === 'UNCERTAIN' ? '（区域未完整加载）' : ''}</li>
+        <li>图片：{page.imageCount ?? page.images.length} 张{status.images === 'UNCERTAIN' ? '（区域未完整加载）' : ''}</li>
         <li>
           规格：{Object.keys(page.specifications).length} 项
           {page.specDebug ? `（有效 ${page.specDebug.meaningfulSpecificationCount}）` : ''}

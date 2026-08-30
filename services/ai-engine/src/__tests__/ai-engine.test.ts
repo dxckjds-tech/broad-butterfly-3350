@@ -78,6 +78,18 @@ describe('FactGuard', () => {
     });
     expect(r.ok).toBe(true);
   });
+
+  it('strips unsupported marketing attributes from generated titles', () => {
+    const r = applyFactGuard('Eco-Friendly Cordless Wholesale Steam Cleaner', {
+      productName: 'Portable Steam Cleaner',
+      category: 'Steam Cleaner',
+    });
+    expect(r.ok).toBe(false);
+    expect(r.cleaned).toBe('Steam Cleaner');
+    expect(r.removed.map((x) => x.value.toLowerCase())).toEqual(
+      expect.arrayContaining(['eco-friendly', 'cordless', 'wholesale']),
+    );
+  });
 });
 
 describe('Zod title schema', () => {

@@ -9,7 +9,8 @@ export type FactClaimKey =
   | 'exportCountries'
   | 'brand'
   | 'patent'
-  | 'price';
+  | 'price'
+  | 'marketingClaim';
 
 export interface KnownFacts {
   productName?: string;
@@ -46,6 +47,10 @@ const PATTERNS: Array<{ key: FactClaimKey; re: RegExp }> = [
   { key: 'exportCountries', re: /\bexport(?:ed|s)? to\b[^.!]{0,40}/gi },
   { key: 'patent', re: /\bpatents?\b|\bpatented\b/gi },
   { key: 'price', re: /(?:USD|US\$|\$|€|RMB|CNY|¥)\s?\d[\d,]*(?:\.\d+)?/gi },
+  {
+    key: 'marketingClaim',
+    re: /\b(?:eco[- ]?friendly|waterproof|cordless|rechargeable|wireless|wholesale|energy[- ]?saving|food[- ]?grade|medical[- ]?grade)\b/gi,
+  },
 ];
 
 function normalize(s: string): string {

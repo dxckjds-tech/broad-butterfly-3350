@@ -1,6 +1,6 @@
 import type { SpecIgnoreItem, SpecParseDebug } from '@trade-ai/shared-types';
 import { normalizeText } from '../../../base/query';
-import { findSectionRoot, isSecretControl, readInputValue, readSelectValue, readTextareaValue, regionAfterLabel } from './form-reader';
+import { findSectionRoot, isSecretControl, readCheckedValues, readInputValue, readSelectValue, readTextareaValue, regionAfterLabel } from './form-reader';
 import { PRODUCT_EDIT_LABELS } from './types';
 
 const METADATA_KEYS =
@@ -18,7 +18,7 @@ function reasonFor(field: string, value: string): string | null {
 }
 
 const FORM_CHROME =
-  /^(产品名称|关键词|中心词|已选子目录|规格参数|基本信息|产品图片|提交审核|product name|keywords?)$/i;
+  /^(产品名称|关键词|中心词|已选子目录|规格参数|基本信息|产品图片|产品描述|提交审核|最小起订量|product name|keywords?|description|minimum order)$/i;
 
 function put(specs: Record<string, string>, key: string, value: string): void {
   const k = normalizeText(key).replace(/[:：]+$/, '');
@@ -57,13 +57,16 @@ export function parseSpecificationsForm(doc: Document): {
       put(specs, key, value);
     });
 
-    scanRoot.querySelectorAll('.spec-row, [class*="attr-item"], [class*="form-item"]').forEach((row) => {
+    const scanAttributeRows = (root: ParentNode) => root.querySelectorAll('.spec-row, [class*="attr-item"], [class*="form-item"]').forEach((row) => {
       const label = normalizeText(row.querySelector('label, .label, th, dt')?.textContent);
       const control = row.querySelector('input,textarea,select');
       if (!label || !control) return;
-      const value = readInputValue(control) || readTextareaValue(control) || readSelectValue(control);
+      const checked = readCheckedValues(row);
+      const value = checked.join(', ') || readInputValue(control) || readTextareaValue(control) || readSelectValue(control);
       put(specs, label, value);
     });
+    scanAttributeRows(scanRoot);
+    if (scanRoot !== doc) scanAttributeRows(doc);
   } catch {
     // ignore
   }
