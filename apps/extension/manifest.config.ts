@@ -1,0 +1,49 @@
+import { defineManifest } from '@crxjs/vite-plugin';
+
+export default defineManifest({
+  manifest_version: 3,
+  name: 'AI 店铺医生',
+  short_name: '店铺医生',
+  description: 'Trade AI Store Doctor — diagnose Made-in-China.com listings',
+  version: '0.1.0',
+  action: {
+    default_title: 'AI 店铺医生',
+    default_popup: 'src/pages/popup/index.html',
+    default_icon: {
+      '16': 'public/icons/icon16.png',
+      '48': 'public/icons/icon48.png',
+      '128': 'public/icons/icon128.png',
+    },
+  },
+  icons: {
+    '16': 'public/icons/icon16.png',
+    '48': 'public/icons/icon48.png',
+    '128': 'public/icons/icon128.png',
+  },
+  background: {
+    service_worker: 'src/background/index.ts',
+    type: 'module',
+  },
+  side_panel: {
+    default_path: 'src/pages/sidepanel/index.html',
+  },
+  permissions: ['sidePanel', 'tabs', 'storage', 'activeTab'],
+  host_permissions: [
+    'https://*.made-in-china.com/*',
+    'http://localhost:3000/*',
+    'http://127.0.0.1:3000/*',
+    'http://localhost:5173/*',
+    'http://127.0.0.1:5173/*',
+  ],
+  content_scripts: [
+    {
+      matches: [
+        '*://*.made-in-china.com/*',
+        'http://localhost:5173/demo/*',
+        'http://127.0.0.1:5173/demo/*',
+      ],
+      js: ['src/content/index.ts'],
+      run_at: 'document_idle',
+    },
+  ],
+});
