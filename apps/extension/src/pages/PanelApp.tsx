@@ -9,6 +9,7 @@ import { TitleOptimizePanel } from '../components/TitleOptimizePanel';
 import { KeywordOptimizePanel } from '../components/KeywordOptimizePanel';
 import { CategoryCheckPanel } from '../components/CategoryCheckPanel';
 import { DescriptionOptimizePanel } from '../components/DescriptionOptimizePanel';
+import { GeoAnalysisPanel } from '../components/GeoAnalysisPanel';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
@@ -19,6 +20,7 @@ export function PanelApp() {
   const [keywordTrigger, setKeywordTrigger] = useState(0);
   const [categoryTrigger, setCategoryTrigger] = useState(0);
   const [descriptionTrigger, setDescriptionTrigger] = useState(0);
+  const [geoTrigger, setGeoTrigger] = useState(0);
 
   useEffect(() => {
     void loadPage();
@@ -31,7 +33,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.3</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.4</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -75,6 +77,7 @@ export function PanelApp() {
       <KeywordOptimizePanel page={page} trigger={keywordTrigger} />
       <CategoryCheckPanel page={page} trigger={categoryTrigger} />
       <DescriptionOptimizePanel page={page} trigger={descriptionTrigger} />
+      <GeoAnalysisPanel page={page} trigger={geoTrigger} />
 
       <div className="panel__cta">
         <button
@@ -109,6 +112,7 @@ export function PanelApp() {
             onKeywordAi={() => setKeywordTrigger((n) => n + 1)}
             onCategoryAi={() => setCategoryTrigger((n) => n + 1)}
             onDescriptionAi={() => setDescriptionTrigger((n) => n + 1)}
+            onGeoAi={() => setGeoTrigger((n) => n + 1)}
           />
         </>
       )}

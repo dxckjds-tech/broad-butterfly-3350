@@ -99,6 +99,138 @@ export class MockLLMProvider implements LLMProvider {
       };
     }
 
+    if (input.schemaName === 'GeoAnalysisOutput') {
+      const company = this.extractField(input.prompt, 'companyName');
+      const specs = this.extractSpecs(input.prompt);
+      const description = this.extractField(input.prompt, 'description');
+      const certs = this.extractList(input.prompt, 'certifications');
+      const specMap = Object.fromEntries(specs);
+      const power = specMap.Power || specMap.power;
+      const application = specMap.Application || specMap.application;
+      const type = specMap.Type || specMap.type;
+      const suction = specMap.Suction || specMap.suction;
+      const hasSpecs = specs.length > 0;
+      const hasCompany = Boolean(company);
+      const hasFaq = /faq|frequently asked|常见问题/i.test(description);
+      const looksVacuum = /vacuum|wet and dry|wet\/dry/.test(title.toLowerCase()) || /\bvacuum\b/i.test(core);
+      const verdict =
+        looksVacuum && hasSpecs && hasCompany && hasFaq
+          ? ('PARTIAL' as const)
+          : looksVacuum && hasSpecs
+            ? ('PARTIAL' as const)
+            : hasSpecs
+              ? ('PARTIAL' as const)
+              : ('WEAK' as const);
+      const productEntity = looksVacuum ? 'Wet and Dry Vacuum Cleaner' : title.slice(0, 80);
+      const specNote = hasSpecs
+        ? `Listing states ${specs.map(([k, v]) => `${k} ${v}`).join(', ')}.`
+        : 'No specification fields were provided.';
+      const data = {
+        productEntity,
+        companyEntity: company,
+        verdict,
+        score: verdict === 'PARTIAL' ? 0.42 : 0.24,
+        summary: hasCompany
+          ? `${productEntity} has a named company (${company}) and listed specs, but FAQ, OEM, and certifications are thin, so AI citation is only partial.`
+          : `${productEntity} has listed product facts, but company entity, FAQ, and OEM are missing, so GEO visibility is weak.`,
+        gaps: [
+          {
+            dimension: 'PRODUCT_ENTITY',
+            status: looksVacuum || title ? 'PRESENT' : 'MISSING',
+            note: title ? `Product name is ${title}.` : 'No product name.',
+          },
+          {
+            dimension: 'COMPANY_ENTITY',
+            status: hasCompany ? 'WEAK' : 'MISSING',
+            note: hasCompany ? `Only the company name is present: ${company}.` : 'No company name on the listing.',
+          },
+          {
+            dimension: 'SPECIFICATIONS',
+            status: hasSpecs ? 'PRESENT' : 'MISSING',
+            note: specNote,
+          },
+          {
+            dimension: 'APPLICATIONS',
+            status: application ? 'WEAK' : 'MISSING',
+            note: application ? `Application field: ${application}.` : 'No application scene is listed.',
+          },
+          {
+            dimension: 'FAQ',
+            status: hasFaq ? 'PRESENT' : 'MISSING',
+            note: hasFaq ? 'FAQ-like text is present in the description.' : 'No FAQ structure on the listing.',
+          },
+          {
+            dimension: 'EVIDENCE',
+            status: hasSpecs ? 'WEAK' : 'MISSING',
+            note: hasSpecs ? 'Specs are present; other verifiable factory facts are not.' : 'Few verifiable facts.',
+          },
+          {
+            dimension: 'CERTIFICATIONS',
+            status: certs.length ? 'PRESENT' : 'MISSING',
+            note: certs.length ? `Listed: ${certs.join(', ')}.` : 'The listing does not state certifications.',
+          },
+          {
+            dimension: 'OEM',
+            status: 'MISSING',
+            note: 'The listing does not state OEM or customization capability.',
+          },
+          {
+            dimension: 'BUYER_INTENT',
+            status: 'MISSING',
+            note: 'MOQ, lead time, and sample policy are not stated.',
+          },
+        ],
+        recommendations: [
+          {
+            title: 'Name the product type in the description',
+            body: `Open the description with the product type from the title: ${title}. Keep industrial wet and dry use if those words already appear.`,
+          },
+          {
+            title: 'Add a short applications sentence',
+            body: application
+              ? `State the listed application in one sentence: ${application}. Do not add industries that are not on the form.`
+              : 'Add an Applications sentence only if a scene is already in the title or specs.',
+          },
+          {
+            title: 'Publish FAQ from listed facts',
+            body: 'Add 3–5 FAQ answers using title and spec fields only. If MOQ, lead time, or certifications are blank, the answer must say the listing does not state them.',
+          },
+        ],
+        faqSuggestions: [
+          {
+            question: 'What type of vacuum cleaner is this?',
+            answer: type
+              ? `The listing type is ${type}.`
+              : `The listing title describes ${title}.`,
+          },
+          {
+            question: 'What power and suction are listed?',
+            answer:
+              power || suction
+                ? `The listing states${power ? ` power ${power}` : ''}${power && suction ? ' and' : ''}${suction ? ` suction ${suction}` : ''}.`
+                : 'The listing does not state power or suction.',
+          },
+          {
+            question: 'Where is this vacuum intended to be used?',
+            answer: application
+              ? `The listing application is ${application}.`
+              : 'The listing does not state a detailed application scene beyond the product name.',
+          },
+          {
+            question: 'Does the listing include certifications or OEM capability?',
+            answer: 'The listing does not state certifications or OEM capability.',
+          },
+        ],
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
     if (input.schemaName === 'CategoryCheckOutput') {
       const category = this.extractField(input.prompt, 'category');
       const looksVacuum =

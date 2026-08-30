@@ -42,3 +42,9 @@ export {
   DESCRIPTION_OPTIMIZER_SYSTEM,
   buildDescriptionOptimizerUserPrompt,
 } from './mic/description-optimizer';
+
+export {
+  GEO_ANALYSIS_PROMPT_VERSION,
+  GEO_ANALYSIS_SYSTEM,
+  buildGeoAnalysisUserPrompt,
+} from './mic/geo-analysis';

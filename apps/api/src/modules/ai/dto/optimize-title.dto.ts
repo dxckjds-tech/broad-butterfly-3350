@@ -54,4 +54,8 @@ export class OptimizeTitleDto {
   @IsOptional()
   @IsString()
   deliveryTime?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }

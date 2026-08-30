@@ -435,3 +435,52 @@ body {
 .ai-desc__body {
   color: var(--text);
 }
+
+.ai-cat__verdict--strong {
+  background: #e8f6ee;
+  color: #17663a;
+}
+
+.ai-cat__verdict--partial {
+  background: #fff4e5;
+  color: #b45309;
+}
+
+.ai-cat__verdict--weak {
+  background: #fde8ea;
+  color: #9b1c2c;
+}
+
+.ai-geo__gaps {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-geo__gaps li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-geo__status {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ai-geo__status--present {
+  color: #17663a;
+}
+
+.ai-geo__status--weak {
+  color: #b45309;
+}
+
+.ai-geo__status--missing {
+  color: #9b1c2c;
+}

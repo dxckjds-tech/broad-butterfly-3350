@@ -7,9 +7,11 @@ import { optimizeTitle } from '../tasks/optimize-title';
 import { optimizeKeywords } from '../tasks/optimize-keywords';
 import { checkCategory } from '../tasks/check-category';
 import { optimizeDescription } from '../tasks/optimize-description';
+import { analyzeGeo } from '../tasks/analyze-geo';
 import { TitleOptimizeOutputSchema, coerceTitleStyles } from '../schemas/title';
 import { isBannedHotTerm, isCenterTermRepeat } from '../schemas/keyword';
 import { CategoryCheckOutputSchema, coerceCategoryOutput, looksLikeMicTaxonomyId } from '../schemas/category';
+import { GeoAnalysisOutputSchema, coerceGeoOutput } from '../schemas/geo';
 import { clearAiCache } from '../cache';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
@@ -274,6 +276,85 @@ describe('optimizeDescription mock path', () => {
     const input = { ...SAMPLE, url: 'https://membercenter.made-in-china.com/product/desc-cache' };
     await optimizeDescription({ provider, config: cfg, input });
     const second = await optimizeDescription({ provider, config: cfg, input });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(second.meta.cached).toBe(true);
+  });
+});
+
+describe('geo schema coerce', () => {
+  it('normalizes percent scores and pads FAQ to three', () => {
+    const coerced = coerceGeoOutput(
+      {
+        productEntity: 'Wet and Dry Vacuum Cleaner',
+        verdict: 'partial',
+        score: 42,
+        summary: '标题和规格清楚，但 FAQ 和认证缺失。',
+        gaps: [
+          { dimension: 'product', status: 'ok', note: 'Title names the vacuum.' },
+          { dimension: 'faq', status: 'absent', note: 'No FAQ block.' },
+          { dimension: 'oem', status: 'missing', note: 'OEM is not listed.' },
+        ],
+        recommendations: [{ title: 'Add FAQ', body: 'Write FAQ answers from listed specs only.' }],
+        faqSuggestions: [{ question: 'What product is this?', answer: 'x' }],
+      },
+      {
+        productName: SAMPLE.productName,
+        companyName: 'Demo Hardware Co., Ltd.',
+        specifications: SAMPLE.specifications,
+        description: SAMPLE.description,
+        certifications: [],
+        moq: '',
+        deliveryTime: '',
+      },
+    );
+    const parsed = GeoAnalysisOutputSchema.parse(coerced);
+    expect(parsed.verdict).toBe('PARTIAL');
+    expect(parsed.score).toBeCloseTo(0.42);
+    expect(parsed.faqSuggestions.length).toBeGreaterThanOrEqual(3);
+    expect(parsed.recommendations.length).toBeGreaterThanOrEqual(2);
+    expect(parsed.gaps.some((g) => g.dimension === 'PRODUCT_ENTITY' && g.status === 'PRESENT')).toBe(true);
+    expect(parsed.gaps.some((g) => g.dimension === 'FAQ' && g.status === 'MISSING')).toBe(true);
+  });
+});
+
+describe('analyzeGeo mock path', () => {
+  beforeEach(() => clearAiCache());
+
+  it('returns PARTIAL/WEAK with at least 3 FAQs and no invented ISO', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
+    const provider = createLlmProvider(cfg);
+    const out = await analyzeGeo({
+      provider,
+      config: cfg,
+      input: {
+        ...SAMPLE,
+        companyName: 'Demo Hardware Co., Ltd.',
+        specifications: { Power: '3000W', Suction: 'High Suction', Application: 'Industrial workshop' },
+      },
+    });
+    expect(['PARTIAL', 'WEAK']).toContain(out.verdict);
+    expect(out.faqSuggestions.length).toBeGreaterThanOrEqual(3);
+    expect(out.recommendations.length).toBeGreaterThanOrEqual(2);
+    expect(out.companyEntity).toMatch(/Demo Hardware/);
+    expect(out.productEntity.toLowerCase()).toMatch(/vacuum/);
+    const blob = JSON.stringify(out).toLowerCase();
+    expect(blob).not.toMatch(/iso 9001/);
+    expect(blob).not.toMatch(/factory size/);
+    expect(out.meta.taskType).toBe('GEO_DEEP_ANALYSIS');
+    expect(out.meta.provider).toBe('mock');
+  });
+
+  it('caches the second GEO call on the same page', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const input = {
+      ...SAMPLE,
+      companyName: 'Demo Hardware Co., Ltd.',
+      url: 'https://membercenter.made-in-china.com/product/geo-cache',
+    };
+    await analyzeGeo({ provider, config: cfg, input });
+    const second = await analyzeGeo({ provider, config: cfg, input });
     expect(spy).toHaveBeenCalledTimes(1);
     expect(second.meta.cached).toBe(true);
   });

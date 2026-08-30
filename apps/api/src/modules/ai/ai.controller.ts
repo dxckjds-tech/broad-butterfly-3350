@@ -30,4 +30,9 @@ export class AiController {
   optimizeDescription(@Body() dto: OptimizeTitleDto) {
     return this.ai.optimizeMicDescription(dto);
   }
+
+  @Post('mic/geo-analysis')
+  geoAnalysis(@Body() dto: OptimizeTitleDto) {
+    return this.ai.analyzeMicGeo(dto);
+  }
 }

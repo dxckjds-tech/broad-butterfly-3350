@@ -13,6 +13,7 @@ export type FactClaimKey =
 
 export interface KnownFacts {
   productName?: string;
+  companyName?: string;
   category?: string;
   keywords?: string[];
   centerTerms?: string[];
@@ -71,6 +72,7 @@ export function knownFactsCorpus(facts: KnownFacts): string {
   return normalize(
     [
       facts.productName,
+      facts.companyName,
       facts.category,
       ...(facts.keywords ?? []),
       ...(facts.centerTerms ?? []),

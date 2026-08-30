@@ -32,3 +32,31 @@ export function categoryVerdictLabel(verdict: string): string {
   if (verdict === 'UNCERTAIN') return '不确定';
   return verdict;
 }
+
+export function geoVerdictLabel(verdict: string): string {
+  if (verdict === 'STRONG') return '较好';
+  if (verdict === 'PARTIAL') return '部分具备';
+  if (verdict === 'WEAK') return '偏弱';
+  if (verdict === 'UNCERTAIN') return '不确定';
+  return verdict;
+}
+
+export function geoGapDimensionLabel(dimension: string): string {
+  if (dimension === 'PRODUCT_ENTITY') return '产品实体';
+  if (dimension === 'COMPANY_ENTITY') return '公司实体';
+  if (dimension === 'SPECIFICATIONS') return '规格参数';
+  if (dimension === 'APPLICATIONS') return '应用场景';
+  if (dimension === 'FAQ') return 'FAQ';
+  if (dimension === 'EVIDENCE') return '证据密度';
+  if (dimension === 'CERTIFICATIONS') return '认证';
+  if (dimension === 'OEM') return 'OEM';
+  if (dimension === 'BUYER_INTENT') return '买家意图';
+  return dimension;
+}
+
+export function geoGapStatusLabel(status: string): string {
+  if (status === 'PRESENT') return '已具备';
+  if (status === 'WEAK') return '偏弱';
+  if (status === 'MISSING') return '缺失';
+  return status;
+}

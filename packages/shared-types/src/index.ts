@@ -498,6 +498,65 @@ export interface DescriptionOptimizePayload {
   };
 }
 
+export type GeoVerdict = 'STRONG' | 'PARTIAL' | 'WEAK' | 'UNCERTAIN';
+
+export type GeoGapDimension =
+  | 'PRODUCT_ENTITY'
+  | 'COMPANY_ENTITY'
+  | 'SPECIFICATIONS'
+  | 'APPLICATIONS'
+  | 'FAQ'
+  | 'EVIDENCE'
+  | 'CERTIFICATIONS'
+  | 'OEM'
+  | 'BUYER_INTENT';
+
+export type GeoGapStatus = 'PRESENT' | 'WEAK' | 'MISSING';
+
+export interface GeoGap {
+  dimension: GeoGapDimension;
+  status: GeoGapStatus;
+  note: string;
+}
+
+export interface GeoRecommendation {
+  title: string;
+  body: string;
+}
+
+export interface GeoFaqSuggestion {
+  question: string;
+  answer: string;
+}
+
+export interface GeoAnalysisPayload {
+  productEntity: string;
+  companyEntity: string;
+  verdict: GeoVerdict;
+  score: number;
+  summary: string;
+  gaps: GeoGap[];
+  recommendations: GeoRecommendation[];
+  faqSuggestions: GeoFaqSuggestion[];
+  factGuard: {
+    ok: boolean;
+    warnings: string[];
+    removed: Array<{ key: string; value: string }>;
+  };
+  meta: {
+    taskType: string;
+    provider: string;
+    model: string;
+    latency: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    promptVersion: string;
+    cached: boolean;
+    engineVersion: string;
+  };
+}
+
 export interface ShopSummary {
   id: string;
   companyName: string;

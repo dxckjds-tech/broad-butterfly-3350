@@ -7,12 +7,14 @@ export function IssueList({
   onKeywordAi,
   onCategoryAi,
   onDescriptionAi,
+  onGeoAi,
 }: {
   issues: DiagnosisIssue[];
   onTitleAi?: () => void;
   onKeywordAi?: () => void;
   onCategoryAi?: () => void;
   onDescriptionAi?: () => void;
+  onGeoAi?: () => void;
 }) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
@@ -40,7 +42,9 @@ export function IssueList({
                     ? onCategoryAi
                     : issue.id === 'content-description-exists' || issue.id === 'content-description-length'
                       ? onDescriptionAi
-                      : undefined
+                      : issue.id.startsWith('geo-')
+                        ? onGeoAi
+                        : undefined
             }
           />
         ))}
