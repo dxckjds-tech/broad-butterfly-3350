@@ -44,3 +44,15 @@ export function fetchMicOpportunities() {
 export function fetchMicStatus() {
   return getData<Record<string, unknown>>('/integrations/mic/status');
 }
+
+export function fetchProductionRuntime() {
+  return getData<Record<string, unknown>>('/production/runtime');
+}
+
+export function fetchProductionCheck() {
+  return getData<Record<string, unknown>>('/production-check');
+}
+
+export function fetchProductionValidations() {
+  return getData<Record<string, unknown>>('/production-check/validations');
+}

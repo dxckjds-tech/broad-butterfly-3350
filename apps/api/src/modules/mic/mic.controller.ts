@@ -11,8 +11,13 @@ export class MicController {
     return this.mic.connectionStatus();
   }
 
+  @Post('integrations/mic/sync/preview')
+  preview(@Body() body: MICVirtualOfficeData & { shopId?: string; actor?: string }) {
+    return this.mic.preview(body);
+  }
+
   @Post('integrations/mic/sync')
-  sync(@Body() body: MICVirtualOfficeData & { shopId?: string }) {
+  sync(@Body() body: MICVirtualOfficeData & { shopId?: string; confirmed?: boolean; actor?: string }) {
     return this.mic.sync(body);
   }
 

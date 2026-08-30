@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   analyzeInquiry,
   businessPriorityScore,
@@ -8,16 +8,35 @@ import {
   matchRfqToProducts,
 } from '@trade-ai/inquiry-engine';
 import { assertNoSecrets } from '@trade-ai/platform-adapters';
+import {
+  LIVE_SYNC_FAILED_MESSAGE,
+  MIC_DOM_CHANGED_MESSAGE,
+  applyPilotLimits,
+  assertLiveModeAllowed,
+  assertNoMockMixin,
+  classifyParsedRecords,
+  loadRuntimeSafety,
+  redactAuditPayload,
+  validateParserBatch,
+} from '@trade-ai/production-safety';
 import type { MICVirtualOfficeData } from '@trade-ai/shared-types';
+import { BackupService } from '../backup/backup.service';
+import { ProductionService } from '../production/production.service';
 import { PrismaService } from '../../common/prisma.service';
 
 const SYSTEM_EMAIL = 'system@trade-ai-doctor.local';
+
+type SyncBody = MICVirtualOfficeData & { shopId?: string; confirmed?: boolean; preview?: boolean; actor?: string };
 
 @Injectable()
 export class MicService {
   private readonly logger = new Logger(MicService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly production: ProductionService,
+    private readonly backup: BackupService,
+  ) {}
 
   async connectionStatus() {
     const conn = await this.prisma.micAccountConnection.findFirst({ orderBy: { updatedAt: 'desc' } });
@@ -31,19 +50,141 @@ export class MicService {
       lastSyncAt: conn?.lastSyncAt?.toISOString() ?? null,
       inquiryRetentionDays: conn?.inquiryRetentionDays ?? 90,
       note: 'MIC 登录由浏览器插件管理。系统不会保存 MIC 密码或 Cookie Value。',
+      ...loadRuntimeSafety(),
     };
   }
 
-  async sync(payload: MICVirtualOfficeData & { shopId?: string }) {
+  preview(payload: SyncBody) {
     assertNoSecrets(payload);
+    const safety = loadRuntimeSafety();
+    const requested: 'fixture' | 'live' = payload.syncMeta.source === 'FIXTURE' ? 'fixture' : 'live';
+    try {
+      assertLiveModeAllowed(safety, requested);
+    } catch {
+      throw new ForbiddenException('MIC_FIXTURE_FORBIDDEN');
+    }
+    const isPilot = true;
+    const products = applyPilotLimits(payload.products, safety.pilotProductLimit, isPilot);
+    const inquiries = applyPilotLimits(payload.inquiries, safety.pilotInquiryLimit, isPilot);
+    const classified = classifyParsedRecords(
+      payload.products.map((p) => ({
+        id: p.micProductId,
+        name: p.productName,
+        confidence: p.idConfidence,
+        failed: !p.micProductId || !p.productName,
+      })),
+    );
+    const parser = validateParserBatch({
+      total: payload.products.length,
+      identified: classified.identified,
+      failed: classified.failed,
+      lowConfidence: classified.lowConfidence,
+      fieldCompleteness: classified.completeness,
+      abortThreshold: safety.parserAccuracyAbort,
+    });
+    return {
+      dryRun: safety.dryRun,
+      dataMode: requested === 'fixture' ? 'DEMO' : 'LIVE',
+      estimated: {
+        products: products.length,
+        inquiries: inquiries.length,
+        rfq: payload.sourcingRequests.length,
+      },
+      parser: { ...parser, failures: classified.failures },
+      confirmRequired: true,
+      message: parser.abortBatch ? MIC_DOM_CHANGED_MESSAGE : '确认后再写入本地数据库。不会向 MIC 写入。',
+    };
+  }
+
+  async sync(payload: SyncBody) {
+    assertNoSecrets(payload);
+    const safety = loadRuntimeSafety();
+    const requested: 'fixture' | 'live' = payload.syncMeta.source === 'FIXTURE' ? 'fixture' : 'live';
+    const dataMode = requested === 'fixture' ? 'DEMO' : 'LIVE';
+    const actor = payload.actor || 'operator';
+
+    try {
+      assertLiveModeAllowed(safety, requested);
+    } catch {
+      await this.production.logError('MIC_FIXTURE_FORBIDDEN', 'production live forbids fixture fallback');
+      throw new ForbiddenException('MIC_FIXTURE_FORBIDDEN');
+    }
+
+    if (requested === 'live' && payload.syncMeta.modules.every((m) => m.status === 'PARSE_FAILED' || m.status === 'NO_PERMISSION')) {
+      await this.production.logError('MIC_LIVE_SYNC_FAILED', LIVE_SYNC_FAILED_MESSAGE);
+      throw new BadRequestException(LIVE_SYNC_FAILED_MESSAGE);
+    }
+
+    if (!payload.confirmed) {
+      return this.preview(payload);
+    }
+
     this.logger.log(`sync started modules=${payload.syncMeta.modules.map((m) => m.module + ':' + m.status).join(',')}`);
 
     const shop = await this.ensureShop(payload);
+    const liveCount = await this.prisma.micProductRecord.count({ where: { shopId: shop.id, dataMode: 'LIVE' } });
+    const demoCount = await this.prisma.micProductRecord.count({ where: { shopId: shop.id, dataMode: 'DEMO' } });
+    try {
+      assertNoMockMixin(liveCount + (dataMode === 'LIVE' ? 1 : 0), demoCount + (dataMode === 'DEMO' ? 1 : 0));
+    } catch {
+      await this.production.logError('MIC_MOCK_MIXIN', 'cannot mix DEMO with LIVE', shop.id);
+      throw new BadRequestException('MIC_MOCK_MIXIN');
+    }
+
+    const productsIn = applyPilotLimits(payload.products, safety.pilotProductLimit, shop.pilot);
+    const inquiriesIn = applyPilotLimits(payload.inquiries, safety.pilotInquiryLimit, shop.pilot);
+    const classified = classifyParsedRecords(
+      productsIn.map((p) => ({
+        id: p.micProductId,
+        name: p.productName,
+        confidence: p.idConfidence,
+        failed: !p.micProductId || !p.productName,
+      })),
+    );
+    const parser = validateParserBatch({
+      total: productsIn.length,
+      identified: classified.identified,
+      failed: classified.failed,
+      lowConfidence: classified.lowConfidence,
+      fieldCompleteness: classified.completeness,
+      abortThreshold: safety.parserAccuracyAbort,
+    });
+    parser.failures = classified.failures;
+
+    if (parser.abortBatch) {
+      await this.production.logError('PARSER_ACCURACY_ABORT', MIC_DOM_CHANGED_MESSAGE, shop.id, parser);
+      const job = await this.prisma.micSyncJob.create({
+        data: {
+          shopId: shop.id,
+          modules: payload.syncMeta.modules.map((m) => ({ module: m.module, status: m.status, count: m.records.length })),
+          status: 'FAILED',
+          aborted: true,
+          dryRun: safety.dryRun,
+          dataMode,
+          actor,
+          parserValidation: parser as object,
+          errors: { message: MIC_DOM_CHANGED_MESSAGE },
+          startedAt: new Date(),
+          finishedAt: new Date(),
+        },
+      });
+      throw new BadRequestException(MIC_DOM_CHANGED_MESSAGE);
+    }
+
+    if (safety.appEnv === 'production' && dataMode === 'LIVE') {
+      await this.backup.backupIfNeeded('first-prod-sync');
+      await this.backup.backupIfNeeded('daily');
+    }
+
     const job = await this.prisma.micSyncJob.create({
       data: {
         shopId: shop.id,
         modules: payload.syncMeta.modules.map((m) => ({ module: m.module, status: m.status, count: m.records.length })),
         status: 'RUNNING',
+        dryRun: safety.dryRun,
+        dataMode,
+        actor,
+        parserValidation: parser as object,
         startedAt: new Date(),
       },
     });
@@ -68,7 +209,7 @@ export class MicService {
         },
       });
 
-      for (const p of payload.products) {
+      for (const p of productsIn) {
         await this.prisma.micProductRecord.upsert({
           where: { shopId_micProductId: { shopId: shop.id, micProductId: p.micProductId } },
           update: {
@@ -82,6 +223,7 @@ export class MicService {
             featuredScore: p.featuredScore,
             rawSourceHash: p.rawSourceHash,
             idConfidence: p.idConfidence,
+            dataMode,
             syncedAt: new Date(p.syncedAt),
           },
           create: {
@@ -97,6 +239,7 @@ export class MicService {
             featuredScore: p.featuredScore,
             rawSourceHash: p.rawSourceHash,
             idConfidence: p.idConfidence,
+            dataMode,
             syncedAt: new Date(p.syncedAt),
           },
         });
@@ -121,7 +264,7 @@ export class MicService {
         }
       }
 
-      for (const i of payload.inquiries) {
+      for (const i of inquiriesIn) {
         const preview = i.messagePreview.slice(0, 180);
         await this.prisma.micInquiryRecord.upsert({
           where: { shopId_micInquiryId: { shopId: shop.id, micInquiryId: i.micInquiryId } },
@@ -138,6 +281,7 @@ export class MicService {
             encryptedPayload: Buffer.from(preview, 'utf8').toString('base64'),
             lastReplyAt: i.lastReplyAt ? new Date(i.lastReplyAt) : null,
             idConfidence: i.idConfidence,
+            dataMode,
             syncedAt: new Date(i.syncedAt),
           },
           create: {
@@ -154,6 +298,7 @@ export class MicService {
             messagePreview: preview,
             encryptedPayload: Buffer.from(preview, 'utf8').toString('base64'),
             idConfidence: i.idConfidence,
+            dataMode,
             syncedAt: new Date(i.syncedAt),
           },
         });
@@ -169,6 +314,7 @@ export class MicService {
             quantity: s.quantity,
             unit: s.unit,
             status: s.status,
+            dataMode,
             syncedAt: new Date(s.syncedAt),
           },
           create: {
@@ -180,6 +326,7 @@ export class MicService {
             quantity: s.quantity,
             unit: s.unit,
             status: s.status,
+            dataMode,
             syncedAt: new Date(s.syncedAt),
           },
         });
@@ -190,7 +337,7 @@ export class MicService {
       });
 
       const hashes: Record<string, string> = {};
-      for (const p of payload.products) hashes[p.micProductId] = p.rawSourceHash;
+      for (const p of productsIn) hashes[p.micProductId] = p.rawSourceHash;
       await this.prisma.micSyncCursor.upsert({
         where: { shopId: shop.id },
         update: {
@@ -205,19 +352,37 @@ export class MicService {
         where: { id: job.id },
         data: {
           status,
-          productsSynced: payload.products.length,
-          inquiriesSynced: payload.inquiries.length,
+          productsSynced: productsIn.length,
+          inquiriesSynced: inquiriesIn.length,
           sourcingSynced: payload.sourcingRequests.length,
+          parserValidation: parser as object,
           finishedAt: new Date(),
         },
       });
-      this.logger.log(`module completed job=${job.id} status=${status}`);
-      return updated;
-    } catch (error) {
-      await this.prisma.micSyncJob.update({
-        where: { id: job.id },
-        data: { status: 'FAILED', finishedAt: new Date(), errors: { message: error instanceof Error ? error.message : 'UNKNOWN' } },
+      await this.production.audit(actor, 'mic.sync', shop.id, {
+        products: productsIn.length,
+        inquiries: inquiriesIn.length,
+        failed: parser.failed,
+        aiCalls: 0,
+        tasks: 0,
+        dataMode,
+        jobId: job.id,
       });
+      this.logger.log(`module completed job=${job.id} status=${status}`);
+      return { ...updated, parser, dataMode, dryRun: safety.dryRun };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'UNKNOWN';
+      if (message !== MIC_DOM_CHANGED_MESSAGE && message !== LIVE_SYNC_FAILED_MESSAGE) {
+        await this.production.logError('MIC_PARSE_FAILED', message);
+      }
+      try {
+        await this.prisma.micSyncJob.update({
+          where: { id: job.id },
+          data: { status: 'FAILED', finishedAt: new Date(), errors: redactAuditPayload({ message }) as object },
+        });
+      } catch {
+        // job may not exist if abort before create
+      }
       throw error;
     }
   }

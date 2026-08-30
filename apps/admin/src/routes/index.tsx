@@ -6,6 +6,7 @@ import { MicInquiriesPage } from '../pages/MicInquiriesPage';
 import { MicOpportunitiesPage } from '../pages/MicOpportunitiesPage';
 import { MicProductsPage } from '../pages/MicProductsPage';
 import { MicSourcingPage } from '../pages/MicSourcingPage';
+import { ProductionCheckPage } from '../pages/ProductionCheckPage';
 import { ProductsPage } from '../pages/ProductsPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { RulesPage } from '../pages/RulesPage';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: 'mic/inquiries', element: <MicInquiriesPage /> },
       { path: 'mic/opportunities', element: <MicOpportunitiesPage /> },
       { path: 'mic/sourcing', element: <MicSourcingPage /> },
+      { path: 'production-check', element: <ProductionCheckPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'rules', element: <RulesPage /> },
       { path: 'geo', element: <GeoPage /> },

@@ -2,6 +2,7 @@ import { Button, Space, Table, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMicInquiries } from '../services/api';
 import { postData } from '../services/http';
+import { DataOriginTag } from '../components/DataOriginTag';
 
 export function MicInquiriesPage() {
   const { data, isLoading, refetch } = useQuery({ queryKey: ['mic-inquiries'], queryFn: fetchMicInquiries });
@@ -20,6 +21,12 @@ export function MicInquiriesPage() {
           { title: '国家', dataIndex: 'buyerCountry' },
           { title: '产品', dataIndex: 'productName' },
           { title: '状态', dataIndex: 'status' },
+          {
+            title: '来源',
+            render: (_: unknown, row: Record<string, unknown>) => (
+              <DataOriginTag dataMode={String(row.dataMode ?? 'LIVE')} evidenceLevel={String(row.evidenceLevel ?? 'VERIFIED')} />
+            ),
+          },
           {
             title: '操作',
             render: (_: unknown, row: Record<string, unknown>) => (

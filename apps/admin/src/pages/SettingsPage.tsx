@@ -23,6 +23,8 @@ export function SettingsPage() {
         <Descriptions.Item label="账号标签">{String(data?.accountLabel ?? '-')}</Descriptions.Item>
         <Descriptions.Item label="最后同步">{String(data?.lastSyncAt ?? '-')}</Descriptions.Item>
         <Descriptions.Item label="询盘保留天数">{String(data?.inquiryRetentionDays ?? 90)}</Descriptions.Item>
+        <Descriptions.Item label="DRY_RUN">{String(data?.dryRun ?? true)}</Descriptions.Item>
+        <Descriptions.Item label="MIC_DATA_MODE">{String(data?.micDataMode ?? '-')}</Descriptions.Item>
       </Descriptions>
       <Typography.Title level={5} style={{ marginTop: 24 }}>
         删除 MIC 同步数据

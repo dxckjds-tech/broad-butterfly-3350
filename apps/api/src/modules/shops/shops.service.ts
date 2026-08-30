@@ -30,6 +30,7 @@ export class ShopsService {
         googleSeo: latest?.score?.googleSeo ?? null,
         geo: latest?.score?.geo ?? null,
         lastDiagnosisAt: shop.lastDiagnosisAt?.toISOString() ?? null,
+        pilot: shop.pilot,
       };
     });
   }
@@ -41,5 +42,9 @@ export class ShopsService {
     });
     if (!shop) throw new NotFoundException('Shop not found');
     return shop;
+  }
+
+  setPilot(id: string, pilot: boolean) {
+    return this.prisma.shop.update({ where: { id }, data: { pilot } });
   }
 }

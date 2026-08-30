@@ -360,6 +360,7 @@ export interface ShopSummary {
   googleSeo: number | null;
   geo: number | null;
   lastDiagnosisAt: string | null;
+  pilot?: boolean;
 }
 
 export interface DashboardStats {

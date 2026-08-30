@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch } from '@nestjs/common';
 import { ShopsService } from './shops.service';
 
 @Controller('shops')
@@ -13,5 +13,10 @@ export class ShopsController {
   @Get(':id')
   getOne(@Param('id') id: string) {
     return this.shops.getById(id);
+  }
+
+  @Patch(':id/pilot')
+  setPilot(@Param('id') id: string, @Body() body: { pilot?: boolean }) {
+    return this.shops.setPilot(id, Boolean(body.pilot));
   }
 }

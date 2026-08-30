@@ -7,6 +7,7 @@ import {
   SettingOutlined,
   ShopOutlined,
   ThunderboltOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -23,6 +24,7 @@ const items = [
   { key: '/reports', icon: <FileSearchOutlined />, label: '诊断报告' },
   { key: '/rules', icon: <ThunderboltOutlined />, label: '规则中心' },
   { key: '/geo', icon: <GlobalOutlined />, label: 'GEO 分析' },
+  { key: '/production-check', icon: <SafetyCertificateOutlined />, label: '试运行检查' },
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ];
 
@@ -60,7 +62,7 @@ export function AppLayout() {
             alignItems: 'center',
           }}
         >
-          <Typography.Text style={{ color: '#4a5b6c' }}>Made-in-China.com · Phase 4.2 · v0.6.0</Typography.Text>
+          <Typography.Text style={{ color: '#4a5b6c' }}>Made-in-China.com · Production Pilot · DRY_RUN</Typography.Text>
         </Header>
         <Content style={{ padding: 24, background: '#f4f6f9' }}>
           <Outlet />

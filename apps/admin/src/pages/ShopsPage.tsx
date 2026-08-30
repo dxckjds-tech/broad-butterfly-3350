@@ -29,6 +29,11 @@ export function ShopsPage() {
           { title: 'Google SEO', dataIndex: 'googleSeo', render: (v: number | null) => v ?? '-' },
           { title: 'GEO', dataIndex: 'geo', render: (v: number | null) => v ?? '-' },
           {
+            title: 'Pilot',
+            dataIndex: 'pilot',
+            render: (v: boolean | undefined) => (v === false ? '' : <Tag color="orange">PILOT</Tag>),
+          },
+          {
             title: '最近诊断时间',
             dataIndex: 'lastDiagnosisAt',
             render: (v: string | null) => (v ? new Date(v).toLocaleString() : '-'),

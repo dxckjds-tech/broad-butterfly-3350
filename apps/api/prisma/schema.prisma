@@ -24,6 +24,7 @@ model Shop {
   companyName     String
   shopUrl         String
   lastDiagnosisAt DateTime?
+  pilot           Boolean            @default(true)
   products        Product[]
   reports         DiagnosisReport[]
   micConnection   MicAccountConnection?
@@ -116,18 +117,23 @@ model MicAccountConnection {
 }
 
 model MicSyncJob {
-  id               String   @id @default(cuid())
-  shopId           String
-  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  modules          Json
-  status           String
-  productsSynced   Int      @default(0)
-  inquiriesSynced  Int      @default(0)
-  sourcingSynced   Int      @default(0)
-  errors           Json?
-  startedAt        DateTime?
-  finishedAt       DateTime?
-  createdAt        DateTime @default(now())
+  id                 String   @id @default(cuid())
+  shopId             String
+  shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  modules            Json
+  status             String
+  productsSynced     Int      @default(0)
+  inquiriesSynced    Int      @default(0)
+  sourcingSynced     Int      @default(0)
+  actor              String   @default("system")
+  dataMode           String   @default("LIVE")
+  dryRun             Boolean  @default(true)
+  aborted            Boolean  @default(false)
+  parserValidation   Json?
+  errors             Json?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime @default(now())
 }
 
 model MicSyncCursor {
@@ -159,6 +165,7 @@ model MicProductRecord {
   idConfidence       Float
   source             String   @default("MIC_VIRTUAL_OFFICE")
   evidenceLevel      String   @default("VERIFIED")
+  dataMode           String   @default("LIVE")
   syncedAt           DateTime
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -186,6 +193,7 @@ model MicInquiryRecord {
   idConfidence     Float
   source           String   @default("MIC_VIRTUAL_OFFICE")
   evidenceLevel    String   @default("VERIFIED")
+  dataMode         String   @default("LIVE")
   syncedAt         DateTime
   analyses         InquiryAnalysis[]
   drafts           InquiryReplyDraft[]
@@ -208,6 +216,7 @@ model MicSourcingRequest {
   publishedAt  DateTime?
   deadline     DateTime?
   status       String    @default("UNKNOWN")
+  dataMode     String    @default("LIVE")
   syncedAt     DateTime
   matches      RfqMatch[]
   createdAt    DateTime  @default(now())
@@ -245,4 +254,34 @@ model RfqMatch {
   sourcing    MicSourcingRequest  @relation(fields: [sourcingId], references: [id], onDelete: Cascade)
   payload     Json
   createdAt   DateTime            @default(now())
+}
+
+model ProductionErrorLog {
+  id        String   @id @default(cuid())
+  code      String
+  message   String
+  shopId    String?
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([code, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  shopId    String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+}
+
+model BackupRecord {
+  id           String   @id @default(cuid())
+  kind         String
+  filePath     String
+  createdAt    DateTime @default(now())
+  retainUntil  DateTime
 }
