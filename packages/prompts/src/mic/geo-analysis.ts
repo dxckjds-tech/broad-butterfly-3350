@@ -22,6 +22,7 @@ Hard rules:
 - Suggestions only; never write MIC forms.
 - Do not generate a full FAQ product page. Return 3–5 buyer-intent Q&A pairs.
 - If a fact is missing, the FAQ answer must say the listing does not state it. Do not invent an answer.
+- Recommendations may tell the seller what kind of fact to add, but must not invent specific industry names, certification names, factory size, employee counts, or numbers that are not on the listing.
 - Return JSON only.
 
 Verdicts:
