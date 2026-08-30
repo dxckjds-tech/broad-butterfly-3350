@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "AI 店铺医生",
+  "short_name": "店铺医生",
+  "description": "Trade AI Store Doctor — diagnose Made-in-China.com listings",
+  "version": "0.6.6",
+  "action": {
+    "default_title": "AI 店铺医生",
+    "default_popup": "src/pages/popup/index.html",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/pages/sidepanel/index.html"
+  },
+  "permissions": [
+    "sidePanel",
+    "tabs",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.made-in-china.com/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "http://localhost:5173/*",
+    "http://127.0.0.1:5173/*"
+  ],
+  "content_scripts": [
+    {
+      "js": [
+        "assets/index.ts-loader-CRTf2KvP.js"
+      ],
+      "matches": [
+        "*://*.made-in-china.com/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "*://*.made-in-china.com/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:5173/*"
+      ],
+      "resources": [
+        "assets/quality-Dhdge0G4.js",
+        "assets/index.ts-CdFKGv9w.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
+}

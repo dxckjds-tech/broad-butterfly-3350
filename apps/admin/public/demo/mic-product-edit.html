@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>修改产品</title>
+  </head>
+  <body>
+    <header>
+      <img src="https://img.example.com/logo/made-in-china.png" width="120" height="28" alt="Made-in-China Logo" />
+      <img src="https://img.example.com/icon/ai-mike.png" width="24" height="24" alt="AI麦可" />
+      <div class="company-name">Demo Hardware Co., Ltd.</div>
+    </header>
+    <h1>修改产品</h1>
+    <form>
+      <input type="hidden" name="csrfToken" value="SHOULD_NOT_READ" />
+      <input type="password" name="password" value="SHOULD_NOT_READ" />
+
+      <div class="form-item">
+        <label>基本信息</label>
+      </div>
+      <div class="form-item">
+        <label>产品名称</label>
+        <input type="text" name="prodName" value="High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use" />
+      </div>
+
+      <div class="form-item">
+        <label>已选子目录</label>
+        <span class="selected-category">Steam Cleaner</span>
+      </div>
+
+      <div class="form-item">
+        <label>关键词</label>
+        <div class="keyword-box">
+          <input type="text" value="Heavy Duty Cleaner" />
+          <input type="text" value="Wet and Dry Cleaner" />
+          <input type="text" value="Industrial Use Cleaner" />
+          <input type="text" value="Powerful Industrial Vacuum Cleaner" />
+          <input type="text" value="High Suction Vacuum Cleaner" />
+          <input type="text" value="Industrial Vacuum Cleaner" />
+          <input type="text" value="Wet Dry Vacuum" />
+          <input type="text" value="Heavy Duty Vacuum Cleaner" />
+        </div>
+      </div>
+
+      <div class="form-item">
+        <label>中心词</label>
+        <div class="center-box">
+          <label><input type="checkbox" checked /> cleaner</label>
+          <label><input type="checkbox" checked /> suction</label>
+        </div>
+      </div>
+
+      <div class="form-item">
+        <label>规格参数</label>
+        <table class="spec-table">
+          <tr>
+            <th>Model NO.</th>
+            <td><input type="text" value="HD-WD90" /></td>
+          </tr>
+          <tr>
+            <th>Power</th>
+            <td><input type="text" value="3000W" /></td>
+          </tr>
+          <tr>
+            <th>Voltage</th>
+            <td><input type="text" value="220V" /></td>
+          </tr>
+          <tr>
+            <th>Suction</th>
+            <td><input type="text" value="High Suction" /></td>
+          </tr>
+          <tr>
+            <th>Tank Capacity</th>
+            <td><input type="text" value="90L" /></td>
+          </tr>
+          <tr>
+            <th>Material</th>
+            <td><input type="text" value="Stainless Steel" /></td>
+          </tr>
+          <tr>
+            <th>Noise</th>
+            <td><input type="text" value="75dB" /></td>
+          </tr>
+          <tr>
+            <th>Application</th>
+            <td><input type="text" value="Industrial workshop" /></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="form-item">
+        <label>产品描述</label>
+        <textarea name="prodDesc">High quality industrial cleaner. Best quality factory price. Welcome to inquiry our hot sale product for export.</textarea>
+      </div>
+
+      <div class="form-item upload-box">
+        <label>产品图片</label>
+        <div class="pic-list">
+          <img class="prod-pic" src="https://img.example.com/product/vacuum-1.jpg" width="200" height="200" alt="product" />
+          <img class="prod-pic" src="https://img.example.com/product/vacuum-2.jpg" width="200" height="200" alt="product" />
+          <img src="https://img.example.com/icon/star.png" width="16" height="16" alt="评分星星" />
+        </div>
+      </div>
+
+      <div class="module collapsed" aria-expanded="false" style="display: none">
+        <h3>贸易信息</h3>
+        <label>MOQ</label>
+        <input type="text" name="moq" value="" />
+      </div>
+      <div class="module collapsed" aria-expanded="false" style="display: none">
+        <h3>OEM / ODM</h3>
+        <label><input type="checkbox" /> Customization</label>
+      </div>
+
+      <button type="submit">提交审核</button>
+    </form>
+  </body>
+</html>

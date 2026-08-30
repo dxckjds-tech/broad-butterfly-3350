@@ -1,0 +1,20 @@
+{
+  "name": "@trade-ai/diagnosis-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trade-ai/geo-engine": "workspace:*",
+    "@trade-ai/mic-rule-engine": "workspace:*",
+    "@trade-ai/seo-engine": "workspace:*",
+    "@trade-ai/shared-types": "workspace:*"
+  }
+}
