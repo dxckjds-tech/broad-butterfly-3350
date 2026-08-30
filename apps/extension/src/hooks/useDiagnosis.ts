@@ -1,6 +1,6 @@
 import type { DiagnosisResult, DiagnosisUiState, PlatformPageData } from '@trade-ai/shared-types';
 import { useCallback, useState } from 'react';
-import { diagnosePage, pingHealth } from '../services/diagnosis';
+import { diagnosePage } from '../services/diagnosis';
 import { queryActiveTab, reloadAndWait, requestPageData } from '../services/messaging';
 
 export function useDiagnosis() {
@@ -61,18 +61,13 @@ export function useDiagnosis() {
     if (!page) return;
     setState('ANALYZING');
     setError('');
-    const online = await pingHealth();
     try {
       const next = await diagnosePage(page);
       setResult(next);
       setState('SUCCESS');
-      if (!online || next.diagnosisId === 'local-offline') {
-        setError('后端未连接：本次使用本地规则诊断，结果未写入数据库。本机启动 pnpm dev:api 后可入库。');
-      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : '分析失败';
       setState('FAILED');
-      setError(message);
+      setError(err instanceof Error ? err.message : '分析失败');
     }
   }, [page]);
 

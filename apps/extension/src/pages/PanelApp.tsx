@@ -4,6 +4,7 @@ import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { pageTypeLabel, platformLabel } from '../utils/labels';
+import { EXTENSION_VERSION } from '../services/diagnosis';
 
 export function PanelApp() {
   const { state, page, result, error, loadPage, run } = useDiagnosis();
@@ -19,6 +20,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
+          <p className="eyebrow">v{EXTENSION_VERSION} · 本地规则诊断，无需后端</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -42,10 +44,7 @@ export function PanelApp() {
         <StatusBlock title="页面读取失败" detail="无法读取当前标签页。请刷新页面后重试，或确认已授权读取该站点。" />
       )}
       {state === 'OFFLINE' && (
-        <StatusBlock
-          title="后端离线"
-          detail={error || '本机未启动 API。仍可点击开始诊断，将使用本地规则（结果不入库）。'}
-        />
+        <StatusBlock title="后端离线" detail="当前版本已改为本地诊断，请点击开始诊断。无需启动 API。" />
       )}
       {state === 'FAILED' && (
         <StatusBlock title="分析失败" detail={error || '诊断请求失败，请稍后重试。'} />
@@ -56,7 +55,7 @@ export function PanelApp() {
         <button
           type="button"
           className="primary"
-          disabled={!page || state === 'ANALYZING' || state === 'UNRECOGNIZED'}
+          disabled={!page || state === 'ANALYZING'}
           onClick={() => void run()}
         >
           {state === 'ANALYZING' ? '诊断中…' : '开始诊断'}
