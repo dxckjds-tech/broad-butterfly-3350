@@ -22,7 +22,7 @@ export function PanelApp() {
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
-        <button type="button" className="ghost" onClick={() => void loadPage()}>
+        <button type="button" className="ghost" onClick={() => void loadPage(true)}>
           刷新页面
         </button>
       </header>

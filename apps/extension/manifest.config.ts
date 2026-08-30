@@ -27,7 +27,7 @@ export default defineManifest({
   side_panel: {
     default_path: 'src/pages/sidepanel/index.html',
   },
-  permissions: ['sidePanel', 'tabs', 'storage', 'activeTab'],
+  permissions: ['sidePanel', 'tabs', 'storage', 'activeTab', 'scripting'],
   host_permissions: [
     'https://*.made-in-china.com/*',
     'http://localhost:3000/*',
@@ -39,8 +39,8 @@ export default defineManifest({
     {
       matches: [
         '*://*.made-in-china.com/*',
-        'http://localhost:5173/demo/*',
-        'http://127.0.0.1:5173/demo/*',
+        'http://localhost:5173/*',
+        'http://127.0.0.1:5173/*',
       ],
       js: ['src/content/index.ts'],
       run_at: 'document_idle',

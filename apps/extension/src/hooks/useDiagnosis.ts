@@ -1,7 +1,7 @@
 import type { DiagnosisResult, DiagnosisUiState, PlatformPageData } from '@trade-ai/shared-types';
 import { useCallback, useState } from 'react';
 import { diagnosePage, pingHealth } from '../services/diagnosis';
-import { queryActiveTab, requestPageData } from '../services/messaging';
+import { queryActiveTab, reloadAndWait, requestPageData } from '../services/messaging';
 
 export function useDiagnosis() {
   const [state, setState] = useState<DiagnosisUiState>('READY');
@@ -9,7 +9,7 @@ export function useDiagnosis() {
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [error, setError] = useState('');
 
-  const loadPage = useCallback(async () => {
+  const loadPage = useCallback(async (reloadTab = false) => {
     setError('');
     try {
       const tab = await queryActiveTab();
@@ -17,6 +17,9 @@ export function useDiagnosis() {
         setState('UNRECOGNIZED');
         setPage(null);
         return;
+      }
+      if (reloadTab) {
+        await reloadAndWait(tab.id);
       }
       try {
         const data = await requestPageData(tab.id);
