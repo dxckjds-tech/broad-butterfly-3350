@@ -28,6 +28,54 @@ export const DIAGNOSIS_STATES = [
 ] as const;
 export type DiagnosisUiState = (typeof DIAGNOSIS_STATES)[number];
 
+export const FIELD_STATUSES = ['FOUND', 'MISSING', 'UNCERTAIN'] as const;
+export type FieldStatus = (typeof FIELD_STATUSES)[number];
+
+export const PARSE_QUALITY_FIELDS = [
+  'productName',
+  'companyName',
+  'description',
+  'images',
+  'specifications',
+  'moq',
+  'deliveryTime',
+  'oemAvailable',
+  'certifications',
+  'category',
+] as const;
+export type ParseQualityField = (typeof PARSE_QUALITY_FIELDS)[number];
+
+export const PARSE_QUALITY_WEIGHTS: Record<ParseQualityField, number> = {
+  productName: 20,
+  companyName: 15,
+  description: 15,
+  images: 10,
+  specifications: 15,
+  moq: 5,
+  deliveryTime: 5,
+  oemAvailable: 5,
+  certifications: 5,
+  category: 5,
+};
+
+export type FieldStatusMap = Partial<
+  Record<ParseQualityField | 'keywords' | 'rawText', FieldStatus>
+>;
+
+export interface ParseQuality {
+  score: number;
+  foundFields: string[];
+  missingFields: string[];
+  warnings: string[];
+}
+
+export interface ParseDebugResult {
+  detectedPageType: PageType;
+  fieldsFound: string[];
+  fieldsMissing: string[];
+  matchedSelectors: Record<string, string>;
+}
+
 export interface PlatformPageData {
   platform: Platform | 'UNKNOWN';
   pageType: PageType;
@@ -46,6 +94,9 @@ export interface PlatformPageData {
   certifications: string[];
   rawText: string;
   capturedAt: string;
+  fieldStatus?: FieldStatusMap;
+  parseQuality?: ParseQuality;
+  parseDebug?: ParseDebugResult | null;
 }
 
 export const SCORE_WEIGHTS = {
@@ -149,6 +200,9 @@ export function emptyPageData(overrides: Partial<PlatformPageData> = {}): Platfo
     certifications: [],
     rawText: '',
     capturedAt: new Date().toISOString(),
+    fieldStatus: {},
+    parseQuality: undefined,
+    parseDebug: null,
     ...overrides,
   };
 }

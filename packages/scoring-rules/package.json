@@ -9,9 +9,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@trade-ai/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }

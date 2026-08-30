@@ -1,12 +1,11 @@
 import type { PageType } from '@trade-ai/shared-types';
-import { looksLike } from '../base/dom';
+import { getFirstText, looksLike } from '../base/query';
 import { MIC_HOST_PATTERN, MIC_PRODUCT_URL_PATTERNS, MIC_SHOP_URL_PATTERNS } from './selectors';
 
 export function isMadeInChinaHost(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (MIC_HOST_PATTERN.test(parsed.hostname)) return true;
-    // Local demo fixture used in Phase 1 development.
     if (
       (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
       parsed.pathname.includes('/demo/mic-')
@@ -19,24 +18,48 @@ export function isMadeInChinaHost(url: string): boolean {
   }
 }
 
+function hasText(doc: Document, pattern: RegExp): boolean {
+  try {
+    return pattern.test(doc.body?.innerText ?? '');
+  } catch {
+    return false;
+  }
+}
+
 export function detectMicPageType(doc: Document, url: string): PageType {
   try {
-    if (looksLike(url, MIC_PRODUCT_URL_PATTERNS)) return 'PRODUCT';
-    if (looksLike(url, MIC_SHOP_URL_PATTERNS)) return 'SHOP';
+    const urlProduct = looksLike(url, MIC_PRODUCT_URL_PATTERNS);
+    const urlShop = looksLike(url, MIC_SHOP_URL_PATTERNS) && !urlProduct;
 
-    const hasProductSchema = Boolean(
-      doc.querySelector('[itemtype*="Product"], .product-name, .pro-name'),
+    const h1 = getFirstText(doc, ['h1'])?.text ?? '';
+    const hasH1 = h1.length >= 4;
+    const hasProductHeading = /product description|product details|specification|basic info/i.test(
+      doc.body?.innerText ?? '',
     );
-    const h1 = doc.querySelector('h1')?.textContent?.trim() ?? '';
-    if (hasProductSchema || /product|handle|machine|parts/i.test(h1)) {
-      return 'PRODUCT';
-    }
+    const hasContactSupplier = hasText(doc, /contact supplier|send inquiry|start order/i);
+    const hasGallery = Boolean(
+      doc.querySelector('.sr-proImg, .pro-img, .pic-box, [class*="gallery"] img, [itemprop="image"]'),
+    );
+    const hasSpecs = Boolean(
+      doc.querySelector('table, dl dt, [class*="basic"][class*="info"], [itemprop="additionalProperty"]'),
+    );
+    const hasProductSchema = Boolean(
+      doc.querySelector('[itemtype*="Product"], script[type="application/ld+json"]'),
+    );
+    const ogType = doc.querySelector('meta[property="og:type"]')?.getAttribute('content') ?? '';
 
-    const ogType = doc.querySelector('meta[property="og:type"]')?.getAttribute('content');
-    if (ogType === 'product') return 'PRODUCT';
-    if (ogType === 'profile' || ogType === 'company') return 'SHOP';
+    let productSignals = 0;
+    if (urlProduct) productSignals += 2;
+    if (hasH1) productSignals += 1;
+    if (hasProductHeading) productSignals += 1;
+    if (hasContactSupplier) productSignals += 1;
+    if (hasGallery) productSignals += 1;
+    if (hasSpecs) productSignals += 1;
+    if (hasProductSchema || ogType === 'product') productSignals += 1;
 
-    if (doc.querySelector('.company-name, .showroom')) return 'SHOP';
+    if (productSignals >= 2) return 'PRODUCT';
+    if (urlShop || ogType === 'profile' || ogType === 'company') return 'SHOP';
+    if (doc.querySelector('.company-name, .showroom, [class*="company-profile"]')) return 'SHOP';
     return 'UNKNOWN';
   } catch {
     return 'UNKNOWN';

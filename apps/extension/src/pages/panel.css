@@ -230,3 +230,45 @@ body {
   color: var(--muted);
   font-size: 13px;
 }
+
+.parse-status {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0 12px;
+}
+
+.parse-status h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.parse-status ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.parse-status__score,
+.parse-status__warn {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.parse-status__warn {
+  color: var(--high);
+}
+
+.parse-status__debug {
+  margin-top: 8px;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 11px;
+  background: #f4f6f9;
+  padding: 8px;
+  border-radius: 6px;
+}

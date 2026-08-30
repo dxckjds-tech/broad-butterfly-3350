@@ -30,4 +30,8 @@ export function captureCurrentPage(doc: Document, url: string): PlatformPageData
 
 export { madeInChinaAdapter };
 export { MadeInChinaAdapter } from './made-in-china';
+export { parseMadeInChinaPage } from './made-in-china/parser';
+export { detectMicPageType, isMadeInChinaHost } from './made-in-china/detector';
+export { computeParseQuality, fieldLabel } from './made-in-china/quality';
+export { getAllTexts, getFirstAttribute, getFirstText } from './base/query';
 export type { PlatformAdapter } from './base/adapter';

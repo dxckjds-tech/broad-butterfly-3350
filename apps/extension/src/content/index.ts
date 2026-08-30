@@ -1,29 +1,14 @@
 import { captureCurrentPage } from '@trade-ai/platform-adapters';
-import type { PlatformPageData } from '@trade-ai/shared-types';
+import { emptyPageData, type PlatformPageData } from '@trade-ai/shared-types';
 
 function readPage(): PlatformPageData {
   try {
     return captureCurrentPage(document, location.href);
   } catch {
-    return {
-      platform: 'UNKNOWN',
-      pageType: 'UNKNOWN',
+    return emptyPageData({
       url: location.href,
       title: document.title || '',
-      companyName: '',
-      productName: '',
-      description: '',
-      keywords: [],
-      images: [],
-      specifications: {},
-      category: '',
-      moq: '',
-      deliveryTime: '',
-      oemAvailable: false,
-      certifications: [],
-      rawText: '',
-      capturedAt: new Date().toISOString(),
-    };
+    });
   }
 }
 
