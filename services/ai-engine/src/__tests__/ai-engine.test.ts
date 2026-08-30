@@ -4,7 +4,9 @@ import { routeModel } from '../model-router';
 import { applyFactGuard } from '../fact-guard';
 import { createLlmProvider } from '../factory';
 import { optimizeTitle } from '../tasks/optimize-title';
+import { optimizeKeywords } from '../tasks/optimize-keywords';
 import { TitleOptimizeOutputSchema, coerceTitleStyles } from '../schemas/title';
+import { isBannedHotTerm, isCenterTermRepeat } from '../schemas/keyword';
 import { clearAiCache } from '../cache';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
@@ -116,6 +118,46 @@ describe('optimizeTitle mock path', () => {
     const second = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
     expect(spy).toHaveBeenCalledTimes(1);
     expect(second.meta.cached).toBe(true);
+  });
+});
+
+describe('optimizeKeywords mock path', () => {
+  beforeEach(() => clearAiCache());
+
+  it('returns at most 10 MIC keywords with first 3 HIGH', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
+    const provider = createLlmProvider(cfg);
+    const out = await optimizeKeywords({
+      provider,
+      config: cfg,
+      input: { ...SAMPLE, currentKeywords: SAMPLE.keywords, centerTerms: ['cleaner', 'suction'] },
+    });
+    expect(out.micKeywords.length).toBeGreaterThan(0);
+    expect(out.micKeywords.length).toBeLessThanOrEqual(10);
+    expect(out.micKeywords.slice(0, 3).every((k) => k.priority === 'HIGH')).toBe(true);
+    expect(out.primaryKeywords.length).toBeGreaterThan(0);
+    expect(out.meta.taskType).toBe('KEYWORD_OPTIMIZATION');
+    expect(out.micKeywords.some((k) => k.keyword.toLowerCase() === 'cleaner')).toBe(false);
+  });
+
+  it('caches the second keyword call on the same page', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const input = { ...SAMPLE, currentKeywords: SAMPLE.keywords };
+    await optimizeKeywords({ provider, config: cfg, input });
+    const second = await optimizeKeywords({ provider, config: cfg, input });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(second.meta.cached).toBe(true);
+  });
+});
+
+describe('keyword sanitizer helpers', () => {
+  it('flags center-term repeats and banned hot terms', () => {
+    expect(isCenterTermRepeat('cleaner', ['cleaner', 'suction'])).toBe(true);
+    expect(isCenterTermRepeat('wet dry vacuum cleaner', ['cleaner'])).toBe(false);
+    expect(isBannedHotTerm('cheap wholesale', '')).toBe(true);
+    expect(isBannedHotTerm('industrial vacuum', '')).toBe(false);
   });
 });
 

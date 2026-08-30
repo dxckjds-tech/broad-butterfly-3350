@@ -24,6 +24,8 @@ export function IssueCard({
   onAiGenerate?: () => void;
 }) {
   const titleIssue = issue.id.startsWith('mic-title');
+  const keywordIssue = issue.id === 'google-keyword-count' || issue.id.startsWith('mic-primary-keyword');
+  const canAi = titleIssue || keywordIssue;
   return (
     <article className={`issue issue--${TONE[issue.severity]}`}>
       <div className="issue__meta">
@@ -37,7 +39,7 @@ export function IssueCard({
         {issue.suggestion}
       </p>
       <div className="issue__actions">
-        <button type="button" disabled={!titleIssue} onClick={() => titleIssue && onAiGenerate?.()}>
+        <button type="button" disabled={!canAi} onClick={() => canAi && onAiGenerate?.()}>
           AI生成
         </button>
         <button type="button" onClick={() => void copyText(issue.suggestion)}>

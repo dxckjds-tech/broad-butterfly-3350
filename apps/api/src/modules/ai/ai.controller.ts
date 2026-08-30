@@ -15,4 +15,9 @@ export class AiController {
   optimizeTitle(@Body() dto: OptimizeTitleDto) {
     return this.ai.optimizeMicTitle(dto);
   }
+
+  @Post('mic/optimize-keywords')
+  optimizeKeywords(@Body() dto: OptimizeTitleDto) {
+    return this.ai.optimizeMicKeywords(dto);
+  }
 }

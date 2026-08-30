@@ -392,6 +392,47 @@ export interface TitleOptimizePayload {
   };
 }
 
+export interface KeywordSuggestion {
+  keyword: string;
+  reason: string;
+  usedFacts: string[];
+  warnings: string[];
+  priority?: 'HIGH' | 'MEDIUM';
+}
+
+export interface MicKeywordSuggestion {
+  keyword: string;
+  priority: 'HIGH' | 'MEDIUM';
+  reason: string;
+}
+
+export interface KeywordOptimizePayload {
+  currentKeywords: string[];
+  problems: string[];
+  primaryKeywords: KeywordSuggestion[];
+  secondaryKeywords: KeywordSuggestion[];
+  buyerIntentKeywords: KeywordSuggestion[];
+  applicationKeywords: KeywordSuggestion[];
+  micKeywords: MicKeywordSuggestion[];
+  factGuard: {
+    ok: boolean;
+    warnings: string[];
+    removed: Array<{ key: string; value: string }>;
+  };
+  meta: {
+    taskType: string;
+    provider: string;
+    model: string;
+    latency: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    promptVersion: string;
+    cached: boolean;
+    engineVersion: string;
+  };
+}
+
 export interface ShopSummary {
   id: string;
   companyName: string;

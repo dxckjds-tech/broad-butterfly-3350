@@ -4,9 +4,11 @@ import { IssueCard } from './IssueCard';
 export function IssueList({
   issues,
   onTitleAi,
+  onKeywordAi,
 }: {
   issues: DiagnosisIssue[];
   onTitleAi?: () => void;
+  onKeywordAi?: () => void;
 }) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
@@ -22,7 +24,17 @@ export function IssueList({
       </div>
       <div className="issue-list">
         {issues.map((issue) => (
-          <IssueCard key={issue.id} issue={issue} onAiGenerate={onTitleAi} />
+          <IssueCard
+            key={issue.id}
+            issue={issue}
+            onAiGenerate={
+              issue.id.startsWith('mic-title')
+                ? onTitleAi
+                : issue.id === 'google-keyword-count' || issue.id.startsWith('mic-primary-keyword')
+                  ? onKeywordAi
+                  : undefined
+            }
+          />
         ))}
       </div>
     </section>

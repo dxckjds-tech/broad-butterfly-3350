@@ -360,3 +360,33 @@ body {
   color: var(--text) !important;
   font-weight: 600;
 }
+
+.ai-kw__arrow {
+  text-align: center;
+  margin: 4px 0;
+  color: var(--muted);
+}
+
+.ai-kw__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-kw__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-kw__list em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  color: #17663a;
+  font-weight: 600;
+}

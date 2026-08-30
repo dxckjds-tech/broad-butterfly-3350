@@ -24,3 +24,9 @@ export {
   TITLE_OPTIMIZER_SYSTEM,
   buildTitleOptimizerUserPrompt,
 } from './mic/title-optimizer';
+
+export {
+  KEYWORD_OPTIMIZER_PROMPT_VERSION,
+  KEYWORD_OPTIMIZER_SYSTEM,
+  buildKeywordOptimizerUserPrompt,
+} from './mic/keyword-optimizer';

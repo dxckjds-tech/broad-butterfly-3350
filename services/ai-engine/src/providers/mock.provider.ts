@@ -27,6 +27,7 @@ export class MockLLMProvider implements LLMProvider {
 
   async generateStructured(input: GenerateStructuredInput): Promise<GenerateStructuredResult> {
     const title = this.extractField(input.prompt, 'productName') || 'Product';
+    const current = this.extractList(input.prompt, 'currentKeywords');
     const page = emptyPageData({
       productName: title,
       title,
@@ -38,6 +39,33 @@ export class MockLLMProvider implements LLMProvider {
       /\bvacuum cleaner\b/i.test(title)
         ? 'vacuum cleaner'
         : detected || 'product';
+
+    if (input.schemaName === 'KeywordOptimizeOutput') {
+      const mic = [
+        { keyword: `industrial ${core}`, priority: 'HIGH' as const, reason: 'Lead with product noun and use case.' },
+        { keyword: `heavy duty ${core}`, priority: 'HIGH' as const, reason: 'Matches listed duty rating.' },
+        { keyword: `wet dry ${core}`, priority: 'HIGH' as const, reason: 'Keeps wet/dry capability from the title.' },
+        { keyword: 'workshop vacuum', priority: 'MEDIUM' as const, reason: 'Application phrase for buyers.' },
+        { keyword: 'high suction vacuum', priority: 'MEDIUM' as const, reason: 'Uses the listed suction fact.' },
+      ];
+      const data = {
+        currentKeywords: current,
+        problems: ['Mock provider: no live LLM key', 'Keywords may overlap the title'],
+        primaryKeywords: [{ keyword: `industrial ${core}`, reason: 'Core product phrase.', usedFacts: [title], warnings: [] }],
+        secondaryKeywords: [{ keyword: 'high suction vacuum', reason: 'Attribute phrase.', usedFacts: ['high suction'], warnings: [] }],
+        buyerIntentKeywords: [{ keyword: `heavy duty ${core}`, reason: 'Buyer search phrase.', usedFacts: ['heavy duty'], warnings: [] }],
+        applicationKeywords: [{ keyword: 'workshop vacuum', reason: 'Scene phrase.', usedFacts: ['industrial'], warnings: [] }],
+        micKeywords: mic,
+      };
+      return {
+        data,
+        raw: JSON.stringify(data),
+        model: 'mock',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        repaired: false,
+      };
+    }
+
     const data = {
       originalTitle: title,
       coreProductTerm: core,
@@ -101,5 +129,11 @@ export class MockLLMProvider implements LLMProvider {
   private extractField(prompt: string, field: string): string {
     const m = prompt.match(new RegExp(`${field}:\\s*(.+)`));
     return m?.[1]?.trim() && m[1] !== '(none)' ? m[1].trim() : '';
+  }
+
+  private extractList(prompt: string, field: string): string[] {
+    const raw = this.extractField(prompt, field);
+    if (!raw) return [];
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
   }
 }
