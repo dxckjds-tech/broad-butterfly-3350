@@ -24,6 +24,9 @@ import {
 } from './extract';
 import { computeParseQuality, downgradeMissingWhenUncertain, statusForValue } from './quality';
 import { MIC_SELECTORS } from './selectors';
+import { detectVirtualOfficePageType } from './virtual-office/product-edit/detector';
+import { parseMicProductEditPage } from './virtual-office/product-edit/parser';
+import { MIC_ADAPTER_VERSION } from './virtual-office/product-edit/types';
 
 function statusFromLength(value: string, min: number, uncertain: boolean): ReturnType<typeof statusForValue> {
   return statusForValue(value.trim().length >= min, { uncertain });
@@ -31,8 +34,13 @@ function statusFromLength(value: string, min: number, uncertain: boolean): Retur
 
 export function parseMadeInChinaPage(doc: Document, url: string): PlatformPageData {
   try {
+    const vo = detectVirtualOfficePageType(doc, url);
+    if (vo?.pageType === 'MIC_PRODUCT_EDIT') {
+      return parseMicProductEditPage(doc, url);
+    }
+
     const matchedSelectors: Record<string, string> = {};
-    const pageType = detectMicPageType(doc, url);
+    const pageType = vo?.pageType ?? detectMicPageType(doc, url);
     const ldProduct = jsonLdProduct(doc);
 
     const ogTitle = metaContent(doc, ['og:title', 'twitter:title']);
@@ -159,6 +167,9 @@ export function parseMadeInChinaPage(doc: Document, url: string): PlatformPageDa
     return emptyPageData({
       platform: 'MADE_IN_CHINA',
       pageType,
+      pageTypeConfidence: vo?.confidence ?? (pageType === 'UNKNOWN' ? 0.2 : 0.7),
+      diagnosisMode: pageType === 'MIC_PRODUCT_LIST' ? 'BACKEND_LIST' : 'PUBLIC_PAGE',
+      adapterVersion: MIC_ADAPTER_VERSION,
       url,
       title: cleanProductTitle(ogTitle?.text || doc.title || productName),
       companyName,

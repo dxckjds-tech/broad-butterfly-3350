@@ -1,4 +1,7 @@
 export { MIC_VO_URLS, MIC_INTEGRATION_VERSION } from './urls';
+export { parseMicProductEditPage } from './product-edit/parser';
+export { detectProductEditConfidence, detectVirtualOfficePageType, isMicProductEditPage } from './product-edit/detector';
+export { MIC_ADAPTER_VERSION } from './product-edit/types';
 export { parseVoProducts, mapProductStatus } from './products/parse';
 export { parseVoInquiries, parseVoInquiryDetail } from './inquiries/parse';
 export { parseVoSourcing } from './sourcing/parse';

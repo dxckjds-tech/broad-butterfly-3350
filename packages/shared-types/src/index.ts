@@ -1,8 +1,35 @@
 export const PLATFORMS = ['MADE_IN_CHINA', 'ALIBABA', 'INDEPENDENT_SITE'] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
-export const PAGE_TYPES = ['PRODUCT', 'SHOP', 'UNKNOWN'] as const;
+export const PAGE_TYPES = [
+  'PRODUCT',
+  'SHOP',
+  'MIC_PRODUCT_EDIT',
+  'MIC_PRODUCT_LIST',
+  'MIC_INQUIRY_LIST',
+  'MIC_INQUIRY_DETAIL',
+  'MIC_VIRTUAL_OFFICE',
+  'UNKNOWN',
+] as const;
 export type PageType = (typeof PAGE_TYPES)[number];
+
+export const DIAGNOSIS_MODES = ['PUBLIC_PAGE', 'BACKEND_EDIT', 'BACKEND_LIST'] as const;
+export type DiagnosisMode = (typeof DIAGNOSIS_MODES)[number];
+
+export const FIELD_EVIDENCE_SOURCES = [
+  'BACKEND_FORM',
+  'BACKEND_TEXT',
+  'PUBLIC_PAGE',
+  'INFERRED',
+  'UNKNOWN',
+] as const;
+export type FieldEvidenceSource = (typeof FIELD_EVIDENCE_SOURCES)[number];
+
+export const SECTION_LOAD_STATES = ['LOADED', 'PARTIAL', 'NOT_LOADED'] as const;
+export type SectionLoadState = (typeof SECTION_LOAD_STATES)[number];
+
+export const CATEGORY_RELEVANCE_STATES = ['MATCH', 'POSSIBLE_MISMATCH', 'MISMATCH', 'UNCERTAIN'] as const;
+export type CategoryRelevanceStatus = (typeof CATEGORY_RELEVANCE_STATES)[number];
 
 export const ISSUE_CATEGORIES = [
   'MIC_SEO',
@@ -71,9 +98,59 @@ export interface ParseQuality {
 
 export interface ParseDebugResult {
   detectedPageType: PageType;
+  pageTypeConfidence?: number;
   fieldsFound: string[];
   fieldsMissing: string[];
   matchedSelectors: Record<string, string>;
+  title?: string;
+  category?: string;
+  keywords?: string[];
+  centerTerms?: string[];
+  specifications?: Record<string, string>;
+  images?: string[];
+  moq?: string;
+  deliveryTime?: string;
+  oem?: boolean | null;
+  sectionAvailability?: Record<string, SectionLoadState>;
+  fieldSource?: Record<string, FieldEvidenceSource>;
+  parseConfidence?: number;
+}
+
+export interface DataReadinessItem {
+  key: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface DataReadiness {
+  score: number;
+  items: DataReadinessItem[];
+}
+
+export interface SpecIgnoreItem {
+  field: string;
+  value: string;
+  reason: string;
+}
+
+export interface SpecParseDebug {
+  rawSpecificationCount: number;
+  meaningfulSpecificationCount: number;
+  ignoredSpecifications: SpecIgnoreItem[];
+}
+
+export interface CategoryRelevanceAnalysis {
+  status: CategoryRelevanceStatus;
+  title: string;
+  category: string;
+  message: string;
+}
+
+export interface ProductContentState {
+  draft: Record<string, string>;
+  published: Record<string, string>;
+  difference: string[];
 }
 
 export interface PlatformPageData {
@@ -97,6 +174,20 @@ export interface PlatformPageData {
   fieldStatus?: FieldStatusMap;
   parseQuality?: ParseQuality;
   parseDebug?: ParseDebugResult | null;
+  pageTypeConfidence?: number;
+  diagnosisMode?: DiagnosisMode;
+  adapterVersion?: string;
+  primaryKeywords?: string[];
+  keywordCount?: number;
+  centerTerms?: string[];
+  centerTermCount?: number;
+  categorySource?: string;
+  categoryRelevance?: CategoryRelevanceAnalysis;
+  specDebug?: SpecParseDebug;
+  sectionAvailability?: Record<string, SectionLoadState>;
+  fieldEvidence?: Record<string, FieldEvidenceSource>;
+  dataReadiness?: DataReadiness;
+  productContentState?: ProductContentState;
 }
 
 export const SCORE_WEIGHTS = {
@@ -304,6 +395,20 @@ export function emptyPageData(overrides: Partial<PlatformPageData> = {}): Platfo
     fieldStatus: {},
     parseQuality: undefined,
     parseDebug: null,
+    pageTypeConfidence: 0,
+    diagnosisMode: 'PUBLIC_PAGE',
+    adapterVersion: undefined,
+    primaryKeywords: [],
+    keywordCount: 0,
+    centerTerms: [],
+    centerTermCount: 0,
+    categorySource: undefined,
+    categoryRelevance: undefined,
+    specDebug: undefined,
+    sectionAvailability: undefined,
+    fieldEvidence: undefined,
+    dataReadiness: undefined,
+    productContentState: undefined,
     ...overrides,
   };
 }

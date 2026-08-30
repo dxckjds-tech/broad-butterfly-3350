@@ -74,7 +74,7 @@ function missingCopy(ctx: RuleContext, fieldLabel: string, certainTitle: string,
 
 export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   const results: RuleResult[] = [];
-  const product = ctx.page.pageType === 'PRODUCT';
+  const product = ctx.page.pageType === 'PRODUCT' || ctx.page.pageType === 'MIC_PRODUCT_EDIT';
   const skip = (id: string) =>
     make(ctx, id, 'SKIPPED', {
       title: '非产品页跳过',
@@ -306,7 +306,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   let specStatus: RuleResult['status'] = 'PASS';
   let specSev: IssueSeverity = 'LOW';
   if (ctx.specTotal === 0) {
-    if (ctx.parseUncertain || specField === 'UNCERTAIN') {
+    if (ctx.parseUncertain || specField === 'UNCERTAIN' || ctx.page.sectionAvailability?.SPECIFICATIONS === 'NOT_LOADED') {
       specStatus = 'UNCERTAIN';
       specSev = 'LOW';
     } else {
@@ -379,13 +379,27 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   );
 
   const oemText = /oem|odm|custom logo|customiz/i.test(ctx.blob) || ctx.page.oemAvailable;
+  const oemField = ctx.field('oemAvailable');
+  const oemContentStatus: RuleResult['status'] =
+    oemField === 'UNCERTAIN' && !oemText ? 'UNCERTAIN' : oemText ? 'PASS' : ctx.customRelevant ? 'FAIL' : 'PASS';
   results.push(
-    make(ctx, 'content-oem-coverage', oemText ? 'PASS' : ctx.customRelevant ? 'FAIL' : 'PASS', {
-      title: oemText ? '内容提到定制/OEM' : '内容未覆盖 OEM',
-      description: oemText ? '页面提及 OEM/ODM 或定制。' : '正文未覆盖定制能力。',
+    make(ctx, 'content-oem-coverage', oemContentStatus, {
+      title:
+        oemContentStatus === 'UNCERTAIN'
+          ? 'OEM 区域未加载，暂不判定不支持'
+          : oemText
+            ? '内容提到定制/OEM'
+            : '内容未覆盖 OEM',
+      description:
+        oemContentStatus === 'UNCERTAIN'
+          ? '后台 OEM/ODM 模块尚未加载，不能因为正文未出现 OEM 就判不支持。'
+          : oemText
+            ? '页面提及 OEM/ODM 或定制。'
+            : '正文未覆盖定制能力。',
       suggestion: oemSuggestion(ctx.customRelevant),
       severity: 'LOW',
-      evidence: { oemText, isCustomizationRelevant: ctx.customRelevant },
+      scoreImpact: oemContentStatus === 'UNCERTAIN' ? 0 : undefined,
+      evidence: { oemText, isCustomizationRelevant: ctx.customRelevant, oemParseStatus: oemField },
     }),
   );
 
@@ -412,12 +426,20 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   );
 
   const hasDelivery = Boolean(ctx.page.deliveryTime?.trim()) || Boolean(SECTION_KEYS.delivery?.test(ctx.blob));
+  const deliveryField = ctx.field('deliveryTime');
+  const deliveryStatus: RuleResult['status'] = hasDelivery ? 'PASS' : deliveryField === 'UNCERTAIN' ? 'UNCERTAIN' : 'FAIL';
   results.push(
-    make(ctx, 'content-delivery-coverage', hasDelivery ? 'PASS' : 'FAIL', {
-      title: hasDelivery ? '有交期信息' : '交期信息不足',
-      description: hasDelivery ? `交期字段：${ctx.page.deliveryTime || '正文提及'}` : '未识别交期。',
+    make(ctx, 'content-delivery-coverage', deliveryStatus, {
+      title: deliveryStatus === 'UNCERTAIN' ? '交期区域未加载' : hasDelivery ? '有交期信息' : '交期信息不足',
+      description:
+        deliveryStatus === 'UNCERTAIN'
+          ? '贸易信息未展开，交期状态为 UNCERTAIN，不按缺失扣分。'
+          : hasDelivery
+            ? `交期字段：${ctx.page.deliveryTime || '正文提及'}`
+            : '未识别交期。',
       suggestion: '写明常规交期区间，并说明定制会延长。',
       severity: 'LOW',
+      scoreImpact: deliveryStatus === 'UNCERTAIN' ? 0 : undefined,
       evidence: { deliveryTime: ctx.page.deliveryTime },
       fieldSource: 'deliveryTime',
     }),
@@ -437,7 +459,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   let imgStatus: RuleResult['status'] = 'PASS';
   let imgSev: IssueSeverity = 'LOW';
   if (ctx.uniqueImageCount === 0) {
-    if (ctx.parseUncertain || ctx.field('images') === 'UNCERTAIN') {
+    if (ctx.parseUncertain || ctx.field('images') === 'UNCERTAIN' || ctx.page.sectionAvailability?.IMAGES === 'NOT_LOADED' || ctx.page.sectionAvailability?.IMAGES === 'PARTIAL') {
       imgStatus = 'UNCERTAIN';
       imgSev = 'LOW';
     } else {
@@ -465,6 +487,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
       description: `去重后 ${ctx.uniqueImageCount} 张（主图约 ${ctx.mainImageCount}，细节约 ${ctx.detailImageCount}），重复率 ${(ctx.duplicateImageRatio * 100).toFixed(0)}%。`,
       suggestion: '提供主图、细节、场景图；相同 URL 不计入多图。',
       severity: imgSev,
+      scoreImpact: imgStatus === 'UNCERTAIN' ? 0 : undefined,
       evidence: {
         imageCount: ctx.page.images.length,
         uniqueCount: ctx.uniqueImageCount,
@@ -494,7 +517,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   let moqStatus: RuleResult['status'] = moqFound ? 'PASS' : 'FAIL';
   let moqSev: IssueSeverity = 'LOW';
   if (!moqFound) {
-    if (ctx.parseUncertain && ctx.field('moq') !== 'MISSING') {
+    if (ctx.field('moq') === 'UNCERTAIN' || (ctx.parseUncertain && ctx.field('moq') !== 'MISSING')) {
       moqStatus = 'UNCERTAIN';
       moqSev = 'LOW';
     } else if (ctx.profile === 'CUSTOM_MANUFACTURING') {
@@ -517,6 +540,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
           ? '设备类可写 1 set 及选配说明，避免含糊。'
           : '明确 MOQ 与是否支持混批，定制单需说明打样起订。',
       severity: moqSev,
+      scoreImpact: moqStatus === 'UNCERTAIN' ? 0 : undefined,
       evidence: { moq: ctx.page.moq, productTypeProfile: ctx.profile },
       fieldSource: 'moq',
       confidence: moqFound ? moqConf : ctx.parseUncertain ? 0.45 : 0.85,
@@ -525,7 +549,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
 
   let oemStatus: RuleResult['status'] = ctx.page.oemAvailable || oemText ? 'PASS' : 'FAIL';
   let oemSev: IssueSeverity = ctx.customRelevant ? 'MEDIUM' : 'LOW';
-  if (oemStatus === 'FAIL' && ctx.parseUncertain && ctx.field('oemAvailable') !== 'FOUND') {
+  if (oemStatus === 'FAIL' && (ctx.field('oemAvailable') === 'UNCERTAIN' || (ctx.parseUncertain && ctx.field('oemAvailable') !== 'FOUND'))) {
     oemStatus = 'UNCERTAIN';
     oemSev = 'LOW';
   }
@@ -535,6 +559,7 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
       description: `isCustomizationRelevant=${ctx.customRelevant}，profile=${ctx.profile}。`,
       suggestion: oemSuggestion(ctx.customRelevant),
       severity: oemSev,
+      scoreImpact: oemStatus === 'UNCERTAIN' ? 0 : undefined,
       evidence: { oemAvailable: ctx.page.oemAvailable, isCustomizationRelevant: ctx.customRelevant, profile: ctx.profile },
       fieldSource: 'oemAvailable',
     }),
@@ -572,16 +597,101 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
   );
 
   const kw = ctx.page.keywords.filter((k) => k.trim()).length;
+  const kwParse = ctx.field('keywords');
+  let kwStatus: RuleResult['status'] = kw >= 3 ? 'PASS' : 'FAIL';
+  let kwTitle = kw >= 3 ? '关键词覆盖尚可' : '关键词覆盖不足';
+  let kwDesc = `可识别关键词 ${kw} 个（基础规则）。`;
+  if (kwParse === 'UNCERTAIN') {
+    kwStatus = 'UNCERTAIN';
+    kwTitle = '暂未可靠识别后台关键词，请确认。';
+    kwDesc = '关键词解析状态为 UNCERTAIN，不能按 0 个关键词扣分。';
+  } else if (kwParse === 'FOUND' && kw === 0) {
+    kwStatus = 'FAIL';
+    kwTitle = '关键词缺失';
+    kwDesc = '已定位关键词区域，但未读取到关键词。';
+  }
   results.push(
-    make(ctx, 'google-keyword-count', kw >= 3 ? 'PASS' : 'FAIL', {
-      title: kw >= 3 ? '关键词覆盖尚可' : '关键词覆盖不足',
-      description: `可识别关键词 ${kw} 个（基础规则）。`,
-      suggestion: '补充核心词、同义词与长尾，不要堆砌到标题。',
-      severity: 'MEDIUM',
-      evidence: { keywordCount: kw },
+    make(ctx, 'google-keyword-count', kwStatus, {
+      title: kwTitle,
+      description: kwDesc,
+      suggestion: '补充核心词、同义词与长尾，不要堆砌到标题。前 3 个关键词权重更高。',
+      severity: kwStatus === 'UNCERTAIN' ? 'LOW' : 'MEDIUM',
+      scoreImpact: kwStatus === 'UNCERTAIN' ? 0 : undefined,
+      evidence: {
+        keywordCount: kw,
+        keywordParseStatus: kwParse,
+        primaryKeywords: ctx.page.primaryKeywords ?? ctx.page.keywords.slice(0, 3),
+      },
       fieldSource: 'keywords',
     }),
   );
+
+  const primary = ctx.page.primaryKeywords?.length ? ctx.page.primaryKeywords : ctx.page.keywords.slice(0, 3);
+  const titleLow = title.toLowerCase();
+  const core = (ctx.coreProductTerm || '').toLowerCase();
+  const catLow = (ctx.page.category || '').toLowerCase();
+  if (product) {
+    primary.forEach((keyword, index) => {
+    const k = keyword.toLowerCase();
+    const overlapTitle = k.split(/\s+/).filter((w) => w.length > 2 && titleLow.includes(w)).length > 0;
+    const overlapCore = Boolean(core) && (k.includes(core) || core.includes(k.split(/\s+/).pop() || ''));
+    const overlapCat = Boolean(catLow) && k.split(/\s+/).some((w) => w.length > 2 && catLow.includes(w));
+    const aligned = overlapTitle || overlapCore || overlapCat;
+    results.push(
+      make(ctx, `mic-primary-keyword-${index + 1}`, !keyword ? 'SKIPPED' : aligned ? 'PASS' : 'FAIL', {
+        title: aligned ? `Keyword #${index + 1} 与标题/中心词一致` : `Keyword #${index + 1} 与标题/类目一致性偏弱`,
+        description: `前三关键词：${keyword}。对照 Title / Core Term / Category。`,
+        suggestion: '保证前 3 个关键词覆盖产品中心词，并与标题、类目一致。',
+        severity: 'LOW',
+        evidence: { keyword, index: index + 1, overlapTitle, overlapCore, overlapCat },
+        fieldSource: 'keywords',
+      }),
+    );
+    });
+  }
+
+  const centers = ctx.page.centerTerms ?? [];
+  if (ctx.page.pageType === 'MIC_PRODUCT_EDIT' || centers.length) {
+    const missing = centers.filter((term) => !titleLow.includes(term.toLowerCase()));
+    results.push(
+      make(ctx, 'mic-center-term-title', centers.length === 0 ? 'UNCERTAIN' : missing.length ? 'FAIL' : 'PASS', {
+        title: missing.length ? '中心词与标题不完全一致' : centers.length ? '中心词与标题一致' : '中心词暂未可靠识别',
+        description: `centerTerms=${centers.join(', ') || '—'}`,
+        suggestion: '中心词应出现在产品名称中。',
+        severity: 'LOW',
+        scoreImpact: centers.length === 0 ? 0 : undefined,
+        evidence: { centerTerms: centers, missingInTitle: missing },
+      }),
+    );
+  }
+
+  const relevance = ctx.page.categoryRelevance;
+  if (ctx.page.pageType === 'MIC_PRODUCT_EDIT' && ctx.page.category) {
+    const relStatus =
+      !relevance || relevance.status === 'UNCERTAIN'
+        ? 'UNCERTAIN'
+        : relevance.status === 'MATCH'
+          ? 'PASS'
+          : 'FAIL';
+    results.push(
+      make(ctx, 'mic-category-relevance', relStatus, {
+        title:
+          relevance?.status === 'MATCH'
+            ? '类目与产品名称匹配'
+            : '当前产品名称与所选 MIC 子目录可能存在匹配度问题，建议人工确认类目。',
+        description: relevance?.message ?? `Title + Selected Category：${title} / ${ctx.page.category}`,
+        suggestion: '不要自动修改类目。请人工确认 Steam Cleaner 等子目录是否与真空吸尘器产品一致。',
+        severity: relevance?.status === 'MISMATCH' ? 'HIGH' : relStatus === 'FAIL' ? 'MEDIUM' : 'LOW',
+        evidence: {
+          title,
+          category: ctx.page.category,
+          categorySource: ctx.page.categorySource,
+          status: relevance?.status,
+        },
+        fieldSource: 'category',
+      }),
+    );
+  }
 
   results.push(
     make(ctx, 'geo-application', ctx.hasApplication ? 'PASS' : 'FAIL', {

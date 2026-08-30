@@ -35,4 +35,7 @@ export { detectMicPageType, isMadeInChinaHost } from './made-in-china/detector';
 export { computeParseQuality, fieldLabel } from './made-in-china/quality';
 export { getAllTexts, getFirstAttribute, getFirstText } from './base/query';
 export type { PlatformAdapter } from './base/adapter';
+export { MIC_ADAPTER_VERSION } from './made-in-china/virtual-office/product-edit/types';
+export { parseMicProductEditPage } from './made-in-china/virtual-office/product-edit/parser';
+export { detectProductEditConfidence, detectVirtualOfficePageType } from './made-in-china/virtual-office/product-edit/detector';
 export * from './made-in-china/virtual-office';

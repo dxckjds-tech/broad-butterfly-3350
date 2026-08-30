@@ -57,7 +57,7 @@ export function buildRuleContext(page: PlatformPageData): RuleContext {
     page,
     parseScore,
     parseLow: parseScore < PARSE_QUALITY_LOW,
-    parseUncertain: parseScore < PARSE_QUALITY_UNCERTAIN,
+    parseUncertain: parseScore < PARSE_QUALITY_UNCERTAIN || (page.dataReadiness?.score ?? 100) < 70,
     blob,
     profile,
     customRelevant: isCustomizationRelevant(profile),

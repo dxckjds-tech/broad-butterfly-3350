@@ -22,7 +22,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC 后台同步</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -32,8 +32,11 @@ export function PanelApp() {
       </header>
 
       <section className="panel__page">
-        <span className="eyebrow">当前页面</span>
+        <span className="eyebrow">{page?.pageType === 'MIC_PRODUCT_EDIT' ? 'MIC后台 · 产品编辑' : '当前页面'}</span>
         <h2>{productName}</h2>
+        {page?.pageType === 'MIC_PRODUCT_EDIT' && page.category ? (
+          <p className="eyebrow">类目：{page.category}</p>
+        ) : null}
       </section>
 
       {state === 'UNRECOGNIZED' && (

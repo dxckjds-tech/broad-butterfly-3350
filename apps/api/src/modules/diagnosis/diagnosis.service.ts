@@ -45,7 +45,7 @@ export class DiagnosisService {
     }
 
     let productId: string | null = null;
-    if (page.pageType === 'PRODUCT' && page.url) {
+    if ((page.pageType === 'PRODUCT' || page.pageType === 'MIC_PRODUCT_EDIT') && page.url) {
       const existing = await this.prisma.product.findFirst({
         where: { shopId: shop.id, url: page.url },
       });

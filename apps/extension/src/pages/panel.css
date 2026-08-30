@@ -259,8 +259,16 @@ body {
   color: var(--muted);
 }
 
-.parse-status__warn {
-  color: var(--high);
+.parse-status__ready {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.parse-status__debug {
+  max-height: 180px;
+  overflow: auto;
+  font-size: 10px;
+  background: #f4f6f9;
+  padding: 8px;
 }
 
 .mic-sync {

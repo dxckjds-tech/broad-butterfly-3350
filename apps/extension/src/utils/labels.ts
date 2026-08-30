@@ -10,6 +10,11 @@ export function platformLabel(platform: string): string {
 export function pageTypeLabel(pageType: PageType | string): string {
   if (pageType === 'PRODUCT') return '产品页';
   if (pageType === 'SHOP') return '店铺页';
+  if (pageType === 'MIC_PRODUCT_EDIT') return 'MIC后台 · 产品编辑';
+  if (pageType === 'MIC_PRODUCT_LIST') return 'MIC后台 · 产品列表';
+  if (pageType === 'MIC_INQUIRY_LIST') return 'MIC后台 · 询盘列表';
+  if (pageType === 'MIC_INQUIRY_DETAIL') return 'MIC后台 · 询盘详情';
+  if (pageType === 'MIC_VIRTUAL_OFFICE') return 'MIC后台';
   return '未识别';
 }
 

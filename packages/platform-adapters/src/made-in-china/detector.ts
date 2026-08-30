@@ -1,5 +1,6 @@
 import type { PageType } from '@trade-ai/shared-types';
 import { getFirstText, looksLike } from '../base/query';
+import { detectVirtualOfficePageType } from './virtual-office/product-edit/detector';
 import { MIC_HOST_PATTERN, MIC_PRODUCT_URL_PATTERNS, MIC_SHOP_URL_PATTERNS } from './selectors';
 
 export function isMadeInChinaHost(url: string): boolean {
@@ -28,6 +29,9 @@ function hasText(doc: Document, pattern: RegExp): boolean {
 
 export function detectMicPageType(doc: Document, url: string): PageType {
   try {
+    const vo = detectVirtualOfficePageType(doc, url);
+    if (vo) return vo.pageType;
+
     const urlProduct = looksLike(url, MIC_PRODUCT_URL_PATTERNS);
     const urlShop = looksLike(url, MIC_SHOP_URL_PATTERNS) && !urlProduct;
 

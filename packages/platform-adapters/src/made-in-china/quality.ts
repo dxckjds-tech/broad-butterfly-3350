@@ -72,6 +72,7 @@ export function fieldLabel(field: ParseQualityField | string): string {
     oemAvailable: 'OEM',
     certifications: '认证',
     category: '类目',
+    keywords: '关键词',
   };
   return labels[field] ?? field;
 }
