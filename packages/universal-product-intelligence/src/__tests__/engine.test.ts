@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { emptyPageData } from '@trade-ai/shared-types';
-import { reasonAboutProduct, resetToolCache } from '../index';
+import {
+  MAX_REASONING_STEPS,
+  planNextAction,
+  reasonAboutProduct,
+  resetToolCache,
+  scoreCandidateActions,
+} from '../index';
 import { FIXTURES } from './fixtures';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -58,8 +64,13 @@ describe('10 cross-category fixtures share one engine', () => {
       expect(fact.status).toBe('VERIFIED');
     }
     expect(state.unknowns.length).toBeGreaterThan(0);
-    expect(state.tools.some((t) => t.tool === 'imageAnalyzer' && t.status === 'UNAVAILABLE')).toBe(true);
-    expect(state.tools.some((t) => t.tool === 'searchDataProvider' && t.status === 'UNAVAILABLE')).toBe(true);
+    const toolNames = state.tools.map((t) => t.tool);
+    expect(new Set(toolNames).size).toBe(toolNames.length);
+    expect(state.tools.every((t) => t.status === 'UNAVAILABLE' || t.status === 'SKIPPED')).toBe(true);
+    expect(state.steps.filter((s) => s.phase === 'FINALIZE')).toHaveLength(1);
+    expect(state.steps.every((s) => s.action || s.phase)).toBe(true);
+    const actionKeys = state.steps.map((s) => s.action).filter(Boolean);
+    expect(new Set(actionKeys).size).toBe(actionKeys.length);
     assertNoInventedSearch(state);
     expect(state.productProfile.visualFacts.every((f) => f.status !== 'VERIFIED')).toBe(true);
 
@@ -138,14 +149,18 @@ describe('keyword self-attestation and protected claims', () => {
     expect(thin.seo.autoApplyAllowed).toBe(false);
   });
 
-  it('degrades when image and search tools fail', async () => {
+  it('degrades when image analyzer is selected and returns UNAVAILABLE', async () => {
     resetToolCache();
-    const state = await reasonAboutProduct(FIXTURES.furniture);
+    const state = await reasonAboutProduct({
+      ...FIXTURES.furniture,
+      images: ['https://img.example.com/chair-1.jpg'],
+    });
     expect(state.finalized).toBe(true);
     expect(state.productProfile.identity.label).toMatch(/chair/i);
-    expect(state.tools.every((t) => t.status === 'UNAVAILABLE')).toBe(true);
-    expect(state.unknowns.some((u) => u.slot === 'imageAnalyzer')).toBe(true);
-    expect(state.unknowns.some((u) => u.slot === 'searchDataProvider')).toBe(true);
+    const imageCalls = state.tools.filter((t) => t.tool === 'imageAnalyzer');
+    expect(imageCalls).toHaveLength(1);
+    expect(imageCalls[0]?.status).toBe('UNAVAILABLE');
+    expect(state.tools.filter((t) => t.tool === 'imageAnalyzer')).toHaveLength(1);
     expect(state.seo.officialTop3).toEqual([]);
   });
 
@@ -182,15 +197,87 @@ describe('keyword self-attestation and protected claims', () => {
     expect(titlePrompt).toMatch('Do not invent certifications');
   });
 
-  it('records OBSERVE / CHECK / CHALLENGE / REVISE / FINALIZE without chain-of-thought', async () => {
+  it('records real planner actions without chain-of-thought', async () => {
     const state = await reasonAboutProduct(FIXTURES.pump);
     const phases = state.steps.map((s) => s.phase);
     expect(phases).toContain('OBSERVE');
     expect(phases).toContain('GENERATE_HYPOTHESES');
     expect(phases).toContain('CHECK_EVIDENCE');
-    expect(phases).toContain('CHALLENGE');
-    expect(phases).toContain('REVISE');
     expect(phases).toContain('FINALIZE');
+    expect(state.steps.filter((s) => s.phase === 'FINALIZE')).toHaveLength(1);
     expect(JSON.stringify(state.steps)).not.toMatch(/let me think|chain of thought|internal monologue/i);
+    for (const step of state.steps) {
+      expect(step.summary).not.toMatch(/BEST_AVAILABLE_CONCLUSION with computed confidence/i);
+      expect(step.action).toBeTruthy();
+    }
+  });
+});
+
+describe('dynamic planner routes', () => {
+  it('chooses different action routes for conflict, clean, and image listings', async () => {
+    resetToolCache();
+    const vacuum = await reasonAboutProduct(FIXTURES.vacuum);
+    resetToolCache();
+    const pump = await reasonAboutProduct(FIXTURES.pump);
+    resetToolCache();
+    const furniture = await reasonAboutProduct({
+      ...FIXTURES.furniture,
+      images: ['https://cdn.example.com/chair.jpg'],
+    });
+
+    const vacuumRoute = vacuum.steps.map((s) => s.action).join('>');
+    const pumpRoute = pump.steps.map((s) => s.action).join('>');
+    const furnitureRoute = furniture.steps.map((s) => s.action).join('>');
+    expect(new Set([vacuumRoute, pumpRoute, furnitureRoute]).size).toBe(3);
+
+    expect(vacuum.steps.map((s) => s.phase)).toEqual([
+      'OBSERVE',
+      'GENERATE_HYPOTHESES',
+      'CHECK_EVIDENCE',
+      'CHALLENGE',
+      'REVISE',
+      'FINALIZE',
+    ]);
+    expect(vacuum.finalizeReason).toBe('BEST_AVAILABLE_CONCLUSION');
+
+    expect(pump.steps.map((s) => s.phase)).toEqual([
+      'OBSERVE',
+      'GENERATE_HYPOTHESES',
+      'CHECK_EVIDENCE',
+      'FINALIZE',
+    ]);
+    expect(pump.finalizeReason).not.toBe('BEST_AVAILABLE_CONCLUSION');
+    expect(pump.steps.length).toBeLessThan(MAX_REASONING_STEPS + 1);
+    expect(pump.steps.filter((s) => s.phase !== 'FINALIZE').length).toBeLessThan(MAX_REASONING_STEPS);
+
+    expect(furniture.steps.map((s) => s.phase)).toContain('CALL_TOOL');
+    expect(furniture.steps.some((s) => s.action === 'CALL_TOOL:imageAnalyzer')).toBe(true);
+    expect(furniture.tools.filter((t) => t.tool === 'imageAnalyzer')).toHaveLength(1);
+    expect(furniture.finalizeReason).not.toBe('BEST_AVAILABLE_CONCLUSION');
+  });
+
+  it('does not retry an unavailable tool on the same or later input', async () => {
+    resetToolCache();
+    const state = await reasonAboutProduct({
+      ...FIXTURES.furniture,
+      images: ['https://cdn.example.com/sofa.jpg', 'https://cdn.example.com/sofa-2.jpg'],
+    });
+    const imageCalls = state.tools.filter((t) => t.tool === 'imageAnalyzer');
+    expect(imageCalls).toHaveLength(1);
+    expect(imageCalls[0]?.status).toBe('UNAVAILABLE');
+    expect(state.steps.filter((s) => s.phase === 'CALL_TOOL')).toHaveLength(1);
+
+    const preFinalize = {
+      ...state,
+      finalized: false,
+      steps: state.steps.filter((s) => s.phase !== 'FINALIZE'),
+    };
+    const scored = scoreCandidateActions(preFinalize, state.steps.length + 1);
+    expect(
+      scored.some((c) => c.tool === 'imageAnalyzer' && (c.expectedInformationGain ?? 0) > 0),
+    ).toBe(false);
+    const next = planNextAction(preFinalize, state.steps.length + 1);
+    expect(next.tool).not.toBe('imageAnalyzer');
+    expect(next.type).toBe('FINALIZE');
   });
 });

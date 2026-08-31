@@ -96,6 +96,25 @@ export const TRUSTED_SPEC_NAMES = /^(type|product type|item name|product name|na
 export const IDENTITY_SPEC_NAMES = /^(type|product type|item name|product name|name)$/i;
 export const APPLICATION_SPEC_NAMES = /application|used for|scene|industry|suitable/i;
 export const MATERIAL_SPEC_NAMES = /material|fabric|finish/i;
+export const CERTIFICATION_SPEC_NAMES = /certification|certificate|standard|approval|compliance|certified/i;
+export const PERFORMANCE_SPEC_NAMES = /power|voltage|watt|pressure|capacity|suction|flow|speed|current|horsepower/i;
+
+/** Generic performance measures: number + unit. Not product-specific. */
+export const PERFORMANCE_MEASURE_RE =
+  /\b(\d+(?:\.\d+)?)\s*(k?w|kw|hp|v|volt|a|amp|bar|psi|mpa|kpa|l|liter|rpm|hz|kg|t|m3|gal|gpm)\b/gi;
+
+/** Structured spec tokens that are not certifications. */
+export const SPECIFICATION_TOKEN_RE = /\b(ip\s?\d{2}|dn\s?\d+|pn\s?\d+|npt|bsp|ansi|din\s?\d+)\b/gi;
+
+export const COMPATIBILITY_MARKERS = [
+  'compatible with',
+  'fits',
+  'fitment',
+  'replacement for',
+  'aftermarket',
+  'racing',
+  'oem fit',
+];
 
 export function normalizeText(value: string): string {
   return value

@@ -1,7 +1,7 @@
 import type { EvidenceRecord, IdentityHypothesis, ReasoningConflict } from '@trade-ai/shared-types';
 import { APPLICATION_SCENES, CERT_RE, MATERIAL_SPEC_NAMES, PROTECTED_ATTRIBUTES, materialFamily, normalizeText } from '../knowledge/lexicon';
 import { containsPhrase, distinctModifiers, phraseOverlap, sharedOnlyGenericNoun } from '../knowledge/noun-phrase';
-import { canVerifyProtectedClaim, channelsOf } from './evidence';
+import { canVerifyClaim, channelsOf } from './evidence';
 
 export function checkHypothesisEvidence(hyps: IdentityHypothesis[], evidence: EvidenceRecord[]): IdentityHypothesis[] {
   return hyps.map((hyp) => {
@@ -89,7 +89,7 @@ export function detectConflicts(
     for (const attr of PROTECTED_ATTRIBUTES) {
       if (!n.includes(attr)) continue;
       const other = evidence.filter((e) => e.channel !== 'KEYWORDS' && containsPhrase(e.value, attr));
-      if (!canVerifyProtectedClaim(other.map((e) => e.channel))) {
+      if (!canVerifyClaim('attribute', other.map((e) => e.channel))) {
         conflicts.push({
           id: `c-claim-${ev.id}-${attr.replace(/\s+/g, '-')}`,
           code: 'UNSUPPORTED_CLAIM',
@@ -100,6 +100,7 @@ export function detectConflicts(
         });
       }
     }
+    CERT_RE.lastIndex = 0;
     if (CERT_RE.test(ev.value)) {
       CERT_RE.lastIndex = 0;
       const certField = evidence.some((e) => e.channel === 'CERTIFICATION_FIELD' || (e.channel === 'SPEC' && /cert/i.test(e.field)));
@@ -117,9 +118,7 @@ export function detectConflicts(
     for (const scene of APPLICATION_SCENES) {
       if (!containsPhrase(ev.value, scene)) continue;
       const trusted = evidence.some(
-        (e) =>
-          (e.channel === 'SPEC' && /application|used for|scene/i.test(e.field) && containsPhrase(e.value, scene)) ||
-          (e.channel === 'DESCRIPTION' && containsPhrase(e.value, scene) && /used for|suitable for|application/i.test(e.value)),
+        (e) => e.channel === 'SPEC' && /application|used for|scene/i.test(e.field) && containsPhrase(e.value, scene),
       );
       if (!trusted) {
         conflicts.push({

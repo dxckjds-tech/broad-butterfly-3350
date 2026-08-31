@@ -1,17 +1,15 @@
-import type { PlatformPageData, ReasoningState, ReasoningStatus } from '@trade-ai/shared-types';
+import type { PlatformPageData, ReasoningState, ReasoningStatus, ReasoningStepSummary } from '@trade-ai/shared-types';
 import { UPI_VERSION } from '@trade-ai/shared-types';
 import { computeConfidence } from './confidence';
 import { checkHypothesisEvidence, detectConflicts } from './conflicts';
 import { generateHypotheses, topCandidates } from './hypothesis';
 import { observePage } from './observe';
-import { planNextAction } from './planner';
+import { MAX_REASONING_STEPS, planNextAction } from './planner';
 import { buildProductProfile } from './product-profile';
 import { reflect, revise } from './reflector';
 import { collectUnknowns, extractFacts } from './state';
 import { imageAnalyzer, searchDataProvider } from './tools';
 import { planKeywords } from '../seo/keyword-intelligence';
-
-const MAX_STEPS = 5;
 
 function emptyConfidence() {
   return computeConfidence({
@@ -73,11 +71,29 @@ function statusFrom(state: ReasoningState, userVerified: boolean): ReasoningStat
   return 'UNCERTAIN';
 }
 
+function stepFrom(
+  state: ReasoningState,
+  index: number,
+  phase: ReasoningStepSummary['phase'],
+  summary: string,
+  extra: Partial<ReasoningStepSummary> = {},
+): ReasoningStepSummary {
+  return {
+    index,
+    phase,
+    summary,
+    hypothesisCount: state.hypotheses.length,
+    conflictCount: state.conflicts.length,
+    ...extra,
+  };
+}
+
 export async function reasonAboutProduct(page: PlatformPageData): Promise<ReasoningState> {
   const userVerified = Boolean(page.identityUserVerified);
   let state = emptyState();
+  let hitMaxSteps = false;
 
-  for (let step = 1; step <= MAX_STEPS; step += 1) {
+  for (let step = 1; step <= MAX_REASONING_STEPS; step += 1) {
     const action = planNextAction(state, step);
     state = { ...state, nextActions: [...state.nextActions.filter((a) => a.done), action] };
 
@@ -93,13 +109,17 @@ export async function reasonAboutProduct(page: PlatformPageData): Promise<Reason
         unknowns: collectUnknowns(page, observations),
         steps: [
           ...state.steps,
-          {
-            index: step,
-            phase: 'OBSERVE',
-            summary: `Collected ${observations.length} evidence records.`,
-            hypothesisCount: 0,
-            conflictCount: 0,
-          },
+          stepFrom(
+            state,
+            step,
+            'OBSERVE',
+            `OBSERVE collected ${observations.length} evidence records.`,
+            {
+              action: 'OBSERVE',
+              expectedInformationGain: action.expectedInformationGain,
+              reason: action.reason,
+            },
+          ),
         ],
       };
     } else if (action.type === 'HYPOTHESIZE') {
@@ -109,13 +129,17 @@ export async function reasonAboutProduct(page: PlatformPageData): Promise<Reason
         hypotheses,
         steps: [
           ...state.steps,
-          {
-            index: step,
-            phase: 'GENERATE_HYPOTHESES',
-            summary: `Generated ${hypotheses.length} hypotheses.`,
-            hypothesisCount: hypotheses.length,
-            conflictCount: 0,
-          },
+          stepFrom(
+            { ...state, hypotheses },
+            step,
+            'GENERATE_HYPOTHESES',
+            `GENERATE_HYPOTHESES produced ${hypotheses.length} candidates.`,
+            {
+              action: 'HYPOTHESIZE',
+              expectedInformationGain: action.expectedInformationGain,
+              reason: action.reason,
+            },
+          ),
         ],
       };
     } else if (action.type === 'CHECK') {
@@ -127,33 +151,115 @@ export async function reasonAboutProduct(page: PlatformPageData): Promise<Reason
         conflicts,
         steps: [
           ...state.steps,
-          {
-            index: step,
-            phase: 'CHECK_EVIDENCE',
-            summary: `Checked evidence; ${conflicts.length} conflicts.`,
-            hypothesisCount: hypotheses.length,
-            conflictCount: conflicts.length,
-          },
+          stepFrom(
+            { ...state, hypotheses, conflicts },
+            step,
+            'CHECK_EVIDENCE',
+            `CHECK_EVIDENCE found ${conflicts.length} conflicts.`,
+            {
+              action: 'CHECK',
+              expectedInformationGain: action.expectedInformationGain,
+              reason: action.reason,
+            },
+          ),
         ],
       };
     } else if (action.type === 'CHALLENGE') {
       state = reflect(state);
+      const last = state.steps[state.steps.length - 1];
+      if (last) {
+        last.action = 'CHALLENGE';
+        last.expectedInformationGain = action.expectedInformationGain;
+        last.reason = action.reason;
+        last.index = step;
+      }
     } else if (action.type === 'REVISE') {
       state = revise(state);
+      const last = state.steps[state.steps.length - 1];
+      if (last) {
+        last.action = 'REVISE';
+        last.expectedInformationGain = action.expectedInformationGain;
+        last.reason = action.reason;
+        last.index = step;
+      }
+    } else if (action.type === 'CALL_TOOL' && action.tool === 'imageAnalyzer') {
+      const imageUrls = state.observations.filter((e) => e.channel === 'IMAGE').map((e) => e.value);
+      const result = await imageAnalyzer({ imageUrls });
+      state = {
+        ...state,
+        tools: [...state.tools, result.invocation],
+        steps: [
+          ...state.steps,
+          stepFrom(
+            state,
+            step,
+            'CALL_TOOL',
+            `CALL_TOOL imageAnalyzer → ${result.status} (gain ${action.expectedInformationGain ?? 0}).`,
+            {
+              action: 'CALL_TOOL:imageAnalyzer',
+              expectedInformationGain: action.expectedInformationGain,
+              reason: action.reason,
+            },
+          ),
+        ],
+      };
+    } else if (action.type === 'CALL_TOOL' && action.tool === 'searchDataProvider') {
+      const phrases = state.hypotheses.slice(0, 3).map((h) => h.label);
+      const result = await searchDataProvider({ phrases });
+      state = {
+        ...state,
+        tools: [...state.tools, result.invocation],
+        steps: [
+          ...state.steps,
+          stepFrom(
+            state,
+            step,
+            'CALL_TOOL',
+            `CALL_TOOL searchDataProvider → ${result.status} (gain ${action.expectedInformationGain ?? 0}).`,
+            {
+              action: 'CALL_TOOL:searchDataProvider',
+              expectedInformationGain: action.expectedInformationGain,
+              reason: action.reason,
+            },
+          ),
+        ],
+      };
     } else if (action.type === 'FINALIZE') {
+      const reason =
+        action.goal === 'BEST_AVAILABLE' ? 'BEST_AVAILABLE_CONCLUSION' : action.reason || 'NO_INFORMATION_GAIN';
+      state = {
+        ...state,
+        finalizeReason: reason,
+        steps: [
+          ...state.steps,
+          stepFrom(state, step, 'FINALIZE', `FINALIZE: ${reason}`, {
+            action: 'FINALIZE',
+            expectedInformationGain: action.expectedInformationGain,
+            reason: action.reason,
+          }),
+        ],
+      };
       break;
+    }
+
+    if (step === MAX_REASONING_STEPS && !state.steps.some((s) => s.phase === 'FINALIZE')) {
+      hitMaxSteps = true;
     }
   }
 
-  if (!state.tools.some((t) => t.tool === 'imageAnalyzer')) {
-    const result = await imageAnalyzer({ imageUrls: page.images ?? [] });
-    state = { ...state, tools: [...state.tools, result.invocation] };
-  }
-  if (!state.tools.some((t) => t.tool === 'searchDataProvider')) {
-    const result = await searchDataProvider({
-      phrases: state.hypotheses.slice(0, 3).map((h) => h.label),
-    });
-    state = { ...state, tools: [...state.tools, result.invocation] };
+  if (!state.steps.some((s) => s.phase === 'FINALIZE')) {
+    const reason = hitMaxSteps || state.steps.length >= MAX_REASONING_STEPS ? 'BEST_AVAILABLE_CONCLUSION' : 'NO_INFORMATION_GAIN';
+    state = {
+      ...state,
+      finalizeReason: reason,
+      steps: [
+        ...state.steps,
+        stepFrom(state, state.steps.length + 1, 'FINALIZE', `FINALIZE: ${reason}`, {
+          action: 'FINALIZE',
+          reason,
+        }),
+      ],
+    };
   }
 
   const productHyps = topCandidates(state.hypotheses, 'product', 3);
@@ -181,16 +287,6 @@ export async function reasonAboutProduct(page: PlatformPageData): Promise<Reason
       autoApplyAllowed: false,
     },
     status,
-    steps: [
-      ...state.steps,
-      {
-        index: state.steps.length + 1,
-        phase: 'FINALIZE',
-        summary: 'challengeConclusion applied; BEST_AVAILABLE_CONCLUSION with computed confidence.',
-        hypothesisCount: productHyps.length,
-        conflictCount: state.conflicts.length,
-      },
-    ],
     finalized: true,
     nextActions: [...state.nextActions.map((a) => ({ ...a, done: true })), ...suggestActions(status, state)],
   };
@@ -230,13 +326,15 @@ function suggestActions(status: ReasoningStatus, state: ReasoningState) {
       done: false,
     });
   }
-  actions.push({
-    id: 'n-search',
-    type: 'CALL_TOOL' as const,
-    tool: 'searchDataProvider' as const,
-    summary: 'Official keyword Top3 stays empty until a verified search index is connected.',
-    done: false,
-  });
+  if (!state.tools.some((t) => t.tool === 'searchDataProvider')) {
+    actions.push({
+      id: 'n-search',
+      type: 'CALL_TOOL' as const,
+      tool: 'searchDataProvider' as const,
+      summary: 'Official keyword Top3 stays empty until a verified search index is connected.',
+      done: false,
+    });
+  }
   return actions;
 }
 

@@ -10,7 +10,7 @@ export interface ToolResult<T> {
 
 const cache = new Map<string, ToolResult<unknown>>();
 
-function hashInput(input: unknown): string {
+export function hashToolInput(input: unknown): string {
   const s = JSON.stringify(input);
   let h = 2166136261;
   for (let i = 0; i < s.length; i += 1) {
@@ -40,7 +40,7 @@ export async function runToolOnce<T>(opts: {
   timeoutMs?: number;
   fn: () => Promise<T>;
 }): Promise<ToolResult<T>> {
-  const inputHash = hashInput(opts.input);
+  const inputHash = hashToolInput(opts.input);
   const cacheKey = `${opts.tool}:${inputHash}`;
   const hit = cache.get(cacheKey) as ToolResult<T> | undefined;
   if (hit) return hit;

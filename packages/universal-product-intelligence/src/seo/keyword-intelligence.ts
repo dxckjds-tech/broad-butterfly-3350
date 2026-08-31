@@ -1,6 +1,7 @@
 import type { PlatformPageData, SeoContinuation, UniversalProductProfile } from '@trade-ai/shared-types';
 import { CERT_RE, PROTECTED_ATTRIBUTES, APPLICATION_SCENES, normalizeText } from '../knowledge/lexicon';
 import { containsPhrase, identityPhrases } from '../knowledge/noun-phrase';
+import { unverifiedClaimReasons } from '../knowledge/protected-claims';
 
 function blockedReasons(keyword: string, profile: UniversalProductProfile): string[] {
   const reasons: string[] = [];
@@ -14,6 +15,12 @@ function blockedReasons(keyword: string, profile: UniversalProductProfile): stri
       reasons.push('PRODUCT_MISMATCH');
     }
   }
+  reasons.push(...unverifiedClaimReasons(keyword, profile));
+  CERT_RE.lastIndex = 0;
+  if (CERT_RE.test(keyword) && !profile.certifications.some((c) => c.status === 'VERIFIED')) {
+    reasons.push('CERTIFICATION_UNVERIFIED');
+  }
+  CERT_RE.lastIndex = 0;
   for (const attr of PROTECTED_ATTRIBUTES) {
     if (!containsPhrase(keyword, attr)) continue;
     const verified = profile.dynamicAttributes.some((a) => a.status === 'VERIFIED' && normalizeText(a.name) === attr);
@@ -24,14 +31,12 @@ function blockedReasons(keyword: string, profile: UniversalProductProfile): stri
     const verified = profile.applications.some((a) => a.status === 'VERIFIED' && containsPhrase(a.value, scene));
     if (!verified) reasons.push('APPLICATION_UNVERIFIED');
   }
-  CERT_RE.lastIndex = 0;
-  if (CERT_RE.test(keyword) && !profile.certifications.length) reasons.push('CERTIFICATION_UNVERIFIED');
-  CERT_RE.lastIndex = 0;
   return [...new Set(reasons)];
 }
 
 /** One-way: ProductProfile → keyword candidates. Never writes back to truth. */
 export function planKeywords(page: PlatformPageData, profile: UniversalProductProfile): SeoContinuation {
+  const snapshot = JSON.stringify(profile);
   const raw = [
     ...identityPhrases(page.productName || page.title || ''),
     ...Object.values(page.specifications ?? {}).flatMap((v) => identityPhrases(v)),
@@ -45,12 +50,7 @@ export function planKeywords(page: PlatformPageData, profile: UniversalProductPr
   const candidateKeywords: SeoContinuation['candidateKeywords'] = [];
   for (const keyword of raw) {
     const key = normalizeText(keyword);
-    if (!key || seen.has(key)) {
-      if (key && seen.has(key)) {
-        /* drop duplicates */
-      }
-      continue;
-    }
+    if (!key || seen.has(key)) continue;
     seen.add(key);
     const reasons = blockedReasons(keyword, profile);
     candidateKeywords.push({
@@ -58,6 +58,10 @@ export function planKeywords(page: PlatformPageData, profile: UniversalProductPr
       status: reasons.length ? 'BLOCKED' : 'PENDING_VERIFICATION',
       reasons,
     });
+  }
+
+  if (JSON.stringify(profile) !== snapshot) {
+    throw new Error('SEO must not write back to Product Truth.');
   }
 
   const conflict = profile.conflicts.some((c) => c.code === 'IDENTITY_MISMATCH' || c.code === 'MATERIAL_CONFLICT');

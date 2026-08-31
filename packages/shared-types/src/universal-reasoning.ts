@@ -27,6 +27,7 @@ export const REASONING_PHASES = [
   'CHECK_EVIDENCE',
   'CHALLENGE',
   'PLAN_NEXT_ACTION',
+  'CALL_TOOL',
   'REVISE',
   'FINALIZE',
 ] as const;
@@ -115,6 +116,10 @@ export interface ReasoningAction {
   tool?: 'imageAnalyzer' | 'searchDataProvider';
   summary: string;
   done: boolean;
+  goal?: string;
+  reason?: string;
+  expectedInformationGain?: number;
+  inputKey?: string;
 }
 
 export interface ToolInvocation {
@@ -131,6 +136,9 @@ export interface ReasoningStepSummary {
   summary: string;
   hypothesisCount: number;
   conflictCount: number;
+  action?: string;
+  expectedInformationGain?: number;
+  reason?: string;
 }
 
 export interface DynamicAttribute {
@@ -192,6 +200,7 @@ export interface ReasoningState {
   tools: ToolInvocation[];
   version: string;
   finalized: boolean;
+  finalizeReason?: string;
 }
 
 export interface UniversalReasonPayload {

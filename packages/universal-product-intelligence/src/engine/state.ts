@@ -1,16 +1,16 @@
-import type { FactRecord, FactStatus, PlatformPageData, UnknownRecord } from '@trade-ai/shared-types';
+import type { EvidenceRecord, FactRecord, FactStatus, PlatformPageData, UnknownRecord } from '@trade-ai/shared-types';
 import {
   APPLICATION_SCENES,
   APPLICATION_SPEC_NAMES,
   CERT_RE,
+  CERTIFICATION_SPEC_NAMES,
   MARKETING_PHRASES,
   MATERIAL_SPEC_NAMES,
   PROTECTED_ATTRIBUTES,
   normalizeText,
 } from '../knowledge/lexicon';
 import { containsPhrase, splitPurpose } from '../knowledge/noun-phrase';
-import { canVerifyProtectedClaim, channelsOf } from './evidence';
-import type { EvidenceRecord } from '@trade-ai/shared-types';
+import { canVerifyClaim, channelsOf } from './evidence';
 
 export function collectUnknowns(page: PlatformPageData, evidence: EvidenceRecord[]): UnknownRecord[] {
   const unknowns: UnknownRecord[] = [];
@@ -30,7 +30,7 @@ export function collectUnknowns(page: PlatformPageData, evidence: EvidenceRecord
     reason: 'Search demand provider is not connected; demand=NOT_AVAILABLE.',
     blocking: false,
   });
-  if (!has((e) => e.channel === 'CERTIFICATION_FIELD')) {
+  if (!has((e) => e.channel === 'CERTIFICATION_FIELD' || (e.channel === 'SPEC' && CERTIFICATION_SPEC_NAMES.test(e.field.replace(/^spec\./, ''))))) {
     unknowns.push({ id: 'u-cert', slot: 'certifications', reason: 'No certification field on the page.', blocking: false });
   }
   if (!has((e) => e.channel === 'SPEC' && APPLICATION_SPEC_NAMES.test(e.field.replace(/^spec\./, '')))) {
@@ -43,6 +43,10 @@ export function collectUnknowns(page: PlatformPageData, evidence: EvidenceRecord
     unknowns.push({ id: 'u-moq', slot: 'moq', reason: 'MOQ is missing or not loaded.', blocking: false });
   }
   return unknowns;
+}
+
+function isCertSpec(ev: EvidenceRecord): boolean {
+  return ev.channel === 'SPEC' && CERTIFICATION_SPEC_NAMES.test(ev.field.replace(/^spec\./, ''));
 }
 
 export function extractFacts(evidence: EvidenceRecord[]): { verified: FactRecord[]; inferred: FactRecord[]; observed: FactRecord[] } {
@@ -72,7 +76,8 @@ export function extractFacts(evidence: EvidenceRecord[]): { verified: FactRecord
       add('attribute', attr, attr, 'OBSERVED', ids, observed);
       continue;
     }
-    if (canVerifyProtectedClaim(ch)) add('attribute', attr, attr, 'VERIFIED', ids, verified);
+    if (canVerifyClaim('attribute', ch)) add('attribute', attr, attr, 'VERIFIED', ids, verified);
+    else if (ch.includes('DESCRIPTION')) add('attribute', attr, attr, 'INFERRED', ids, inferred);
     else add('attribute', attr, attr, 'OBSERVED', ids, observed);
   }
 
@@ -94,20 +99,24 @@ export function extractFacts(evidence: EvidenceRecord[]): { verified: FactRecord
       (e) => e.channel === 'SPEC' && APPLICATION_SPEC_NAMES.test(e.field.replace(/^spec\./, '')),
     );
     if (trusted.length) add('application', scene, scene, 'VERIFIED', trusted.map((e) => e.id), verified);
+    else if (hits.some((e) => e.channel === 'DESCRIPTION')) add('application', scene, scene, 'INFERRED', hits.map((e) => e.id), inferred);
     else if (hits.every((e) => e.channel === 'KEYWORDS')) add('application', scene, scene, 'OBSERVED', hits.map((e) => e.id), observed);
   }
 
-  for (const ev of evidence.filter((e) => e.channel === 'CERTIFICATION_FIELD')) {
+  for (const ev of evidence.filter((e) => e.channel === 'CERTIFICATION_FIELD' || isCertSpec(e))) {
     add('certification', 'certification', ev.value, 'VERIFIED', [ev.id], verified);
   }
   for (const ev of evidence) {
-    if (ev.channel === 'KEYWORDS') continue;
+    if (ev.channel === 'KEYWORDS' || ev.channel === 'CERTIFICATION_FIELD' || isCertSpec(ev)) continue;
     const matches = ev.value.match(CERT_RE) ?? [];
     CERT_RE.lastIndex = 0;
     for (const m of matches) {
-      if (ev.channel === 'CERTIFICATION_FIELD') continue;
-      if (canVerifyProtectedClaim([ev.channel])) add('certification', 'certification', m, 'VERIFIED', [ev.id], verified);
-      else add('certification', 'certification', m, 'OBSERVED', [ev.id], observed);
+      if (ev.channel === 'USER') add('certification', 'certification', m, 'VERIFIED', [ev.id], verified);
+      else if (ev.channel === 'DESCRIPTION' || ev.channel === 'TITLE' || ev.channel === 'PRODUCT_NAME' || ev.channel === 'CATEGORY') {
+        add('certification', 'certification', m, 'OBSERVED', [ev.id], observed);
+      } else {
+        add('certification', 'certification', m, 'OBSERVED', [ev.id], observed);
+      }
     }
   }
   for (const ev of evidence.filter((e) => e.channel === 'KEYWORDS')) {

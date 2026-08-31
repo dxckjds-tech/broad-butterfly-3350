@@ -76,6 +76,10 @@ export function blockedReasonLabel(reason: string): string {
   if (reason === 'UNVERIFIED_ATTRIBUTE') return '属性未验证';
   if (reason === 'APPLICATION_UNVERIFIED') return '用途未验证';
   if (reason === 'CERTIFICATION_UNVERIFIED') return '认证未验证';
+  if (reason === 'MATERIAL_UNVERIFIED') return '材质未验证';
+  if (reason === 'PERFORMANCE_UNVERIFIED') return '性能未验证';
+  if (reason === 'SPECIFICATION_UNVERIFIED') return '规格未验证';
+  if (reason === 'COMPATIBILITY_UNVERIFIED') return '兼容性未验证';
   if (reason === 'BLOCKED_BY_FACT_GUARD') return 'FactGuard 拦截';
   return reason;
 }
