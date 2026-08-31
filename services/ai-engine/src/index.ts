@@ -57,7 +57,12 @@ export { optimizeDescription } from './tasks/optimize-description';
 export type { DescriptionOptimizeInput, DescriptionOptimizeResult } from './tasks/optimize-description';
 export { analyzeGeo } from './tasks/analyze-geo';
 export type { GeoAnalyzeInput, GeoAnalyzeResult } from './tasks/analyze-geo';
-export { applyFactGuard, applicationFactsCorpus, knownFactsCorpus } from './fact-guard';
+export {
+  applyFactGuard,
+  applicationFactsCorpus,
+  knownFactsCorpus,
+  protectedFactsCorpus,
+} from './fact-guard';
 export {
   inspectProductIdentity,
   inspectProductIdentityWithGate,

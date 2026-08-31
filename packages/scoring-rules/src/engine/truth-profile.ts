@@ -7,6 +7,7 @@ import type {
 } from '@trade-ai/shared-types';
 import { emptyPageData } from '@trade-ai/shared-types';
 import { gateKeywordList } from './keyword-gate';
+import { corpusHasPhrase, pageKeywordCorpus, pageTrustedClaimCorpus } from './claim-corpus';
 import { detectCoreProductTerm } from './core-term';
 import { detectProductFamily, familiesConflict, normalizeProductText } from './product-family';
 import { specEntries } from './specs';
@@ -74,14 +75,18 @@ export function buildProductTruthProfile(page: PlatformPageData): ProductTruthPr
   const productFamily = family?.family || coreProduct;
   const productType = specType || family?.type || coreProduct;
 
+  const trusted = pageTrustedClaimCorpus(page);
+  const keywordBlob = pageKeywordCorpus(page);
   const specText = specEntries(page)
     .map((s) => `${s.name} ${s.value}`)
     .join(' ');
-  const listing = `${title} ${specText} ${(page.keywords ?? []).join(' ')}`;
-  const listingNorm = normalizeProductText(listing);
+  const trustedRaw = [title, page.category, specText, page.description, ...(page.certifications ?? [])]
+    .filter(Boolean)
+    .join(' ');
 
+  // identityUserVerified confirms product identity only; it never lets keywords attest attributes.
   const verifiedAttributes = unique(
-    ATTRIBUTE_PHRASES.filter((p) => listingNorm.includes(normalizeProductText(p))).map((p) => p),
+    ATTRIBUTE_PHRASES.filter((p) => trusted.includes(normalizeProductText(p))),
   );
   for (const spec of specEntries(page)) {
     if (/power|voltage|suction|tank|capacity|noise|material|application|type/i.test(spec.name) && spec.value.trim()) {
@@ -90,12 +95,12 @@ export function buildProductTruthProfile(page: PlatformPageData): ProductTruthPr
   }
 
   const materials = unique([
-    ...(listing.match(MATERIAL_RE) ?? []),
+    ...(trustedRaw.match(MATERIAL_RE) ?? []),
     ...specEntries(page)
       .filter((s) => /material/i.test(s.name))
       .map((s) => s.value),
   ]);
-  const certifications = unique([...(page.certifications ?? []), ...(listing.match(CERT_RE) ?? [])]);
+  const certifications = unique([...(page.certifications ?? []), ...(trustedRaw.match(CERT_RE) ?? [])]);
   const appsNorm = applicationCorpus(page);
   const applications = unique(
     specEntries(page)
@@ -110,9 +115,23 @@ export function buildProductTruthProfile(page: PlatformPageData): ProductTruthPr
   if (page.deliveryTime?.trim()) capabilities.push(`lead time ${page.deliveryTime}`);
 
   const descNorm = normalizeProductText(page.description ?? '');
-  const unverifiedClaims = unique(
-    MARKETING_CLAIMS.filter((c) => descNorm.includes(normalizeProductText(c))),
-  );
+  const keywordOnlyProtected = [
+    ...ATTRIBUTE_PHRASES,
+    'hospital',
+    'hotel',
+    'sofa',
+    'car',
+    'factory',
+    'workshop',
+    'iso',
+    'ce',
+    'fda',
+    'rohs',
+  ].filter((p) => corpusHasPhrase(keywordBlob, p) && !corpusHasPhrase(trusted, p));
+  const unverifiedClaims = unique([
+    ...MARKETING_CLAIMS.filter((c) => descNorm.includes(normalizeProductText(c))),
+    ...keywordOnlyProtected,
+  ]);
 
   const categoryFamily = detectProductFamily(page.category ?? '');
   const conflictingClaims: string[] = [];
@@ -129,8 +148,8 @@ export function buildProductTruthProfile(page: PlatformPageData): ProductTruthPr
   for (const spec of specEntries(page)) {
     evidence.push({ field: spec.name, value: spec.value, source: 'SPEC' });
   }
-  for (const keyword of (page.keywords ?? []).slice(0, 10)) {
-    evidence.push({ field: 'keyword', value: keyword, source: 'KEYWORD' });
+  if (page.description?.trim()) {
+    evidence.push({ field: 'description', value: page.description.slice(0, 240), source: 'DESCRIPTION' });
   }
 
   let identityConfidence = 0.4;

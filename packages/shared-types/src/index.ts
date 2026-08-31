@@ -206,7 +206,7 @@ export const SEVERITY_PENALTY: Record<IssueSeverity, number> = {
   LOW: 3,
 };
 
-export const RULES_VERSION = 'MIC_RULES_1.1.0';
+export const RULES_VERSION = 'MIC_RULES_1.1.1';
 
 export const RULE_STATUSES = ['PASS', 'FAIL', 'UNCERTAIN', 'SKIPPED'] as const;
 export type RuleStatus = (typeof RULE_STATUSES)[number];

@@ -118,6 +118,29 @@ describe('FactGuard', () => {
     expect(applyFactGuard('heavy duty vacuum cleaner', facts).ok).toBe(true);
     expect(applyFactGuard('high suction vacuum cleaner', facts).ok).toBe(true);
   });
+
+  it('does not let candidate keywords self-attest eco-friendly, hospital, or ISO', () => {
+    const facts = {
+      productName: SAMPLE.productName,
+      category: SAMPLE.category,
+      keywords: [
+        'Steam Cleaner',
+        'Wet and Dry Vacuum Cleaner',
+        'Hospital Vacuum Cleaner',
+        'Eco-Friendly Vacuum Cleaner',
+        'ISO 9001 Vacuum Cleaner',
+      ],
+      centerTerms: ['eco friendly', 'hospital', 'iso 9001'],
+      specifications: SAMPLE.specifications,
+      description: SAMPLE.description,
+      certifications: [] as string[],
+    };
+    const eco = applyFactGuard('Eco-Friendly Vacuum Cleaner', facts);
+    expect(eco.ok).toBe(false);
+    expect(eco.removed.some((x) => x.key === 'ecoFriendly')).toBe(true);
+    expect(applyFactGuard('Hospital Vacuum Cleaner', facts).removed.some((x) => x.key === 'application')).toBe(true);
+    expect(applyFactGuard('ISO 9001 Vacuum Cleaner', facts).removed.some((x) => x.key === 'certification')).toBe(true);
+  });
 });
 
 describe('Zod title schema', () => {
@@ -212,6 +235,44 @@ describe('optimizeKeywords mock path', () => {
     expect(out.officialTop3).toEqual([]);
     expect(out.searchDemand).toBe('UNKNOWN');
     expect(out.blockedKeywords.some((k) => /steam cleaner/i.test(k.keyword))).toBe(true);
+  });
+
+  it('does not let current keywords self-attest protected claims after userVerified', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const out = await optimizeKeywords({
+      provider,
+      config: cfg,
+      skipCache: true,
+      input: {
+        ...SAMPLE,
+        currentKeywords: [
+          'Steam Cleaner',
+          'Wet and Dry Vacuum Cleaner',
+          'Hospital Vacuum Cleaner',
+          'Eco-Friendly Vacuum Cleaner',
+          'ISO 9001 Vacuum Cleaner',
+        ],
+        identityUserVerified: true,
+        url: `${SAMPLE.url}?self-attest=1`,
+      },
+    });
+    expect(out.keywordRecommendationsPaused).toBe(false);
+    expect(out.productTruthProfile?.verifiedAttributes.join(' ').toLowerCase()).not.toMatch(/eco friendly/);
+    expect(out.productTruthProfile?.certifications.join(' ').toLowerCase()).not.toMatch(/iso/);
+    expect(out.gatedKeywords.find((k) => /eco/i.test(k.keyword))?.blockedReasons).toContain('UNVERIFIED_ATTRIBUTE');
+    expect(out.gatedKeywords.find((k) => /eco/i.test(k.keyword))?.status).not.toBe('PRIMARY_ELIGIBLE');
+    expect(
+      out.blockedKeywords.some((k) => /hospital/i.test(k.keyword) && k.reasons.includes('APPLICATION_UNVERIFIED')),
+    ).toBe(true);
+    expect(
+      out.blockedKeywords.some((k) => /iso/i.test(k.keyword) && k.reasons.includes('CERTIFICATION_UNVERIFIED')),
+    ).toBe(true);
+    expect(out.blockedKeywords.some((k) => /steam/i.test(k.keyword) && k.reasons.includes('PRODUCT_MISMATCH'))).toBe(
+      true,
+    );
+    expect(out.officialTop3).toEqual([]);
+    expect(out.micKeywords.every((k) => !/eco-friendly|hospital|iso 9001/i.test(k.keyword))).toBe(true);
   });
 
   it('caches the second keyword call on the same page', async () => {
