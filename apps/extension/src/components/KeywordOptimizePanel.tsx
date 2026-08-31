@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { KeywordOptimizePayload, PlatformPageData } from '@trade-ai/shared-types';
 import { AI_UNAVAILABLE_COPY, optimizeMicKeywords } from '../services/ai';
+import { TranslatableText } from './TranslatableText';
 
 async function copyText(text: string): Promise<void> {
   try {
@@ -93,10 +94,10 @@ export function KeywordOptimizePanel({
             <ol className="ai-kw__list">
               {result.micKeywords.map((row, index) => (
                 <li key={`${row.keyword}-${index}`}>
-                  <span>
-                    {index + 1}. {row.keyword}
+                  <div>
+                    {index + 1}. <TranslatableText text={row.keyword} />
                     {row.priority === 'HIGH' ? <em>核心关键词</em> : null}
-                  </span>
+                  </div>
                   <button type="button" onClick={() => void copyText(row.keyword)}>
                     复制
                   </button>

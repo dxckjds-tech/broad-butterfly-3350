@@ -54,6 +54,8 @@ export type { KeywordOptimizeInput, KeywordOptimizeResult } from './tasks/optimi
 export { checkCategory } from './tasks/check-category';
 export type { CategoryCheckInput, CategoryCheckResult } from './tasks/check-category';
 export { optimizeDescription } from './tasks/optimize-description';
+export { translateText, clearTranslationCache } from './tasks/translate';
+export type { TranslationLanguage, TranslationResult } from './tasks/translate';
 export type { DescriptionOptimizeInput, DescriptionOptimizeResult } from './tasks/optimize-description';
 export { analyzeGeo } from './tasks/analyze-geo';
 export type { GeoAnalyzeInput, GeoAnalyzeResult } from './tasks/analyze-geo';

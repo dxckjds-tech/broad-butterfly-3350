@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CategoryCheckPayload, PlatformPageData } from '@trade-ai/shared-types';
 import { AI_UNAVAILABLE_COPY, checkMicCategory } from '../services/ai';
+import { TranslatableText } from './TranslatableText';
 import { categoryVerdictLabel } from '../utils/labels';
 
 async function copyText(text: string): Promise<void> {
@@ -114,7 +115,7 @@ export function CategoryCheckPanel({
                   复制
                 </button>
               </header>
-              <p>{result.reason}</p>
+              <TranslatableText text={result.reason} />
             </article>
             <article className="ai-title__card">
               <header>
@@ -123,7 +124,7 @@ export function CategoryCheckPanel({
                   复制
                 </button>
               </header>
-              <p className="ai-title__rec">{result.suggestedCategoryConcept}</p>
+              <TranslatableText text={result.suggestedCategoryConcept} className="ai-title__rec" />
               <p className="eyebrow">这是产品类型概念，不是 MIC 官方类目 ID，请人工改类目。</p>
             </article>
           </>

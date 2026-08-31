@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { DescriptionOptimizePayload, PlatformPageData } from '@trade-ai/shared-types';
 import { AI_UNAVAILABLE_COPY, optimizeMicDescription } from '../services/ai';
+import { TranslatableText } from './TranslatableText';
 
 async function copyText(text: string): Promise<void> {
   try {
@@ -102,7 +103,7 @@ export function DescriptionOptimizePanel({
                     复制
                   </button>
                 </header>
-                <p className="ai-desc__body">{row.body}</p>
+                <TranslatableText text={row.body} className="ai-desc__body" />
               </article>
             ))}
           </>

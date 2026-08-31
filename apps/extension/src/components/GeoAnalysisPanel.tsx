@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { GeoAnalysisPayload, PlatformPageData } from '@trade-ai/shared-types';
 import { AI_UNAVAILABLE_COPY, analyzeMicGeo } from '../services/ai';
+import { TranslatableText } from './TranslatableText';
 import { geoGapDimensionLabel, geoGapStatusLabel, geoVerdictLabel } from '../utils/labels';
 
 async function copyText(text: string): Promise<void> {
@@ -134,7 +135,7 @@ export function GeoAnalysisPanel({
                   复制
                 </button>
               </header>
-              <p>{result.summary}</p>
+              <TranslatableText text={result.summary} />
             </article>
             <p>
               <strong>缺口</strong>
@@ -148,7 +149,7 @@ export function GeoAnalysisPanel({
                       {geoGapStatusLabel(gap.status)}
                     </em>
                   </span>
-                  <span>{gap.note}</span>
+                  <TranslatableText text={gap.note} />
                 </li>
               ))}
             </ul>
@@ -160,7 +161,7 @@ export function GeoAnalysisPanel({
                     复制
                   </button>
                 </header>
-                <p className="ai-desc__body">{row.body}</p>
+                <TranslatableText text={row.body} className="ai-desc__body" />
               </article>
             ))}
             <div className="ai-title__head">
@@ -182,7 +183,7 @@ export function GeoAnalysisPanel({
                     复制
                   </button>
                 </header>
-                <p className="ai-desc__body">{row.answer}</p>
+                <TranslatableText text={`Q: ${row.question}\nA: ${row.answer}`} className="ai-desc__body" />
               </article>
             ))}
           </>

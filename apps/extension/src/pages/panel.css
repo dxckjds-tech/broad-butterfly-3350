@@ -504,3 +504,22 @@ body {
 .ai-geo__status--missing {
   color: #9b1c2c;
 }
+.translation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.translation__actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.translation__result {
+  margin-top: 6px;
+  padding: 9px 10px;
+  border-left: 3px solid #1677ff;
+  background: #f2f7ff;
+  white-space: pre-wrap;
+}

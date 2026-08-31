@@ -16,6 +16,7 @@ import { clearAiCache } from '../cache';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { MockLLMProvider } from '../providers/mock.provider';
+import { clearTranslationCache, translateText } from '../tasks/translate';
 
 const SAMPLE = {
   productName: 'High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use',
@@ -56,6 +57,24 @@ describe('AI config + router', () => {
     expect(routeModel('DESCRIPTION_OPTIMIZATION', cfg).model).toBe('deepseek-v4-flash');
     expect(routeModel('CATEGORY_CHECK', cfg).model).toBe('deepseek-v4-pro');
     expect(routeModel('GEO_DEEP_ANALYSIS', cfg).model).toBe('deepseek-v4-pro');
+  });
+});
+
+describe('translation', () => {
+  it('preserves the original and caches by text plus target language', async () => {
+    clearTranslationCache();
+    const provider = new MockLLMProvider();
+    const spy = vi.spyOn(provider, 'generateText').mockResolvedValue({
+      text: '工业用干湿两用吸尘器', model: 'fast-model', usage: { inputTokens: 8, outputTokens: 8 },
+    });
+    const input = { provider, text: 'Wet and Dry Vacuum Cleaner for Industrial Use', targetLanguage: 'zh-CN' as const, model: 'fast-model' };
+    const first = await translateText(input);
+    const second = await translateText(input);
+    expect(first.original).toBe(input.text);
+    expect(first.translated).toBe('工业用干湿两用吸尘器');
+    expect(first.cached).toBe(false);
+    expect(second.cached).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });
 

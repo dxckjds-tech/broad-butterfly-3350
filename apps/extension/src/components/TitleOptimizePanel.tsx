@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PlatformPageData, TitleOptimizePayload } from '@trade-ai/shared-types';
 import { AI_UNAVAILABLE_COPY, optimizeMicTitle } from '../services/ai';
+import { TranslatableText } from './TranslatableText';
 
 const STYLE_LABEL: Record<string, string> = {
   SEO_BALANCED: '推荐标题 A · SEO Balanced',
@@ -98,8 +99,8 @@ export function TitleOptimizePanel({
                   复制
                 </button>
               </header>
-              <p className="ai-title__rec">{row.title}</p>
-              <p>{row.reason}</p>
+              <TranslatableText text={row.title} className="ai-title__rec" />
+              <TranslatableText text={row.reason} />
             </article>
           ))}
           {result.keywordSuggestions.length ? (

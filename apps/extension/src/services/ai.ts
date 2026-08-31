@@ -10,6 +10,15 @@ import { getApiBaseUrl } from '../utils/config';
 
 export const AI_UNAVAILABLE_COPY = 'AI服务暂时不可用，本地规则诊断仍然有效。';
 
+export interface TranslationPayload {
+  original: string;
+  translated: string;
+  targetLanguage: 'zh-CN' | 'en';
+  cached: boolean;
+  provider: string;
+  model: string;
+}
+
 async function readEnvelope<T>(res: Response): Promise<T> {
   const json = (await res.json()) as { success?: boolean; data?: T; message?: string };
   if (!res.ok || json.success === false) {
@@ -115,4 +124,9 @@ export async function analyzeMicGeo(input: {
   deliveryTime?: string;
 }): Promise<GeoAnalysisPayload> {
   return postJson<GeoAnalysisPayload>('/ai/mic/geo-analysis', input);
+}
+
+export async function translateAiText(text: string, targetLanguage: 'zh-CN' | 'en' = 'zh-CN'):
+  Promise<TranslationPayload> {
+  return postJson<TranslationPayload>('/ai/translate', { text, targetLanguage });
 }

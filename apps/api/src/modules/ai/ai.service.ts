@@ -10,6 +10,7 @@ import {
   optimizeDescription,
   optimizeKeywords,
   optimizeTitle,
+  translateText,
   type CategoryCheckResult,
   type DescriptionOptimizeResult,
   type GeoAnalyzeResult,
@@ -20,6 +21,7 @@ import {
 import type { AiHealthPayload } from '@trade-ai/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import type { OptimizeTitleDto } from './dto/optimize-title.dto';
+import type { TranslateDto } from './dto/translate.dto';
 
 @Injectable()
 export class AiService {
@@ -40,6 +42,23 @@ export class AiService {
       status: result.status,
       latency: result.latencyMs,
     };
+  }
+
+  async translate(dto: TranslateDto) {
+    try {
+      return await translateText({
+        provider: this.provider,
+        text: dto.text,
+        targetLanguage: dto.targetLanguage,
+        model: this.config.deepseek.fastModel,
+      });
+    } catch (err) {
+      this.logger.warn(`AI translation failed: ${err instanceof Error ? err.message : 'unknown'}`);
+      throw new HttpException(
+        { message: AI_UNAVAILABLE_MESSAGE, code: 'AI_UNAVAILABLE' },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
   }
 
   async optimizeMicTitle(dto: OptimizeTitleDto): Promise<TitleOptimizeResult> {
