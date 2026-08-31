@@ -37,6 +37,10 @@ describe('MIC product edit realistic fixture', () => {
     expect(page.keywords.length).toBeGreaterThan(0);
     expect(page.keywords).toEqual(
       expect.arrayContaining([
+        'Steam Cleaner',
+        'Wet and Dry Vacuum Cleaner',
+        'Hospital Vacuum Cleaner',
+        'Eco-Friendly Vacuum Cleaner',
         'Heavy Duty Cleaner',
         'Wet and Dry Cleaner',
         'Industrial Use Cleaner',

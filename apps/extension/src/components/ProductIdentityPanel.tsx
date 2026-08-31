@@ -102,6 +102,15 @@ export function ProductIdentityPanel({
         <strong>身份置信度</strong> {Math.round(profile.identityConfidence * 100)}%
         {profile.userVerified ? ' · 已人工确认' : ''}
       </p>
+      <p>
+        <strong>已验证属性</strong>{' '}
+        {profile.verifiedAttributes.filter((item) => !item.includes(':')).join(' / ') || '（无，关键词不能自证）'}
+      </p>
+      {profile.unverifiedClaims.length ? (
+        <p>
+          <strong>未验证声明</strong> {profile.unverifiedClaims.join(' / ')}
+        </p>
+      ) : null}
       {conflict ? (
         <div className="ai-identity__conflict">
           <p>
