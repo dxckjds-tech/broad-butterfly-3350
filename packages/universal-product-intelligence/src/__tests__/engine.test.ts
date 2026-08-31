@@ -76,6 +76,12 @@ describe('10 cross-category fixtures share one engine', () => {
     if (name === 'led') {
       expect(state.productProfile.dynamicAttributes.some((a) => a.name.includes('waterproof') && a.status === 'VERIFIED')).toBe(true);
     }
+    if (name === 'pump') {
+      expect(state.productProfile.identity.label).toMatch(/pump/i);
+    }
+    if (name === 'auto') {
+      expect(state.productProfile.identity.label).toMatch(/pad|brake/i);
+    }
     if (name === 'pump' || name === 'valve' || name === 'furniture' || name === 'packaging' || name === 'auto' || name === 'cnc' || name === 'vest') {
       expect(['LIKELY', 'CONFIRMED', 'UNCERTAIN']).toContain(state.status);
     }

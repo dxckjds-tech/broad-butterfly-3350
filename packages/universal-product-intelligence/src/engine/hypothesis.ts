@@ -1,5 +1,5 @@
 import type { EvidenceRecord, IdentityHypothesis } from '@trade-ai/shared-types';
-import { IDENTITY_SPEC_NAMES, normalizeText } from '../knowledge/lexicon';
+import { GENERIC_HEAD_NOUNS, IDENTITY_SPEC_NAMES, normalizeText } from '../knowledge/lexicon';
 import { identityPhrases, phraseOverlap } from '../knowledge/noun-phrase';
 
 function uniqueHyps(rows: IdentityHypothesis[]): IdentityHypothesis[] {
@@ -12,6 +12,19 @@ function uniqueHyps(rows: IdentityHypothesis[]): IdentityHypothesis[] {
     out.push(row);
   }
   return out;
+}
+
+/** Prefer phrases that end on a generic head noun (pump, light, chair) over leftover modifiers. */
+export function phraseSpecificity(label: string): number {
+  const words = normalizeText(label).split(' ').filter(Boolean);
+  const last = words[words.length - 1] ?? '';
+  const headBonus = GENERIC_HEAD_NOUNS.has(last) ? 100 : 0;
+  return headBonus + words.length * 10 + Math.min(label.length, 24);
+}
+
+function byPosteriorThenSpecificity(a: IdentityHypothesis, b: IdentityHypothesis): number {
+  if (b.posterior !== a.posterior) return b.posterior - a.posterior;
+  return phraseSpecificity(b.label) - phraseSpecificity(a.label);
 }
 
 export function generateHypotheses(evidence: EvidenceRecord[]): IdentityHypothesis[] {
@@ -69,17 +82,12 @@ export function generateHypotheses(evidence: EvidenceRecord[]): IdentityHypothes
       hyp.rationale = 'Title head noun agrees with structured specification.';
     }
   }
-  return merged.sort((a, b) => b.prior - a.prior).slice(0, 8);
+  return merged.sort((a, b) => {
+    if (b.prior !== a.prior) return b.prior - a.prior;
+    return phraseSpecificity(b.label) - phraseSpecificity(a.label);
+  }).slice(0, 8);
 }
 
 export function topCandidates(hyps: IdentityHypothesis[], kind: 'product' | 'category', n = 3): IdentityHypothesis[] {
-  return hyps
-    .filter((h) => h.kind === kind && !h.rejected)
-    .sort((a, b) => {
-      if (b.posterior !== a.posterior) return b.posterior - a.posterior;
-      const words = b.label.split(' ').length - a.label.split(' ').length;
-      if (words) return words;
-      return b.label.length - a.label.length;
-    })
-    .slice(0, n);
+  return hyps.filter((h) => h.kind === kind && !h.rejected).sort(byPosteriorThenSpecificity).slice(0, n);
 }
