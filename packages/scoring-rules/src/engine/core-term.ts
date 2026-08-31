@@ -27,6 +27,12 @@ const STOP = new Set([
 ]);
 
 const PRODUCT_NOUNS = [
+  'vacuum cleaner',
+  'wet and dry vacuum',
+  'steam cleaner',
+  'steam mop',
+  'pressure washer',
+  'air compressor',
   'window handle',
   'door lock',
   'door handle',

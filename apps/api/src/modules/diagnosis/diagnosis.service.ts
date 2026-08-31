@@ -114,6 +114,9 @@ export class DiagnosisService {
       totalScore: result.totalScore,
       scores: result.scores,
       issues: result.issues,
+      productTruthProfile: result.productTruthProfile,
+      identityConflict: result.identityConflict,
+      keywordRecommendationsPaused: result.keywordRecommendationsPaused,
     };
   }
 

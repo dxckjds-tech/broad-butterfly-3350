@@ -50,6 +50,7 @@ export const RULE_REGISTRY: RegisteredRule[] = [
   r('mic-primary-keyword-3', 'Primary Keyword 3', 'MIC_SEO', 'P1', '后台 Keyword #3 与标题/中心词一致性'),
   r('mic-center-term-title', 'Center Terms vs Title', 'MIC_SEO', 'P1', '中心词是否出现在标题'),
   r('mic-category-relevance', 'Category Relevance', 'MIC_SEO', 'P1', '所选子目录与产品名称匹配度'),
+  r('product-identity-conflict', 'Product Identity Conflict', 'MIC_SEO', 'P0', '标题/类目/关键词/参数是否为同一产品'),
   r('geo-application', 'GEO Application', 'GEO', 'P1', '实体/场景关联（浅规则）'),
   r('geo-faq', 'GEO FAQ', 'GEO', 'P3', 'FAQ 对 AI 可见性'),
   r('geo-company', 'GEO Company Entity', 'GEO', 'P2', '制造商实体'),

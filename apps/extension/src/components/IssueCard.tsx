@@ -29,7 +29,8 @@ export function IssueCard({
   const descriptionIssue =
     issue.id === 'content-description-exists' || issue.id === 'content-description-length';
   const geoIssue = issue.id.startsWith('geo-');
-  const canAi = titleIssue || keywordIssue || categoryIssue || descriptionIssue || geoIssue;
+  const identityIssue = issue.id === 'product-identity-conflict';
+  const canAi = titleIssue || keywordIssue || categoryIssue || descriptionIssue || geoIssue || identityIssue;
   return (
     <article className={`issue issue--${TONE[issue.severity]}`}>
       <div className="issue__meta">
@@ -44,7 +45,7 @@ export function IssueCard({
       </p>
       <div className="issue__actions">
         <button type="button" disabled={!canAi} onClick={() => canAi && onAiGenerate?.()}>
-          AI生成
+          {identityIssue ? '确认产品身份' : 'AI生成'}
         </button>
         <button type="button" onClick={() => void copyText(issue.suggestion)}>
           复制建议

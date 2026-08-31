@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 class SpecDto {
   [key: string]: string;
@@ -58,4 +58,9 @@ export class OptimizeTitleDto {
   @IsOptional()
   @IsString()
   companyName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  identityUserVerified?: boolean;
 }

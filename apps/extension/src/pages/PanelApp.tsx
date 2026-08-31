@@ -6,6 +6,7 @@ import { ParseStatus } from '../components/ParseStatus';
 import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
 import { TitleOptimizePanel } from '../components/TitleOptimizePanel';
+import { ProductIdentityPanel } from '../components/ProductIdentityPanel';
 import { KeywordOptimizePanel } from '../components/KeywordOptimizePanel';
 import { CategoryCheckPanel } from '../components/CategoryCheckPanel';
 import { DescriptionOptimizePanel } from '../components/DescriptionOptimizePanel';
@@ -15,12 +16,13 @@ import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
 
 export function PanelApp() {
-  const { state, page, result, error, loadPage, run } = useDiagnosis();
+  const { state, page, result, error, loadPage, run, setIdentityVerified } = useDiagnosis();
   const [titleTrigger, setTitleTrigger] = useState(0);
   const [keywordTrigger, setKeywordTrigger] = useState(0);
   const [categoryTrigger, setCategoryTrigger] = useState(0);
   const [descriptionTrigger, setDescriptionTrigger] = useState(0);
   const [geoTrigger, setGeoTrigger] = useState(0);
+  const [identityTrigger, setIdentityTrigger] = useState(0);
 
   useEffect(() => {
     void loadPage();
@@ -33,7 +35,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.4</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.5</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -74,6 +76,13 @@ export function PanelApp() {
       {page && page.platform !== 'UNKNOWN' && state !== 'ANALYZING' ? <ParseStatus page={page} /> : null}
 
       <TitleOptimizePanel page={page} trigger={titleTrigger} />
+      <ProductIdentityPanel
+        page={page}
+        trigger={identityTrigger}
+        onVerified={(verified) => {
+          void setIdentityVerified(verified);
+        }}
+      />
       <KeywordOptimizePanel page={page} trigger={keywordTrigger} />
       <CategoryCheckPanel page={page} trigger={categoryTrigger} />
       <DescriptionOptimizePanel page={page} trigger={descriptionTrigger} />
@@ -113,6 +122,10 @@ export function PanelApp() {
             onCategoryAi={() => setCategoryTrigger((n) => n + 1)}
             onDescriptionAi={() => setDescriptionTrigger((n) => n + 1)}
             onGeoAi={() => setGeoTrigger((n) => n + 1)}
+            onIdentityFocus={() => {
+              setIdentityTrigger((n) => n + 1);
+              document.getElementById('product-identity-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           />
         </>
       )}

@@ -1,6 +1,7 @@
 import type { DiagnosisResult, DiagnosisUiState, PlatformPageData } from '@trade-ai/shared-types';
 import { useCallback, useState } from 'react';
 import { diagnosePage } from '../services/diagnosis';
+import { getIdentityUserVerified, setIdentityUserVerified } from '../services/identity';
 import { queryActiveTab, reloadAndWait, requestPageData } from '../services/messaging';
 
 export function useDiagnosis() {
@@ -23,7 +24,8 @@ export function useDiagnosis() {
       }
       try {
         const data = await requestPageData(tab.id);
-        setPage(data);
+        const identityUserVerified = await getIdentityUserVerified(data.url || tab.url);
+        setPage({ ...data, identityUserVerified });
         if (data.pageType === 'UNKNOWN' && data.platform === 'UNKNOWN') {
           setState('UNRECOGNIZED');
         } else {
@@ -57,6 +59,26 @@ export function useDiagnosis() {
     }
   }, []);
 
+  const setIdentityVerified = useCallback(
+    async (verified: boolean) => {
+      if (!page) return;
+      const next = { ...page, identityUserVerified: verified };
+      if (page.url) await setIdentityUserVerified(page.url, verified);
+      setPage(next);
+      setState('ANALYZING');
+      setError('');
+      try {
+        const diagnosed = await diagnosePage(next);
+        setResult(diagnosed);
+        setState('SUCCESS');
+      } catch (err) {
+        setState('FAILED');
+        setError(err instanceof Error ? err.message : '分析失败');
+      }
+    },
+    [page],
+  );
+
   const run = useCallback(async () => {
     if (!page) return;
     setState('ANALYZING');
@@ -71,5 +93,5 @@ export function useDiagnosis() {
     }
   }, [page]);
 
-  return { state, page, result, error, loadPage, run };
+  return { state, page, result, error, loadPage, run, setIdentityVerified };
 }
