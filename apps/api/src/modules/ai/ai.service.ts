@@ -17,9 +17,17 @@ import {
   type LLMProvider,
   type TitleOptimizeResult,
 } from '@trade-ai/ai-engine';
-import type { AiHealthPayload } from '@trade-ai/shared-types';
+import { gateKeywordList, inspectProductIdentityWithGate, listingToPage } from '@trade-ai/scoring-rules';
+import type {
+  AiHealthPayload,
+  GatedKeyword,
+  ProductIdentityInspectPayload,
+  ProductTruthProfile,
+} from '@trade-ai/shared-types';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import type { OptimizeTitleDto } from './dto/optimize-title.dto';
+import type { ConfirmProductIdentityDto, KeywordGateDto } from './dto/product-identity.dto';
 
 @Injectable()
 export class AiService {
@@ -115,8 +123,17 @@ export class AiService {
           url: dto.url,
           moq: dto.moq,
           deliveryTime: dto.deliveryTime,
+          companyName: dto.companyName,
+          identityUserVerified: await this.resolveUserVerified(dto.url, dto.identityUserVerified),
         },
       });
+      await this.persistTruthProfile(
+        dto,
+        result.productTruthProfile,
+        result.identityConflict,
+        result.keywordRecommendationsPaused,
+      );
+      await this.persistKeywordGate(dto.url, result.gatedKeywords);
       await this.logCall({
         taskType: result.meta.taskType,
         provider: result.meta.provider,
@@ -319,6 +336,229 @@ export class AiService {
         { message: AI_UNAVAILABLE_MESSAGE, code: 'AI_UNAVAILABLE' },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
+    }
+  }
+
+  async inspectProductIdentity(dto: OptimizeTitleDto): Promise<ProductIdentityInspectPayload> {
+    const userVerified = await this.resolveUserVerified(dto.url, dto.identityUserVerified);
+    const page = listingToPage({
+      productName: dto.productName,
+      category: dto.category,
+      keywords: dto.keywords ?? dto.currentKeywords ?? [],
+      currentKeywords: dto.currentKeywords ?? dto.keywords ?? [],
+      centerTerms: dto.centerTerms,
+      specifications: dto.specifications,
+      description: dto.description,
+      certifications: dto.certifications,
+      url: dto.url,
+      moq: dto.moq,
+      deliveryTime: dto.deliveryTime,
+      companyName: dto.companyName,
+      identityUserVerified: userVerified,
+    });
+    const inspect = inspectProductIdentityWithGate(page);
+    await this.persistTruthProfile(dto, inspect.profile, inspect.conflict, inspect.keywordRecommendationsPaused);
+    await this.persistKeywordGate(dto.url, inspect.currentKeywordGate);
+    return inspect;
+  }
+
+  async confirmProductIdentity(dto: ConfirmProductIdentityDto): Promise<ProductIdentityInspectPayload> {
+    if (!dto.url?.trim()) {
+      throw new HttpException({ message: '缺少页面 URL，无法确认产品身份。', code: 'IDENTITY_URL_REQUIRED' }, HttpStatus.BAD_REQUEST);
+    }
+    const stored = await this.readStoredProfile(dto.url);
+    const productName = dto.productName || stored?.coreProduct;
+    if (!productName) {
+      throw new HttpException({ message: '缺少产品标题，无法确认产品身份。', code: 'IDENTITY_TITLE_REQUIRED' }, HttpStatus.BAD_REQUEST);
+    }
+    const inspect = inspectProductIdentityWithGate(
+      listingToPage({
+        productName,
+        category: dto.category,
+        keywords: dto.keywords ?? [],
+        url: dto.url,
+        identityUserVerified: true,
+      }),
+    );
+    const frozen: ProductTruthProfile = stored?.userVerified
+      ? {
+          ...inspect.profile,
+          coreProduct: stored.coreProduct,
+          productFamily: stored.productFamily,
+          productType: stored.productType,
+          userVerified: true,
+          identityConfidence: 1,
+        }
+      : { ...inspect.profile, userVerified: true, identityConfidence: 1 };
+    const paused = false;
+    const conflict = inspect.conflict
+      ? { ...inspect.conflict, keywordRecommendationsPaused: false }
+      : null;
+    await this.persistTruthProfile(
+      { productName, url: dto.url },
+      frozen,
+      conflict,
+      paused,
+      { forceVerified: true },
+    );
+    return {
+      profile: frozen,
+      conflict,
+      keywordRecommendationsPaused: false,
+      currentKeywordGate: inspect.currentKeywordGate,
+      blockedKeywords: inspect.blockedKeywords,
+    };
+  }
+
+  async gateKeywords(dto: KeywordGateDto): Promise<{
+    gatedKeywords: GatedKeyword[];
+    blockedKeywords: ProductIdentityInspectPayload['blockedKeywords'];
+    officialTop3: GatedKeyword[];
+    searchDemand: 'UNKNOWN';
+    productTruthProfile: ProductTruthProfile;
+    identityConflict: ProductIdentityInspectPayload['conflict'];
+    keywordRecommendationsPaused: boolean;
+  }> {
+    const userVerified = await this.resolveUserVerified(dto.url, dto.identityUserVerified);
+    const page = listingToPage({
+      productName: dto.productName,
+      category: dto.category,
+      keywords: dto.keywords ?? dto.currentKeywords ?? [],
+      currentKeywords: dto.currentKeywords ?? dto.keywords ?? [],
+      centerTerms: dto.centerTerms,
+      specifications: dto.specifications,
+      description: dto.description,
+      certifications: dto.certifications,
+      url: dto.url,
+      moq: dto.moq,
+      deliveryTime: dto.deliveryTime,
+      companyName: dto.companyName,
+      identityUserVerified: userVerified,
+    });
+    const inspect = inspectProductIdentityWithGate(page);
+    const phrases = (dto.gateKeywords ?? page.keywords).filter(Boolean);
+    const gated = gateKeywordList(phrases, page, inspect.profile);
+    await this.persistTruthProfile(dto, inspect.profile, inspect.conflict, inspect.keywordRecommendationsPaused);
+    await this.persistKeywordGate(dto.url, gated.gated);
+    return {
+      gatedKeywords: gated.gated,
+      blockedKeywords: gated.blocked,
+      officialTop3: [],
+      searchDemand: 'UNKNOWN',
+      productTruthProfile: inspect.profile,
+      identityConflict: inspect.conflict,
+      keywordRecommendationsPaused: inspect.keywordRecommendationsPaused,
+    };
+  }
+
+  private async resolveUserVerified(url?: string, claimed?: boolean): Promise<boolean> {
+    if (claimed) return true;
+    const stored = url ? await this.readStoredProfile(url) : null;
+    return Boolean(stored?.userVerified);
+  }
+
+  private async readStoredProfile(url: string): Promise<{
+    userVerified: boolean;
+    coreProduct: string;
+    productFamily: string;
+    productType: string;
+  } | null> {
+    if (!url) return null;
+    try {
+      const row = await this.prisma.productTruthProfile.findUnique({ where: { pageUrl: url } });
+      if (!row) return null;
+      return {
+        userVerified: row.userVerified,
+        coreProduct: row.coreProduct,
+        productFamily: row.productFamily,
+        productType: row.productType,
+      };
+    } catch (err) {
+      this.logger.warn(`ProductTruthProfile read skipped: ${err instanceof Error ? err.message : 'unknown'}`);
+      return null;
+    }
+  }
+
+  private async persistTruthProfile(
+    dto: Pick<OptimizeTitleDto, 'url' | 'productName'>,
+    profile: ProductTruthProfile,
+    conflict: ProductIdentityInspectPayload['conflict'],
+    paused: boolean,
+    opts?: { forceVerified?: boolean },
+  ): Promise<void> {
+    const pageUrl = dto.url?.trim();
+    if (!pageUrl) return;
+    try {
+      const existing = await this.prisma.productTruthProfile.findUnique({ where: { pageUrl } });
+      const verified = Boolean(opts?.forceVerified || existing?.userVerified || profile.userVerified);
+      const frozenCore = existing?.userVerified
+        ? {
+            coreProduct: existing.coreProduct,
+            productFamily: existing.productFamily,
+            productType: existing.productType,
+          }
+        : {
+            coreProduct: profile.coreProduct,
+            productFamily: profile.productFamily,
+            productType: profile.productType,
+          };
+      const data = {
+        productId: null,
+        ...frozenCore,
+        verifiedAttributes: profile.verifiedAttributes as Prisma.InputJsonValue,
+        specifications: profile.specifications as Prisma.InputJsonValue,
+        applications: profile.applications as Prisma.InputJsonValue,
+        materials: profile.materials as Prisma.InputJsonValue,
+        certifications: profile.certifications as Prisma.InputJsonValue,
+        capabilities: profile.capabilities as Prisma.InputJsonValue,
+        unverifiedClaims: profile.unverifiedClaims as Prisma.InputJsonValue,
+        conflictingClaims: profile.conflictingClaims as Prisma.InputJsonValue,
+        evidence: profile.evidence as unknown as Prisma.InputJsonValue,
+        identityConfidence: verified ? 1 : profile.identityConfidence,
+        userVerified: verified,
+        identityConflict: (conflict ?? Prisma.JsonNull) as unknown as Prisma.InputJsonValue,
+        keywordRecommendationsPaused: verified ? false : paused,
+        confirmedAt: verified ? existing?.confirmedAt ?? new Date() : null,
+      };
+      await this.prisma.productTruthProfile.upsert({
+        where: { pageUrl },
+        create: { pageUrl, ...data },
+        update: existing?.userVerified && !opts?.forceVerified
+          ? {
+              specifications: data.specifications,
+              applications: data.applications,
+              materials: data.materials,
+              certifications: data.certifications,
+              evidence: data.evidence,
+              unverifiedClaims: data.unverifiedClaims,
+              conflictingClaims: data.conflictingClaims,
+              identityConflict: data.identityConflict,
+              keywordRecommendationsPaused: false,
+              userVerified: true,
+              identityConfidence: 1,
+            }
+          : data,
+      });
+    } catch (err) {
+      this.logger.warn(`ProductTruthProfile persist skipped: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+  }
+
+  private async persistKeywordGate(pageUrl: string | undefined, gated: GatedKeyword[]): Promise<void> {
+    if (!pageUrl?.trim() || !gated.length) return;
+    try {
+      await this.prisma.keywordGateLog.createMany({
+        data: gated.slice(0, 40).map((row) => ({
+          pageUrl,
+          keyword: row.keyword,
+          matchScore: row.matchScore,
+          status: row.status,
+          blockedReasons: row.blockedReasons as Prisma.InputJsonValue,
+          demand: row.searchEvidence.demand === 'UNKNOWN' ? 'UNKNOWN' : String(row.searchEvidence.demand),
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`KeywordGateLog persist skipped: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 

@@ -3,9 +3,23 @@ import {
   KEYWORD_OPTIMIZER_SYSTEM,
   buildKeywordOptimizerUserPrompt,
 } from '@trade-ai/prompts';
+import {
+  gateKeywordList,
+  inspectProductIdentityWithGate,
+  listingToPage,
+} from '@trade-ai/scoring-rules';
+import type {
+  BlockedKeyword,
+  GatedKeyword,
+  KeywordOptimizePayload,
+  KeywordSuggestion,
+  MicKeywordSuggestion,
+  ProductIdentityConflict,
+  ProductTruthProfile,
+} from '@trade-ai/shared-types';
 import { cacheKey, getCached, setCached } from '../cache';
 import type { AiRuntimeConfig } from '../config';
-import { applyFactGuard } from '../fact-guard';
+import { applyFactGuard, type KnownFacts } from '../fact-guard';
 import { parseJsonLoose } from '../json';
 import { routeModel } from '../model-router';
 import { AI_ENGINE_VERSION, ENABLED_AI_TASKS } from '../provider';
@@ -33,38 +47,32 @@ export interface KeywordOptimizeInput {
   url?: string;
   moq?: string;
   deliveryTime?: string;
+  companyName?: string;
+  identityUserVerified?: boolean;
 }
 
-export interface KeywordOptimizeResult {
-  currentKeywords: string[];
-  problems: string[];
-  primaryKeywords: KeywordOptimizeOutput['primaryKeywords'];
-  secondaryKeywords: KeywordOptimizeOutput['secondaryKeywords'];
-  buyerIntentKeywords: KeywordOptimizeOutput['buyerIntentKeywords'];
-  applicationKeywords: KeywordOptimizeOutput['applicationKeywords'];
-  micKeywords: KeywordOptimizeOutput['micKeywords'];
-  factGuard: {
-    ok: boolean;
-    warnings: string[];
-    removed: Array<{ key: string; value: string }>;
-  };
-  meta: {
-    taskType: 'KEYWORD_OPTIMIZATION';
-    provider: string;
-    model: string;
-    latency: number;
-    inputTokens: number;
-    outputTokens: number;
-    status: 'ok' | 'cached' | 'fallback';
-    promptVersion: string;
-    cached: boolean;
-    engineVersion: string;
+export type KeywordOptimizeResult = KeywordOptimizePayload;
+
+const REJECT_STATUSES = new Set(['REJECTED', 'REJECTED_PRODUCT_MISMATCH']);
+
+function factsFromInput(input: KeywordOptimizeInput, productName: string): KnownFacts {
+  return {
+    productName,
+    companyName: input.companyName,
+    category: input.category,
+    keywords: input.currentKeywords ?? input.keywords,
+    centerTerms: input.centerTerms,
+    specifications: input.specifications,
+    description: input.description,
+    certifications: input.certifications,
+    moq: input.moq,
+    deliveryTime: input.deliveryTime,
   };
 }
 
-function knownCorpus(input: KeywordOptimizeInput): string {
+function knownCorpus(input: KeywordOptimizeInput, productName: string): string {
   return [
-    input.productName,
+    productName,
     input.category,
     ...(input.currentKeywords ?? input.keywords ?? []),
     ...(input.centerTerms ?? []),
@@ -76,15 +84,88 @@ function knownCorpus(input: KeywordOptimizeInput): string {
     .toLowerCase();
 }
 
+function emptySuggestions(): KeywordSuggestion[] {
+  return [];
+}
+
+function pausedResult(opts: {
+  currentKeywords: string[];
+  conflict: ProductIdentityConflict | null;
+  profile: ProductTruthProfile;
+  gated: GatedKeyword[];
+  blocked: BlockedKeyword[];
+  provider: string;
+  latency: number;
+}): KeywordOptimizeResult {
+  const summary =
+    opts.conflict?.summary ||
+    'PRODUCT_IDENTITY_CONFLICT：标题与类目/关键词不是同一产品，已暂停关键词推荐。';
+  return {
+    currentKeywords: opts.currentKeywords,
+    problems: [summary, '请先人工确认产品身份。确认前不得生成正式关键词推荐，且不会改写 MIC。'],
+    primaryKeywords: emptySuggestions(),
+    secondaryKeywords: emptySuggestions(),
+    buyerIntentKeywords: emptySuggestions(),
+    applicationKeywords: emptySuggestions(),
+    micKeywords: [],
+    officialTop3: [],
+    gatedKeywords: opts.gated,
+    blockedKeywords: opts.blocked,
+    identityConflict: opts.conflict,
+    productTruthProfile: opts.profile,
+    keywordRecommendationsPaused: true,
+    searchDemand: 'UNKNOWN',
+    factGuard: { ok: true, warnings: [summary], removed: [] },
+    meta: {
+      taskType: 'KEYWORD_OPTIMIZATION',
+      provider: opts.provider,
+      model: 'none',
+      latency: opts.latency,
+      inputTokens: 0,
+      outputTokens: 0,
+      status: 'fallback',
+      promptVersion: KEYWORD_OPTIMIZER_PROMPT_VERSION,
+      cached: false,
+      engineVersion: AI_ENGINE_VERSION,
+    },
+  };
+}
+
+function mergeFactGuard(
+  keyword: string,
+  gated: GatedKeyword,
+  facts: KnownFacts,
+): { gated: GatedKeyword; blocked?: BlockedKeyword } {
+  const guard = applyFactGuard(keyword, facts);
+  if (guard.ok) return { gated };
+  const reasons = [...new Set([...gated.blockedReasons, 'BLOCKED_BY_FACT_GUARD' as const])];
+  const next: GatedKeyword = {
+    ...gated,
+    blockedReasons: reasons,
+    officialTop3Eligible: false,
+    status: REJECT_STATUSES.has(gated.status) ? gated.status : 'REJECTED',
+  };
+  return {
+    gated: next,
+    blocked: {
+      keyword,
+      reasons,
+      note: guard.warnings.find((w) => w.startsWith('BLOCKED_BY_FACT_GUARD')) || guard.warnings[0] || 'BLOCKED_BY_FACT_GUARD',
+      matchScore: next.matchScore,
+    },
+  };
+}
+
 function sanitizeMicKeywords(
   items: KeywordOptimizeOutput['micKeywords'],
   input: KeywordOptimizeInput,
-): { list: KeywordOptimizeOutput['micKeywords']; warnings: string[] } {
+  facts: KnownFacts,
+): { list: MicKeywordSuggestion[]; warnings: string[]; removed: Array<{ key: string; value: string }> } {
   const center = input.centerTerms ?? [];
-  const allowed = knownCorpus(input);
   const seen = new Set<string>();
   const warnings: string[] = [];
-  const list: KeywordOptimizeOutput['micKeywords'] = [];
+  const removed: Array<{ key: string; value: string }> = [];
+  const list: MicKeywordSuggestion[] = [];
 
   for (const item of items) {
     const keyword = item.keyword.replace(/\s+/g, ' ').trim();
@@ -98,23 +179,14 @@ function sanitizeMicKeywords(
       warnings.push(`Dropped center-term repeat "${keyword}"`);
       continue;
     }
-    if (isBannedHotTerm(keyword, allowed)) {
+    if (isBannedHotTerm(keyword, knownCorpus(input, input.productName))) {
       warnings.push(`Dropped unrelated hot term "${keyword}"`);
       continue;
     }
-    const guarded = applyFactGuard(keyword, {
-      productName: input.productName,
-      category: input.category,
-      keywords: input.currentKeywords ?? input.keywords,
-      centerTerms: input.centerTerms,
-      specifications: input.specifications,
-      description: input.description,
-      certifications: input.certifications,
-      moq: input.moq,
-      deliveryTime: input.deliveryTime,
-    });
+    const guarded = applyFactGuard(keyword, facts);
     if (!guarded.ok) {
       warnings.push(...guarded.warnings);
+      removed.push(...guarded.removed);
       continue;
     }
     seen.add(key);
@@ -126,7 +198,43 @@ function sanitizeMicKeywords(
     if (list.length >= 10) break;
   }
 
-  return { list, warnings };
+  return { list, warnings, removed };
+}
+
+function gateSuggestionList(
+  items: KeywordSuggestion[],
+  page: ReturnType<typeof listingToPage>,
+  profile: ProductTruthProfile,
+  facts: KnownFacts,
+): { kept: KeywordSuggestion[]; blocked: BlockedKeyword[]; gated: GatedKeyword[]; severe: boolean } {
+  const blocked: BlockedKeyword[] = [];
+  const gated: GatedKeyword[] = [];
+  const kept: KeywordSuggestion[] = [];
+  let severe = false;
+  for (const item of items) {
+    const [row] = gateKeywordList([item.keyword], page, profile).gated;
+    if (!row) continue;
+    const merged = mergeFactGuard(item.keyword, row, facts);
+    gated.push(merged.gated);
+    if (merged.blocked) {
+      blocked.push(merged.blocked);
+      if (applyFactGuard(item.keyword, facts).severe) severe = true;
+      continue;
+    }
+    if (REJECT_STATUSES.has(merged.gated.status) || merged.gated.blockedReasons.length) {
+      if (merged.gated.blockedReasons.length) {
+        blocked.push({
+          keyword: item.keyword,
+          reasons: merged.gated.blockedReasons,
+          note: `门禁 ${merged.gated.status}，匹配分 ${merged.gated.matchScore}。`,
+          matchScore: merged.gated.matchScore,
+        });
+      }
+      continue;
+    }
+    kept.push(item);
+  }
+  return { kept, blocked, gated, severe };
 }
 
 export async function optimizeKeywords(opts: {
@@ -147,7 +255,18 @@ export async function optimizeKeywords(opts: {
   const currentKeywords = (opts.input.currentKeywords ?? opts.input.keywords ?? [])
     .map((k) => k.trim())
     .filter(Boolean);
-  const key = cacheKey(['KEYWORD_OPTIMIZATION', opts.input.url, productName, currentKeywords.join(',')]);
+  const userVerified = Boolean(opts.input.identityUserVerified);
+  const page = listingToPage({ ...opts.input, productName, currentKeywords, identityUserVerified: userVerified });
+  const inspect = inspectProductIdentityWithGate(page);
+  const facts = factsFromInput(opts.input, productName);
+
+  const key = cacheKey([
+    'KEYWORD_OPTIMIZATION',
+    opts.input.url,
+    productName,
+    currentKeywords.join(','),
+    userVerified ? 'verified' : 'unverified',
+  ]);
   if (!opts.skipCache) {
     const hit = getCached<KeywordOptimizeResult>(key);
     if (hit) {
@@ -156,6 +275,21 @@ export async function optimizeKeywords(opts: {
   }
 
   const started = Date.now();
+
+  if (inspect.keywordRecommendationsPaused) {
+    const result = pausedResult({
+      currentKeywords,
+      conflict: inspect.conflict,
+      profile: inspect.profile,
+      gated: inspect.currentKeywordGate,
+      blocked: inspect.blockedKeywords,
+      provider: opts.provider.name,
+      latency: Date.now() - started,
+    });
+    setCached(key, result);
+    return result;
+  }
+
   const routed = routeModel('KEYWORD_OPTIMIZATION', opts.config);
   const prompt = buildKeywordOptimizerUserPrompt({
     productName,
@@ -212,27 +346,96 @@ export async function optimizeKeywords(opts: {
     throw new AiUnavailableError();
   }
 
-  const sanitized = sanitizeMicKeywords(parsed.data.micKeywords, {
-    ...opts.input,
-    productName,
-    currentKeywords,
-  });
-  if (!sanitized.list.length) {
-    throw new AiUnavailableError();
+  const sanitized = sanitizeMicKeywords(parsed.data.micKeywords, { ...opts.input, productName, currentKeywords }, facts);
+  const currentGate = gateKeywordList(currentKeywords, page, inspect.profile);
+  const candidateGate = gateKeywordList(
+    sanitized.list.map((row) => row.keyword),
+    page,
+    inspect.profile,
+  );
+  const mergedGated: GatedKeyword[] = [];
+  const mergedBlocked: BlockedKeyword[] = [...currentGate.blocked];
+  let severe = false;
+
+  for (const row of candidateGate.gated) {
+    const merged = mergeFactGuard(row.keyword, row, facts);
+    mergedGated.push(merged.gated);
+    if (merged.blocked) {
+      mergedBlocked.push(merged.blocked);
+      if (applyFactGuard(row.keyword, facts).severe) severe = true;
+    } else if (merged.gated.blockedReasons.length) {
+      mergedBlocked.push({
+        keyword: row.keyword,
+        reasons: merged.gated.blockedReasons,
+        note: `门禁 ${merged.gated.status}，匹配分 ${merged.gated.matchScore}。`,
+        matchScore: merged.gated.matchScore,
+      });
+    }
   }
+
+  const allowedMic: MicKeywordSuggestion[] = [];
+  for (const row of sanitized.list) {
+    const gated = mergedGated.find((g) => g.keyword.toLowerCase() === row.keyword.toLowerCase());
+    if (!gated || REJECT_STATUSES.has(gated.status) || gated.blockedReasons.length) continue;
+    allowedMic.push({
+      ...row,
+      matchScore: gated.matchScore,
+      gateStatus: gated.status,
+    });
+  }
+
+  const primary = gateSuggestionList(parsed.data.primaryKeywords, page, inspect.profile, facts);
+  const secondary = gateSuggestionList(parsed.data.secondaryKeywords, page, inspect.profile, facts);
+  const buyer = gateSuggestionList(parsed.data.buyerIntentKeywords, page, inspect.profile, facts);
+  const application = gateSuggestionList(parsed.data.applicationKeywords, page, inspect.profile, facts);
+  severe = severe || primary.severe || secondary.severe || buyer.severe || application.severe;
+
+  const blockedByKey = new Map<string, BlockedKeyword>();
+  for (const row of [
+    ...mergedBlocked,
+    ...primary.blocked,
+    ...secondary.blocked,
+    ...buyer.blocked,
+    ...application.blocked,
+  ]) {
+    const k = row.keyword.toLowerCase();
+    const prev = blockedByKey.get(k);
+    if (!prev) blockedByKey.set(k, row);
+    else blockedByKey.set(k, { ...prev, reasons: [...new Set([...prev.reasons, ...row.reasons])] });
+  }
+
+  const gatedByKey = new Map<string, GatedKeyword>();
+  for (const row of [...currentGate.gated, ...mergedGated, ...primary.gated, ...secondary.gated, ...buyer.gated, ...application.gated]) {
+    gatedByKey.set(row.keyword.toLowerCase(), row);
+  }
+
+  const factWarnings = [
+    ...sanitized.warnings,
+    ...(severe ? ['严重事实声明未验证，已禁止展示正式关键词推荐。'] : []),
+  ];
 
   const result: KeywordOptimizeResult = {
     currentKeywords: parsed.data.currentKeywords.length ? parsed.data.currentKeywords : currentKeywords,
-    problems: parsed.data.problems,
-    primaryKeywords: parsed.data.primaryKeywords,
-    secondaryKeywords: parsed.data.secondaryKeywords,
-    buyerIntentKeywords: parsed.data.buyerIntentKeywords,
-    applicationKeywords: parsed.data.applicationKeywords,
-    micKeywords: sanitized.list,
+    problems: [
+      ...parsed.data.problems,
+      '无真实搜索数据，demand=UNKNOWN，不能进入正式 Top3。',
+    ],
+    primaryKeywords: severe ? [] : primary.kept,
+    secondaryKeywords: severe ? [] : secondary.kept,
+    buyerIntentKeywords: severe ? [] : buyer.kept,
+    applicationKeywords: severe ? [] : application.kept,
+    micKeywords: severe ? [] : allowedMic,
+    officialTop3: [],
+    gatedKeywords: [...gatedByKey.values()],
+    blockedKeywords: [...blockedByKey.values()],
+    identityConflict: inspect.conflict,
+    productTruthProfile: inspect.profile,
+    keywordRecommendationsPaused: false,
+    searchDemand: 'UNKNOWN',
     factGuard: {
-      ok: sanitized.warnings.length === 0,
-      warnings: sanitized.warnings,
-      removed: [],
+      ok: sanitized.warnings.length === 0 && !severe,
+      warnings: factWarnings,
+      removed: sanitized.removed,
     },
     meta: {
       taskType: 'KEYWORD_OPTIMIZATION',

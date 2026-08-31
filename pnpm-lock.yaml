@@ -105,6 +105,9 @@ importers:
       '@trade-ai/production-safety':
         specifier: workspace:*
         version: link:../../packages/production-safety
+      '@trade-ai/scoring-rules':
+        specifier: workspace:*
+        version: link:../../packages/scoring-rules
       '@trade-ai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -148,6 +151,9 @@ importers:
       '@trade-ai/platform-adapters':
         specifier: workspace:*
         version: link:../../packages/platform-adapters
+      '@trade-ai/scoring-rules':
+        specifier: workspace:*
+        version: link:../../packages/scoring-rules
       '@trade-ai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types

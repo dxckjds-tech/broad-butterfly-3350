@@ -12,6 +12,7 @@ import { titleSuggestion } from '../suggestions/title';
 import type { RuleContext } from './context';
 import { RULE_REGISTRY_MAP } from './registry';
 import { englishWords, SECTION_KEYS, symbolCount } from './text';
+import { inspectProductIdentity } from './truth-profile';
 
 function impact(severity: IssueSeverity): number {
   if (severity === 'CRITICAL') return -18;
@@ -690,6 +691,45 @@ export function evaluateAllRules(ctx: RuleContext): RuleResult[] {
         },
         fieldSource: 'category',
       }),
+    );
+  }
+
+  if (product) {
+    const identity = inspectProductIdentity(ctx.page);
+    const conflict = identity.conflict;
+    const verified = identity.profile.userVerified;
+    results.push(
+      make(
+        ctx,
+        'product-identity-conflict',
+        conflict && !verified ? 'FAIL' : 'PASS',
+        {
+          title: conflict
+            ? verified
+              ? '产品身份已人工确认'
+              : 'PRODUCT_IDENTITY_CONFLICT：标题与类目/关键词不是同一产品'
+            : '产品身份一致',
+          description: conflict
+            ? conflict.summary
+            : `核心产品 ${identity.profile.coreProduct}，产品族 ${identity.profile.productFamily}。`,
+          suggestion: conflict
+            ? verified
+              ? '已按人工确认的产品身份继续。AI 不得覆盖该身份。'
+              : '请先人工确认产品身份。确认前暂停关键词推荐，且不得自动改 MIC。'
+            : '保持标题、类目、关键词、参数指向同一产品。',
+          severity: conflict && !verified ? 'HIGH' : 'LOW',
+          scoreImpact: conflict && !verified ? -12 : 0,
+          evidence: {
+            code: conflict?.code ?? 'PRODUCT_IDENTITY_OK',
+            coreProduct: identity.profile.coreProduct,
+            productFamily: identity.profile.productFamily,
+            identityConfidence: identity.profile.identityConfidence,
+            userVerified: verified,
+            keywordRecommendationsPaused: identity.keywordRecommendationsPaused,
+            conflict,
+          },
+        },
+      ),
     );
   }
 

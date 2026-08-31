@@ -301,3 +301,43 @@ model AiCallLog {
   @@index([taskType, createdAt])
   @@index([status, createdAt])
 }
+
+model ProductTruthProfile {
+  id                             String    @id @default(cuid())
+  pageUrl                        String    @unique
+  productId                      String?
+  coreProduct                    String
+  productFamily                  String
+  productType                    String
+  verifiedAttributes             Json
+  specifications                 Json
+  applications                   Json
+  materials                      Json
+  certifications                 Json
+  capabilities                   Json
+  unverifiedClaims               Json
+  conflictingClaims              Json
+  evidence                       Json
+  identityConfidence             Float
+  userVerified                   Boolean   @default(false)
+  identityConflict               Json?
+  keywordRecommendationsPaused   Boolean   @default(false)
+  confirmedAt                    DateTime?
+  createdAt                      DateTime  @default(now())
+  updatedAt                      DateTime  @updatedAt
+
+  @@index([productId])
+}
+
+model KeywordGateLog {
+  id             String   @id @default(cuid())
+  pageUrl        String
+  keyword        String
+  matchScore     Int
+  status         String
+  blockedReasons Json
+  demand         String   @default("UNKNOWN")
+  createdAt      DateTime @default(now())
+
+  @@index([pageUrl])
+}

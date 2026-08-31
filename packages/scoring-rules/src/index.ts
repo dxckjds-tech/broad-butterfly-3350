@@ -4,6 +4,7 @@ import { buildRuleContext } from './engine/context';
 import { evaluateAllRules } from './engine/evaluate';
 import { dedupeIssues, resultsToIssues, scoreFromRules, sortIssues, totalScore } from './engine/score';
 import { RULE_REGISTRY } from './engine/registry';
+import { inspectProductIdentity } from './engine/truth-profile';
 
 export { RULES_VERSION, PARSE_QUALITY_LOW, PARSE_QUALITY_UNCERTAIN } from './config';
 export { micConfig } from './config/mic.config';
@@ -15,6 +16,23 @@ export { detectCoreProductTerm } from './engine/core-term';
 export { evaluateAllRules } from './engine/evaluate';
 export { buildRuleContext } from './engine/context';
 export { dedupeIssues, sortIssues } from './engine/score';
+export {
+  buildProductTruthProfile,
+  detectProductIdentityConflict,
+  inspectProductIdentity,
+  inspectProductIdentityWithGate,
+  listingToPage,
+} from './engine/truth-profile';
+export type { ListingFactsInput } from './engine/truth-profile';
+export {
+  gateKeyword,
+  gateKeywordList,
+  gateStatusForScore,
+  isOfficialTop3Eligible,
+  missingSearchEvidence,
+  scoreKeywordAgainstProfile,
+} from './engine/keyword-gate';
+export { detectProductFamily, PRODUCT_FAMILY_CATALOG } from './engine/product-family';
 
 export function evaluateDiagnosis(page: PlatformPageData): Omit<DiagnosisResult, 'diagnosisId'> {
   const ctx = buildRuleContext(page);
@@ -22,6 +40,7 @@ export function evaluateDiagnosis(page: PlatformPageData): Omit<DiagnosisResult,
   const { scores, scoreDetails, diagnosisConfidence } = scoreFromRules(ruleResults, ctx);
   const issues = dedupeIssues(resultsToIssues(ruleResults));
   const sorted = sortIssues(issues);
+  const identity = inspectProductIdentity(page);
   return {
     totalScore: totalScore(scores),
     scores,
@@ -33,6 +52,9 @@ export function evaluateDiagnosis(page: PlatformPageData): Omit<DiagnosisResult,
     productTypeProfile: ctx.profile,
     scoreDetails,
     parseQualityScore: ctx.parseScore,
+    productTruthProfile: identity.profile,
+    identityConflict: identity.conflict,
+    keywordRecommendationsPaused: identity.keywordRecommendationsPaused,
   };
 }
 

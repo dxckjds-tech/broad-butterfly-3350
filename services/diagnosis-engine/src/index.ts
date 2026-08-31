@@ -1,5 +1,5 @@
 import { geoAnalyzer, type GeoAnalysisResult } from '@trade-ai/geo-engine';
-import { analyzeMicPage } from '@trade-ai/mic-rule-engine';
+import { analyzeMicPage, inspectProductIdentity } from '@trade-ai/mic-rule-engine';
 import { seoAnalyzer, type SeoAnalysisResult } from '@trade-ai/seo-engine';
 import {
   SCORE_WEIGHTS,
@@ -53,12 +53,16 @@ export async function diagnosePage(page: PlatformPageData): Promise<DiagnosisEng
   const scores = computeScores(issues);
   const totalScore = computeTotalScore(scores);
   const [seo, geo] = await Promise.all([seoAnalyzer.analyze(page), geoAnalyzer.analyze(page)]);
+  const identity = inspectProductIdentity(page);
 
   return {
     result: {
       totalScore,
       scores,
       issues,
+      productTruthProfile: identity.profile,
+      identityConflict: identity.conflict,
+      keywordRecommendationsPaused: identity.keywordRecommendationsPaused,
     },
     seo,
     geo,

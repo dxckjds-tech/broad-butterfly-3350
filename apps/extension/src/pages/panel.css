@@ -504,3 +504,25 @@ body {
 .ai-geo__status--missing {
   color: #9b1c2c;
 }
+
+.ai-identity__badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9b1c2c;
+  background: #fde8ea;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.ai-identity__conflict {
+  border: 1px solid #f3c4cb;
+  background: #fde8ea;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.ai-identity__conflict p {
+  margin: 4px 0;
+}

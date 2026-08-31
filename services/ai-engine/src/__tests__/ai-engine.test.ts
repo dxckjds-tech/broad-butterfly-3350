@@ -20,9 +20,15 @@ import { MockLLMProvider } from '../providers/mock.provider';
 const SAMPLE = {
   productName: 'High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use',
   category: 'Steam Cleaner',
-  keywords: ['wet and dry vacuum cleaner', 'industrial vacuum'],
+  keywords: ['wet and dry vacuum cleaner', 'industrial vacuum', 'Steam Cleaner'],
   centerTerms: ['vacuum cleaner'],
-  specifications: { Voltage: '220V', Capacity: '60L' },
+  specifications: {
+    Type: 'Wet and Dry Vacuum Cleaner',
+    Voltage: '220V',
+    Capacity: '60L',
+    Suction: 'High Suction',
+    Application: 'Industrial workshop',
+  },
   description: 'Industrial wet and dry vacuum cleaner with high suction for workshop cleaning.',
   certifications: [] as string[],
   url: 'https://membercenter.made-in-china.com/product/demo-edit',
@@ -78,6 +84,40 @@ describe('FactGuard', () => {
     });
     expect(r.ok).toBe(true);
   });
+
+  it('blocks unverified eco-friendly, medical grade, waterproof and hospital use', () => {
+    const facts = {
+      productName: SAMPLE.productName,
+      specifications: SAMPLE.specifications,
+      description: SAMPLE.description,
+    };
+    expect(applyFactGuard('eco friendly vacuum cleaner', facts).ok).toBe(false);
+    expect(applyFactGuard('medical grade vacuum cleaner', facts).removed.some((x) => x.key === 'medicalGrade')).toBe(true);
+    expect(applyFactGuard('waterproof vacuum cleaner', facts).removed.some((x) => x.key === 'waterproof')).toBe(true);
+    expect(applyFactGuard('hospital vacuum cleaner', facts).removed.some((x) => x.key === 'application')).toBe(true);
+    expect(applyFactGuard('hospital vacuum cleaner', facts).severe).toBe(true);
+  });
+
+  it('does not treat factory price as factory-use evidence', () => {
+    const r = applyFactGuard('factory vacuum cleaner', {
+      productName: SAMPLE.productName,
+      specifications: SAMPLE.specifications,
+      description: 'High quality industrial cleaner. Best quality factory price. Welcome to inquiry.',
+    });
+    expect(r.ok).toBe(false);
+    expect(r.removed.some((x) => x.key === 'application' && /factory/i.test(x.value))).toBe(true);
+  });
+
+  it('allows workshop application and heavy duty / high suction from listing facts', () => {
+    const facts = {
+      productName: SAMPLE.productName,
+      specifications: SAMPLE.specifications,
+      description: SAMPLE.description,
+    };
+    expect(applyFactGuard('workshop vacuum cleaner', facts).ok).toBe(true);
+    expect(applyFactGuard('heavy duty vacuum cleaner', facts).ok).toBe(true);
+    expect(applyFactGuard('high suction vacuum cleaner', facts).ok).toBe(true);
+  });
 });
 
 describe('Zod title schema', () => {
@@ -130,27 +170,55 @@ describe('optimizeTitle mock path', () => {
 describe('optimizeKeywords mock path', () => {
   beforeEach(() => clearAiCache());
 
-  it('returns at most 10 MIC keywords with first 3 HIGH', async () => {
+  it('pauses keyword AI on Steam Cleaner vs wet/dry vacuum identity conflict', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const out = await optimizeKeywords({
+      provider,
+      config: cfg,
+      input: { ...SAMPLE, currentKeywords: SAMPLE.keywords },
+    });
+    expect(out.keywordRecommendationsPaused).toBe(true);
+    expect(out.identityConflict?.code).toBe('PRODUCT_IDENTITY_CONFLICT');
+    expect(out.micKeywords).toEqual([]);
+    expect(out.officialTop3).toEqual([]);
+    expect(out.searchDemand).toBe('UNKNOWN');
+    expect(out.blockedKeywords.some((k) => /steam cleaner/i.test(k.keyword) && k.reasons.includes('PRODUCT_MISMATCH'))).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('returns gated candidates after userVerified and never invents Top3 search demand', async () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
     const provider = createLlmProvider(cfg);
     const out = await optimizeKeywords({
       provider,
       config: cfg,
-      input: { ...SAMPLE, currentKeywords: SAMPLE.keywords, centerTerms: ['cleaner', 'suction'] },
+      input: {
+        ...SAMPLE,
+        currentKeywords: SAMPLE.keywords,
+        centerTerms: ['cleaner', 'suction'],
+        identityUserVerified: true,
+        url: `${SAMPLE.url}?verified=1`,
+      },
     });
+    expect(out.keywordRecommendationsPaused).toBe(false);
     expect(out.micKeywords.length).toBeGreaterThan(0);
     expect(out.micKeywords.length).toBeLessThanOrEqual(10);
     expect(out.micKeywords.slice(0, 3).every((k) => k.priority === 'HIGH')).toBe(true);
     expect(out.primaryKeywords.length).toBeGreaterThan(0);
     expect(out.meta.taskType).toBe('KEYWORD_OPTIMIZATION');
     expect(out.micKeywords.some((k) => k.keyword.toLowerCase() === 'cleaner')).toBe(false);
+    expect(out.officialTop3).toEqual([]);
+    expect(out.searchDemand).toBe('UNKNOWN');
+    expect(out.blockedKeywords.some((k) => /steam cleaner/i.test(k.keyword))).toBe(true);
   });
 
   it('caches the second keyword call on the same page', async () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
     const provider = createLlmProvider(cfg);
     const spy = vi.spyOn(provider, 'generateStructured');
-    const input = { ...SAMPLE, currentKeywords: SAMPLE.keywords };
+    const input = { ...SAMPLE, currentKeywords: SAMPLE.keywords, identityUserVerified: true, url: `${SAMPLE.url}?cache=1` };
     await optimizeKeywords({ provider, config: cfg, input });
     const second = await optimizeKeywords({ provider, config: cfg, input });
     expect(spy).toHaveBeenCalledTimes(1);

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Inject, Post } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { OptimizeTitleDto } from './dto/optimize-title.dto';
+import { ConfirmProductIdentityDto, KeywordGateDto } from './dto/product-identity.dto';
 
 @Controller('ai')
 export class AiController {
@@ -34,5 +35,20 @@ export class AiController {
   @Post('mic/geo-analysis')
   geoAnalysis(@Body() dto: OptimizeTitleDto) {
     return this.ai.analyzeMicGeo(dto);
+  }
+
+  @Post('mic/product-identity')
+  inspectProductIdentity(@Body() dto: OptimizeTitleDto) {
+    return this.ai.inspectProductIdentity(dto);
+  }
+
+  @Post('mic/product-identity/confirm')
+  confirmProductIdentity(@Body() dto: ConfirmProductIdentityDto) {
+    return this.ai.confirmProductIdentity(dto);
+  }
+
+  @Post('mic/keyword-gate')
+  keywordGate(@Body() dto: KeywordGateDto) {
+    return this.ai.gateKeywords(dto);
   }
 }

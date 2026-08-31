@@ -4,6 +4,7 @@ import type {
   DescriptionOptimizePayload,
   GeoAnalysisPayload,
   KeywordOptimizePayload,
+  ProductIdentityInspectPayload,
   TitleOptimizePayload,
 } from '@trade-ai/shared-types';
 import { getApiBaseUrl } from '../utils/config';
@@ -64,8 +65,34 @@ export async function optimizeMicKeywords(input: {
   url?: string;
   moq?: string;
   deliveryTime?: string;
+  identityUserVerified?: boolean;
 }): Promise<KeywordOptimizePayload> {
   return postJson<KeywordOptimizePayload>('/ai/mic/optimize-keywords', input);
+}
+
+export async function inspectMicProductIdentity(input: {
+  productName: string;
+  category?: string;
+  keywords?: string[];
+  currentKeywords?: string[];
+  centerTerms?: string[];
+  specifications?: Record<string, string>;
+  description?: string;
+  certifications?: string[];
+  url?: string;
+  identityUserVerified?: boolean;
+}): Promise<ProductIdentityInspectPayload> {
+  return postJson<ProductIdentityInspectPayload>('/ai/mic/product-identity', input);
+}
+
+export async function confirmMicProductIdentity(input: {
+  url: string;
+  productName?: string;
+  category?: string;
+  keywords?: string[];
+  userVerified?: boolean;
+}): Promise<ProductIdentityInspectPayload> {
+  return postJson<ProductIdentityInspectPayload>('/ai/mic/product-identity/confirm', input);
 }
 
 export async function checkMicCategory(input: {

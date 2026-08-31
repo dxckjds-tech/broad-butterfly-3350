@@ -188,6 +188,7 @@ export interface PlatformPageData {
   fieldEvidence?: Record<string, FieldEvidenceSource>;
   dataReadiness?: DataReadiness;
   productContentState?: ProductContentState;
+  identityUserVerified?: boolean;
 }
 
 export const SCORE_WEIGHTS = {
@@ -205,7 +206,7 @@ export const SEVERITY_PENALTY: Record<IssueSeverity, number> = {
   LOW: 3,
 };
 
-export const RULES_VERSION = 'MIC_RULES_1.0.0';
+export const RULES_VERSION = 'MIC_RULES_1.1.0';
 
 export const RULE_STATUSES = ['PASS', 'FAIL', 'UNCERTAIN', 'SKIPPED'] as const;
 export type RuleStatus = (typeof RULE_STATUSES)[number];
@@ -224,6 +225,108 @@ export const PRODUCT_TYPE_PROFILES = [
   'CUSTOM_MANUFACTURING',
 ] as const;
 export type ProductTypeProfile = (typeof PRODUCT_TYPE_PROFILES)[number];
+
+export const KEYWORD_GATE_STATUSES = [
+  'PRIMARY_ELIGIBLE',
+  'SAFE_PRIMARY_CANDIDATE',
+  'SAFE_SECONDARY',
+  'REVIEW_REQUIRED',
+  'REJECTED',
+  'REJECTED_PRODUCT_MISMATCH',
+] as const;
+export type KeywordGateStatus = (typeof KEYWORD_GATE_STATUSES)[number];
+
+export const BLOCKED_KEYWORD_REASONS = [
+  'PRODUCT_MISMATCH',
+  'UNVERIFIED_ATTRIBUTE',
+  'APPLICATION_UNVERIFIED',
+  'CERTIFICATION_UNVERIFIED',
+  'BLOCKED_BY_FACT_GUARD',
+] as const;
+export type BlockedKeywordReason = (typeof BLOCKED_KEYWORD_REASONS)[number];
+
+export const SEARCH_EVIDENCE_STATUSES = ['VERIFIED', 'UNVERIFIED', 'MISSING'] as const;
+export type SearchEvidenceStatus = (typeof SEARCH_EVIDENCE_STATUSES)[number];
+
+export interface ProductTruthEvidence {
+  field: string;
+  value: string;
+  source: FieldEvidenceSource | 'TITLE' | 'SPEC' | 'KEYWORD' | 'DESCRIPTION' | 'CATEGORY';
+}
+
+export interface ProductMatchBreakdown {
+  core: number;
+  family: number;
+  attributes: number;
+  applications: number;
+  evidence: number;
+}
+
+export interface ProductMatchScore {
+  total: number;
+  breakdown: ProductMatchBreakdown;
+}
+
+export interface SearchEvidence {
+  keyword: string;
+  status: SearchEvidenceStatus;
+  demand: number | 'UNKNOWN';
+  source?: string;
+}
+
+export interface BlockedKeyword {
+  keyword: string;
+  reasons: BlockedKeywordReason[];
+  note: string;
+  matchScore: number;
+}
+
+export interface GatedKeyword {
+  keyword: string;
+  matchScore: number;
+  breakdown: ProductMatchBreakdown;
+  status: KeywordGateStatus;
+  blockedReasons: BlockedKeywordReason[];
+  searchEvidence: SearchEvidence;
+  officialTop3Eligible: boolean;
+}
+
+export interface ProductIdentityConflict {
+  code: 'PRODUCT_IDENTITY_CONFLICT';
+  hasConflict: boolean;
+  titleProduct: string;
+  categoryProduct: string;
+  keywordProducts: string[];
+  specProduct: string;
+  descriptionProduct: string;
+  summary: string;
+  keywordRecommendationsPaused: boolean;
+}
+
+export interface ProductTruthProfile {
+  coreProduct: string;
+  productFamily: string;
+  productType: string;
+  verifiedAttributes: string[];
+  specifications: Record<string, string>;
+  applications: string[];
+  materials: string[];
+  certifications: string[];
+  capabilities: string[];
+  unverifiedClaims: string[];
+  conflictingClaims: string[];
+  evidence: ProductTruthEvidence[];
+  identityConfidence: number;
+  userVerified: boolean;
+}
+
+export interface ProductIdentityInspectPayload {
+  profile: ProductTruthProfile;
+  conflict: ProductIdentityConflict | null;
+  keywordRecommendationsPaused: boolean;
+  currentKeywordGate: GatedKeyword[];
+  blockedKeywords: BlockedKeyword[];
+}
 
 export const DIAGNOSIS_CONFIDENCE_LEVELS = ['HIGH', 'MEDIUM', 'LOW'] as const;
 export type DiagnosisConfidenceLevel = (typeof DIAGNOSIS_CONFIDENCE_LEVELS)[number];
@@ -328,6 +431,9 @@ export interface DiagnosisResult {
   productTypeProfile?: ProductTypeProfile;
   scoreDetails?: DiagnosisScoreDetails;
   parseQualityScore?: number;
+  productTruthProfile?: ProductTruthProfile;
+  identityConflict?: ProductIdentityConflict | null;
+  keywordRecommendationsPaused?: boolean;
 }
 
 export interface ApiSuccessResponse<T> {
@@ -404,6 +510,8 @@ export interface MicKeywordSuggestion {
   keyword: string;
   priority: 'HIGH' | 'MEDIUM';
   reason: string;
+  matchScore?: number;
+  gateStatus?: KeywordGateStatus;
 }
 
 export interface KeywordOptimizePayload {
@@ -414,6 +522,13 @@ export interface KeywordOptimizePayload {
   buyerIntentKeywords: KeywordSuggestion[];
   applicationKeywords: KeywordSuggestion[];
   micKeywords: MicKeywordSuggestion[];
+  officialTop3: GatedKeyword[];
+  gatedKeywords: GatedKeyword[];
+  blockedKeywords: BlockedKeyword[];
+  identityConflict: ProductIdentityConflict | null;
+  productTruthProfile: ProductTruthProfile;
+  keywordRecommendationsPaused: boolean;
+  searchDemand: 'UNKNOWN';
   factGuard: {
     ok: boolean;
     warnings: string[];

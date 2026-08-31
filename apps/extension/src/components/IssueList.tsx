@@ -8,6 +8,7 @@ export function IssueList({
   onCategoryAi,
   onDescriptionAi,
   onGeoAi,
+  onIdentityFocus,
 }: {
   issues: DiagnosisIssue[];
   onTitleAi?: () => void;
@@ -15,6 +16,7 @@ export function IssueList({
   onCategoryAi?: () => void;
   onDescriptionAi?: () => void;
   onGeoAi?: () => void;
+  onIdentityFocus?: () => void;
 }) {
   const critical = issues.filter((item) => item.severity === 'CRITICAL').length;
   const important = issues.filter((item) => item.severity === 'HIGH').length;
@@ -44,7 +46,9 @@ export function IssueList({
                       ? onDescriptionAi
                       : issue.id.startsWith('geo-')
                         ? onGeoAi
-                        : undefined
+                        : issue.id === 'product-identity-conflict'
+                          ? onIdentityFocus
+                          : undefined
             }
           />
         ))}

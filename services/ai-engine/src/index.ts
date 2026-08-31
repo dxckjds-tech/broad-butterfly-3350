@@ -57,7 +57,14 @@ export { optimizeDescription } from './tasks/optimize-description';
 export type { DescriptionOptimizeInput, DescriptionOptimizeResult } from './tasks/optimize-description';
 export { analyzeGeo } from './tasks/analyze-geo';
 export type { GeoAnalyzeInput, GeoAnalyzeResult } from './tasks/analyze-geo';
-export { applyFactGuard } from './fact-guard';
+export { applyFactGuard, applicationFactsCorpus, knownFactsCorpus } from './fact-guard';
+export {
+  inspectProductIdentity,
+  inspectProductIdentityWithGate,
+  listingToPage,
+  gateKeywordList,
+  gateKeyword,
+} from '@trade-ai/scoring-rules';
 export { clearAiCache } from './cache';
 export { TitleOptimizeOutputSchema } from './schemas/title';
 export { KeywordOptimizeOutputSchema } from './schemas/keyword';

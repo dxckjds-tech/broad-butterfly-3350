@@ -60,3 +60,22 @@ export function geoGapStatusLabel(status: string): string {
   if (status === 'MISSING') return '缺失';
   return status;
 }
+
+export function keywordGateStatusLabel(status: string): string {
+  if (status === 'PRIMARY_ELIGIBLE') return '可进主词';
+  if (status === 'SAFE_PRIMARY_CANDIDATE') return '主词候选';
+  if (status === 'SAFE_SECONDARY') return '安全辅词';
+  if (status === 'REVIEW_REQUIRED') return '需复核';
+  if (status === 'REJECTED_PRODUCT_MISMATCH') return '产品不符';
+  if (status === 'REJECTED') return '已拒绝';
+  return status;
+}
+
+export function blockedReasonLabel(reason: string): string {
+  if (reason === 'PRODUCT_MISMATCH') return '产品不符';
+  if (reason === 'UNVERIFIED_ATTRIBUTE') return '属性未验证';
+  if (reason === 'APPLICATION_UNVERIFIED') return '用途未验证';
+  if (reason === 'CERTIFICATION_UNVERIFIED') return '认证未验证';
+  if (reason === 'BLOCKED_BY_FACT_GUARD') return 'FactGuard 拦截';
+  return reason;
+}

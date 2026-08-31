@@ -33,7 +33,7 @@ function copyLoadDir(target) {
       '请选中「AI-店铺医生-插件」这一层文件夹（本文件所在目录）。',
       '该目录内必须能看到 manifest.json。',
       '',
-      '版本：0.6.7（可连接远程 API · DeepSeek 标题+关键词+类目+描述+GEO · 不保存 API Key）',
+      '版本：0.6.8（产品身份 + 关键词门禁 · 可连接远程 API · DeepSeek · 不保存 API Key）',
       target,
       '',
     ].join('\n'),
