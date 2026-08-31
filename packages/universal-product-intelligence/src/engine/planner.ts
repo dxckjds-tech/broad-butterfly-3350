@@ -208,13 +208,15 @@ export function scoreCandidateActions(state: ReasoningState, stepIndex: number):
     if (!images.length) {
       imageGain = 0;
       imageReason = 'No images on the page.';
+    } else if (sufficient) {
+      imageGain = 0.18;
+      imageReason = 'Images unused, but identity is already sufficient.';
     } else if (identityConflict || rival || blockingUnknowns.some((u) => u.slot === 'images')) {
       imageGain = 0.64;
       imageReason = 'Images may resolve identity/visual unknowns.';
     } else {
-      // Unused visual evidence outranks an otherwise-sufficient finalize (0.55).
-      imageGain = 0.62;
-      imageReason = 'Images exist; visual facts still unknown.';
+      imageGain = 0.48;
+      imageReason = 'Identity not yet sufficient; unused images remain.';
     }
   } else {
     imageReason = 'Image analyzer already tried or UNAVAILABLE.';

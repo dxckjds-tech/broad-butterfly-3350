@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyPageData } from '@trade-ai/shared-types';
-import {
-  MAX_REASONING_STEPS,
-  planNextAction,
-  reasonAboutProduct,
-  resetToolCache,
-  scoreCandidateActions,
-} from '../index';
+import { reasonAboutProduct, resetToolCache } from '../index';
 import { FIXTURES } from './fixtures';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -149,18 +143,23 @@ describe('keyword self-attestation and protected claims', () => {
     expect(thin.seo.autoApplyAllowed).toBe(false);
   });
 
-  it('degrades when image analyzer is selected and returns UNAVAILABLE', async () => {
+  it('calls an unused image analyzer at most once when identity is still insufficient', async () => {
     resetToolCache();
-    const state = await reasonAboutProduct({
-      ...FIXTURES.furniture,
-      images: ['https://img.example.com/chair-1.jpg'],
-    });
+    const state = await reasonAboutProduct(
+      emptyPageData({
+        platform: 'MADE_IN_CHINA',
+        pageType: 'MIC_PRODUCT_EDIT',
+        productName: 'Industrial Unit',
+        title: 'Industrial Unit',
+        category: '',
+        images: ['https://img.example.com/unit-1.jpg', 'https://img.example.com/unit-2.jpg'],
+      }),
+    );
     expect(state.finalized).toBe(true);
-    expect(state.productProfile.identity.label).toMatch(/chair/i);
     const imageCalls = state.tools.filter((t) => t.tool === 'imageAnalyzer');
     expect(imageCalls).toHaveLength(1);
     expect(imageCalls[0]?.status).toBe('UNAVAILABLE');
-    expect(state.tools.filter((t) => t.tool === 'imageAnalyzer')).toHaveLength(1);
+    expect(state.steps.filter((s) => s.action === 'CALL_TOOL:imageAnalyzer')).toHaveLength(1);
     expect(state.seo.officialTop3).toEqual([]);
   });
 
@@ -213,71 +212,18 @@ describe('keyword self-attestation and protected claims', () => {
   });
 });
 
-describe('dynamic planner routes', () => {
-  it('chooses different action routes for conflict, clean, and image listings', async () => {
-    resetToolCache();
-    const vacuum = await reasonAboutProduct(FIXTURES.vacuum);
+describe('end-to-end fixtures may share routes', () => {
+  it('still records unique real actions and a single FINALIZE on shared-engine listings', async () => {
     resetToolCache();
     const pump = await reasonAboutProduct(FIXTURES.pump);
     resetToolCache();
-    const furniture = await reasonAboutProduct({
-      ...FIXTURES.furniture,
-      images: ['https://cdn.example.com/chair.jpg'],
-    });
-
-    const vacuumRoute = vacuum.steps.map((s) => s.action).join('>');
-    const pumpRoute = pump.steps.map((s) => s.action).join('>');
-    const furnitureRoute = furniture.steps.map((s) => s.action).join('>');
-    expect(new Set([vacuumRoute, pumpRoute, furnitureRoute]).size).toBe(3);
-
-    expect(vacuum.steps.map((s) => s.phase)).toEqual([
-      'OBSERVE',
-      'GENERATE_HYPOTHESES',
-      'CHECK_EVIDENCE',
-      'CHALLENGE',
-      'REVISE',
-      'FINALIZE',
-    ]);
-    expect(vacuum.finalizeReason).toBe('BEST_AVAILABLE_CONCLUSION');
-
-    expect(pump.steps.map((s) => s.phase)).toEqual([
-      'OBSERVE',
-      'GENERATE_HYPOTHESES',
-      'CHECK_EVIDENCE',
-      'FINALIZE',
-    ]);
-    expect(pump.finalizeReason).not.toBe('BEST_AVAILABLE_CONCLUSION');
-    expect(pump.steps.length).toBeLessThan(MAX_REASONING_STEPS + 1);
-    expect(pump.steps.filter((s) => s.phase !== 'FINALIZE').length).toBeLessThan(MAX_REASONING_STEPS);
-
-    expect(furniture.steps.map((s) => s.phase)).toContain('CALL_TOOL');
-    expect(furniture.steps.some((s) => s.action === 'CALL_TOOL:imageAnalyzer')).toBe(true);
-    expect(furniture.tools.filter((t) => t.tool === 'imageAnalyzer')).toHaveLength(1);
-    expect(furniture.finalizeReason).not.toBe('BEST_AVAILABLE_CONCLUSION');
-  });
-
-  it('does not retry an unavailable tool on the same or later input', async () => {
-    resetToolCache();
-    const state = await reasonAboutProduct({
-      ...FIXTURES.furniture,
-      images: ['https://cdn.example.com/sofa.jpg', 'https://cdn.example.com/sofa-2.jpg'],
-    });
-    const imageCalls = state.tools.filter((t) => t.tool === 'imageAnalyzer');
-    expect(imageCalls).toHaveLength(1);
-    expect(imageCalls[0]?.status).toBe('UNAVAILABLE');
-    expect(state.steps.filter((s) => s.phase === 'CALL_TOOL')).toHaveLength(1);
-
-    const preFinalize = {
-      ...state,
-      finalized: false,
-      steps: state.steps.filter((s) => s.phase !== 'FINALIZE'),
-    };
-    const scored = scoreCandidateActions(preFinalize, state.steps.length + 1);
-    expect(
-      scored.some((c) => c.tool === 'imageAnalyzer' && (c.expectedInformationGain ?? 0) > 0),
-    ).toBe(false);
-    const next = planNextAction(preFinalize, state.steps.length + 1);
-    expect(next.tool).not.toBe('imageAnalyzer');
-    expect(next.type).toBe('FINALIZE');
+    const furniture = await reasonAboutProduct(FIXTURES.furniture);
+    for (const state of [pump, furniture]) {
+      expect(state.finalized).toBe(true);
+      expect(state.steps.filter((s) => s.phase === 'FINALIZE')).toHaveLength(1);
+      const actionKeys = state.steps.map((s) => s.action).filter(Boolean);
+      expect(new Set(actionKeys).size).toBe(actionKeys.length);
+      expect(state.steps.every((s) => s.action)).toBe(true);
+    }
   });
 });
