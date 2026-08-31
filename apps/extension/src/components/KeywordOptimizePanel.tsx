@@ -15,13 +15,16 @@ async function copyText(text: string): Promise<void> {
 export function KeywordOptimizePanel({
   page,
   trigger = 0,
+  requireConfirm = false,
 }: {
   page: PlatformPageData | null;
   trigger?: number;
+  requireConfirm?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<KeywordOptimizePayload | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   const current = page?.keywords?.length ? page.keywords : page?.primaryKeywords ?? [];
   const identity = page ? inspectProductIdentity(page) : null;
@@ -82,6 +85,7 @@ export function KeywordOptimizePanel({
   const blocked = result?.blockedKeywords ?? localGate?.blocked ?? [];
   const gated = result?.gatedKeywords ?? localGate?.gated ?? [];
   const officialTop3 = result?.officialTop3 ?? [];
+  const copyBlocked = requireConfirm && !confirmed;
 
   return (
     <section className="ai-title">
@@ -95,7 +99,13 @@ export function KeywordOptimizePanel({
           {loading ? 'AI分析中...' : paused ? '已暂停' : 'AI生成'}
         </button>
       </div>
-      <p className="eyebrow">只生成建议，不会写回 MIC 表单。无真实搜索数据时 demand=UNKNOWN，不能进入正式 Top3。</p>
+      <p className="eyebrow">只生成建议，不会写回 MIC 表单。无真实搜索数据时 demand=UNKNOWN，不能进入正式 Top3。DRY_RUN。</p>
+      {requireConfirm ? (
+        <label className="ai-upi__confirm">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+          存在冲突或低置信度，复制关键词前需确认产品身份。
+        </label>
+      ) : null}
       {paused ? (
         <p className="ai-title__error">PRODUCT_IDENTITY_CONFLICT：请先在上方确认产品身份，确认前不生成关键词推荐。</p>
       ) : null}
@@ -147,8 +157,9 @@ export function KeywordOptimizePanel({
               <button
                 type="button"
                 onClick={() => void copyText(result.micKeywords.map((k) => k.keyword).join('\n'))}
+                disabled={copyBlocked}
               >
-                复制全部
+                {copyBlocked ? '需确认后复制' : '复制全部'}
               </button>
             </div>
             {result.problems.length ? (
@@ -163,8 +174,8 @@ export function KeywordOptimizePanel({
                     {row.gateStatus ? <em>{keywordGateStatusLabel(row.gateStatus)}</em> : null}
                     {typeof row.matchScore === 'number' ? <em>{row.matchScore}</em> : null}
                   </span>
-                  <button type="button" onClick={() => void copyText(row.keyword)}>
-                    复制
+                  <button type="button" onClick={() => void copyText(row.keyword)} disabled={copyBlocked}>
+                    {copyBlocked ? '需确认' : '复制'}
                   </button>
                 </li>
               ))}

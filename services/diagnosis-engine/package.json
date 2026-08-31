@@ -9,12 +9,18 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@trade-ai/geo-engine": "workspace:*",
     "@trade-ai/mic-rule-engine": "workspace:*",
     "@trade-ai/seo-engine": "workspace:*",
-    "@trade-ai/shared-types": "workspace:*"
+    "@trade-ai/shared-types": "workspace:*",
+    "@trade-ai/universal-product-intelligence": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^4.1.11"
   }
 }

@@ -19,13 +19,16 @@ async function copyText(text: string): Promise<void> {
 export function TitleOptimizePanel({
   page,
   trigger = 0,
+  requireConfirm = false,
 }: {
   page: PlatformPageData | null;
   trigger?: number;
+  requireConfirm?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<TitleOptimizePayload | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function run(): Promise<void> {
     if (!page?.productName && !page?.title) {
@@ -62,6 +65,7 @@ export function TitleOptimizePanel({
   }, [trigger]);
 
   if (!page || (page.pageType === 'UNKNOWN' && !page.productName)) return null;
+  const copyBlocked = requireConfirm && !confirmed;
 
   return (
     <section className="ai-title">
@@ -71,7 +75,13 @@ export function TitleOptimizePanel({
           {loading ? 'AI分析中...' : 'AI生成'}
         </button>
       </div>
-      <p className="eyebrow">只生成建议，不会写回 MIC 表单。</p>
+      <p className="eyebrow">只生成建议，不会写回 MIC 表单。DRY_RUN。</p>
+      {requireConfirm ? (
+        <label className="ai-upi__confirm">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+          存在冲突或低置信度，复制标题前需确认产品身份。
+        </label>
+      ) : null}
       {error ? <p className="ai-title__error">{error}</p> : null}
       {result ? (
         <div className="ai-title__body">
@@ -94,8 +104,8 @@ export function TitleOptimizePanel({
             <article key={row.style} className="ai-title__card">
               <header>
                 <span>{STYLE_LABEL[row.style] ?? `推荐标题 ${index + 1}`}</span>
-                <button type="button" onClick={() => void copyText(row.title)}>
-                  复制
+                <button type="button" onClick={() => void copyText(row.title)} disabled={copyBlocked}>
+                  {copyBlocked ? '需确认后复制' : '复制'}
                 </button>
               </header>
               <p className="ai-title__rec">{row.title}</p>

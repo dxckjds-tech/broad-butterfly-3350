@@ -1,3 +1,5 @@
+import type { ReasoningState } from './universal-reasoning';
+
 export const PLATFORMS = ['MADE_IN_CHINA', 'ALIBABA', 'INDEPENDENT_SITE'] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
@@ -326,6 +328,7 @@ export interface ProductIdentityInspectPayload {
   keywordRecommendationsPaused: boolean;
   currentKeywordGate: GatedKeyword[];
   blockedKeywords: BlockedKeyword[];
+  universalReasoning?: ReasoningState;
 }
 
 export const DIAGNOSIS_CONFIDENCE_LEVELS = ['HIGH', 'MEDIUM', 'LOW'] as const;
@@ -434,6 +437,7 @@ export interface DiagnosisResult {
   productTruthProfile?: ProductTruthProfile;
   identityConflict?: ProductIdentityConflict | null;
   keywordRecommendationsPaused?: boolean;
+  universalReasoning?: ReasoningState;
 }
 
 export interface ApiSuccessResponse<T> {
@@ -695,6 +699,7 @@ export interface DashboardStats {
 }
 
 export * from './mic';
+export * from './universal-reasoning';
 
 export function emptyPageData(overrides: Partial<PlatformPageData> = {}): PlatformPageData {
   return {

@@ -6,6 +6,7 @@ import type {
   KeywordOptimizePayload,
   ProductIdentityInspectPayload,
   TitleOptimizePayload,
+  UniversalReasonPayload,
 } from '@trade-ai/shared-types';
 import { getApiBaseUrl } from '../utils/config';
 
@@ -142,4 +143,19 @@ export async function analyzeMicGeo(input: {
   deliveryTime?: string;
 }): Promise<GeoAnalysisPayload> {
   return postJson<GeoAnalysisPayload>('/ai/mic/geo-analysis', input);
+}
+
+export async function universalReasonMicProduct(input: {
+  productName: string;
+  category?: string;
+  keywords?: string[];
+  currentKeywords?: string[];
+  centerTerms?: string[];
+  specifications?: Record<string, string>;
+  description?: string;
+  certifications?: string[];
+  url?: string;
+  identityUserVerified?: boolean;
+}): Promise<UniversalReasonPayload> {
+  return postJson<UniversalReasonPayload>('/ai/mic/universal-reason', input);
 }

@@ -23,7 +23,9 @@ import type {
   GatedKeyword,
   ProductIdentityInspectPayload,
   ProductTruthProfile,
+  UniversalReasonPayload,
 } from '@trade-ai/shared-types';
+import { reasonAboutProduct } from '@trade-ai/universal-product-intelligence';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import type { OptimizeTitleDto } from './dto/optimize-title.dto';
@@ -357,9 +359,35 @@ export class AiService {
       identityUserVerified: userVerified,
     });
     const inspect = inspectProductIdentityWithGate(page);
+    const universalReasoning = await reasonAboutProduct(page);
     await this.persistTruthProfile(dto, inspect.profile, inspect.conflict, inspect.keywordRecommendationsPaused);
     await this.persistKeywordGate(dto.url, inspect.currentKeywordGate);
-    return inspect;
+    return { ...inspect, universalReasoning };
+  }
+
+  async universalReason(dto: OptimizeTitleDto): Promise<UniversalReasonPayload> {
+    const userVerified = await this.resolveUserVerified(dto.url, dto.identityUserVerified);
+    const page = listingToPage({
+      productName: dto.productName,
+      category: dto.category,
+      keywords: dto.keywords ?? dto.currentKeywords ?? [],
+      currentKeywords: dto.currentKeywords ?? dto.keywords ?? [],
+      centerTerms: dto.centerTerms,
+      specifications: dto.specifications,
+      description: dto.description,
+      certifications: dto.certifications,
+      url: dto.url,
+      moq: dto.moq,
+      deliveryTime: dto.deliveryTime,
+      companyName: dto.companyName,
+      identityUserVerified: userVerified,
+    });
+    const reasoning = await reasonAboutProduct(page);
+    return {
+      reasoning,
+      productProfile: reasoning.productProfile,
+      seo: reasoning.seo,
+    };
   }
 
   async confirmProductIdentity(dto: ConfirmProductIdentityDto): Promise<ProductIdentityInspectPayload> {
@@ -407,6 +435,15 @@ export class AiService {
       keywordRecommendationsPaused: false,
       currentKeywordGate: inspect.currentKeywordGate,
       blockedKeywords: inspect.blockedKeywords,
+      universalReasoning: await reasonAboutProduct(
+        listingToPage({
+          productName,
+          category: dto.category,
+          keywords: dto.keywords ?? [],
+          url: dto.url,
+          identityUserVerified: true,
+        }),
+      ),
     };
   }
 

@@ -42,6 +42,11 @@ export class AiController {
     return this.ai.inspectProductIdentity(dto);
   }
 
+  @Post('mic/universal-reason')
+  universalReason(@Body() dto: OptimizeTitleDto) {
+    return this.ai.universalReason(dto);
+  }
+
   @Post('mic/product-identity/confirm')
   confirmProductIdentity(@Body() dto: ConfirmProductIdentityDto) {
     return this.ai.confirmProductIdentity(dto);

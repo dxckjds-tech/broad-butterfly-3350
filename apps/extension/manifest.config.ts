@@ -5,7 +5,7 @@ export default defineManifest({
   name: 'AI 店铺医生',
   short_name: '店铺医生',
   description: 'Trade AI Store Doctor — diagnose Made-in-China.com listings',
-  version: '0.6.9',
+  version: '0.7.0',
   action: {
     default_title: 'AI 店铺医生',
     default_popup: 'src/pages/popup/index.html',

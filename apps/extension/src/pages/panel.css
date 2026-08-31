@@ -526,3 +526,64 @@ body {
 .ai-identity__conflict p {
   margin: 4px 0;
 }
+
+.ai-upi__status {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.ai-upi__status--confirmed,
+.ai-upi__status--likely {
+  color: #17663a;
+  background: #e7f6ee;
+}
+
+.ai-upi__status--uncertain {
+  color: #b45309;
+  background: #fff4e5;
+}
+
+.ai-upi__status--conflict {
+  color: #9b1c2c;
+  background: #fde8ea;
+}
+
+.ai-upi__list {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.ai-upi__list li {
+  margin: 4px 0;
+}
+
+.ai-upi__list em {
+  display: block;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 11px;
+}
+
+.ai-upi__formula {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 11px;
+}
+
+.ai-upi__confirm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: #9b1c2c;
+  margin: 8px 0;
+}
+
+.ai-upi__dev {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}

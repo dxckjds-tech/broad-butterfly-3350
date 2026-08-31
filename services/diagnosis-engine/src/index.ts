@@ -9,6 +9,7 @@ import {
   type IssueCategory,
   type PlatformPageData,
 } from '@trade-ai/shared-types';
+import { reasonAboutProduct } from '@trade-ai/universal-product-intelligence';
 
 function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -54,6 +55,7 @@ export async function diagnosePage(page: PlatformPageData): Promise<DiagnosisEng
   const totalScore = computeTotalScore(scores);
   const [seo, geo] = await Promise.all([seoAnalyzer.analyze(page), geoAnalyzer.analyze(page)]);
   const identity = inspectProductIdentity(page);
+  const universalReasoning = await reasonAboutProduct(page);
 
   return {
     result: {
@@ -63,6 +65,7 @@ export async function diagnosePage(page: PlatformPageData): Promise<DiagnosisEng
       productTruthProfile: identity.profile,
       identityConflict: identity.conflict,
       keywordRecommendationsPaused: identity.keywordRecommendationsPaused,
+      universalReasoning,
     },
     seo,
     geo,
