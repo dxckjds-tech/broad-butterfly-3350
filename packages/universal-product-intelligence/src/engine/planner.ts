@@ -1,6 +1,7 @@
 import type { ReasoningAction, ReasoningState } from '@trade-ai/shared-types';
 import { identityClash } from './conflicts';
 import { channelsOf } from './evidence';
+import { byPosteriorThenSpecificity } from './hypothesis';
 import { GENERIC_HEAD_NOUNS, normalizeText } from '../knowledge/lexicon';
 import { hashToolInput } from './tools';
 
@@ -10,18 +11,17 @@ export function actionKey(action: Pick<ReasoningAction, 'type' | 'tool' | 'input
   return `${action.type}:${action.tool ?? ''}:${action.inputKey ?? ''}`;
 }
 
-function productHyps(state: ReasoningState) {
-  return state.hypotheses
-    .filter((h) => h.kind === 'product' && !h.rejected)
-    .sort((a, b) => b.posterior - a.posterior);
-}
-
 function headNoun(label: string): string {
   const words = normalizeText(label).split(' ').filter(Boolean);
   return words[words.length - 1] ?? '';
 }
 
-/** Ignore leftover modifier n-grams so nested head-noun phrases are not treated as rivals. */
+/** Posterior first, then head-noun specificity so leftover modifier n-grams are not the leader. */
+function productHyps(state: ReasoningState) {
+  return state.hypotheses.filter((h) => h.kind === 'product' && !h.rejected).sort(byPosteriorThenSpecificity);
+}
+
+/** Identity set used for sufficiency and rivals: phrases that end on a generic head noun. */
 function headedProductHyps(state: ReasoningState) {
   const all = productHyps(state);
   const headed = all.filter((h) => GENERIC_HEAD_NOUNS.has(headNoun(h.label)));
@@ -56,12 +56,15 @@ function imageUrls(state: ReasoningState): string[] {
   return state.observations.filter((e) => e.channel === 'IMAGE').map((e) => e.value).filter(Boolean);
 }
 
+/**
+ * Order: CHECK must have run → identity/material conflict blocks sufficiency →
+ * headed leader must be spec-backed, high posterior, unrivaled.
+ */
 export function conclusionSufficient(state: ReasoningState): boolean {
-  const top = headedProductHyps(state)[0];
-  if (!top) return false;
   if (!state.steps.some((s) => s.phase === 'CHECK_EVIDENCE')) return false;
   if (state.conflicts.some((c) => c.code === 'IDENTITY_MISMATCH' || c.code === 'MATERIAL_CONFLICT')) return false;
-  if (top.opposingEvidence.length) return false;
+  const top = headedProductHyps(state)[0];
+  if (!top || top.opposingEvidence.length) return false;
   if (hasDistinctRival(state) && hypSpread(state) < 0.12) return false;
   const specSupport = channelsOf(state.observations, top.supportingEvidence).includes('SPEC');
   return specSupport && top.posterior >= 0.8;

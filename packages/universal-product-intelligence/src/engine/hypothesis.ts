@@ -22,7 +22,7 @@ export function phraseSpecificity(label: string): number {
   return headBonus + words.length * 10 + Math.min(label.length, 24);
 }
 
-function byPosteriorThenSpecificity(a: IdentityHypothesis, b: IdentityHypothesis): number {
+export function byPosteriorThenSpecificity(a: IdentityHypothesis, b: IdentityHypothesis): number {
   if (b.posterior !== a.posterior) return b.posterior - a.posterior;
   return phraseSpecificity(b.label) - phraseSpecificity(a.label);
 }
