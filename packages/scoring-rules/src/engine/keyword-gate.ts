@@ -208,7 +208,7 @@ export function gateKeyword(
     status,
     blockedReasons,
     searchEvidence: evidence,
-    officialTop3Eligible: isOfficialTop3Eligible(status, total, evidence),
+    officialTop3Eligible: isOfficialTop3Eligible(status, total, evidence) && blockedReasons.length === 0,
   };
 }
 

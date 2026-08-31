@@ -97,6 +97,18 @@ describe('Keyword semantic gate', () => {
     expect(gated.every((k) => !isOfficialTop3Eligible(k.status, k.matchScore, k.searchEvidence))).toBe(true);
   });
 
+  it('does not allow official Top3 when the phrase has blocked reasons', () => {
+    const { profile } = inspectProductIdentity(VACUUM);
+    const hospital = gateKeyword('hospital vacuum cleaner', VACUUM, profile, {
+      keyword: 'hospital vacuum cleaner',
+      status: 'VERIFIED',
+      demand: 900,
+      source: 'test-index',
+    });
+    expect(hospital.blockedReasons).toContain('APPLICATION_UNVERIFIED');
+    expect(hospital.officialTop3Eligible).toBe(false);
+  });
+
   it('allows official Top3 only with VERIFIED search evidence and match>=95', () => {
     const { profile } = inspectProductIdentity(VACUUM);
     const { officialTop3 } = gateKeywordList(['wet and dry vacuum cleaner'], VACUUM, profile, [
