@@ -125,3 +125,126 @@ describe('Keyword semantic gate', () => {
     expect(iso.blockedReasons).toContain('CERTIFICATION_UNVERIFIED');
   });
 });
+
+const SELF_ATTEST = emptyPageData({
+  platform: 'MADE_IN_CHINA',
+  pageType: 'MIC_PRODUCT_EDIT',
+  productName: 'High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use',
+  title: 'High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use',
+  category: 'Steam Cleaner',
+  keywords: [
+    'Steam Cleaner',
+    'Wet and Dry Vacuum Cleaner',
+    'Hospital Vacuum Cleaner',
+    'Eco-Friendly Vacuum Cleaner',
+    'ISO 9001 Vacuum Cleaner',
+  ],
+  specifications: {
+    Type: 'Wet and Dry Vacuum Cleaner',
+    Power: '3000W',
+    Suction: 'High Suction',
+    Material: 'Stainless Steel',
+    Application: 'Industrial workshop',
+  },
+  description: 'High quality industrial cleaner. Best quality factory price. Welcome to inquiry our hot sale product for export.',
+  certifications: [],
+});
+
+describe('Keyword self-attestation loop', () => {
+  it('does not put keyword-only eco-friendly into verifiedAttributes', () => {
+    const { profile } = inspectProductIdentity(SELF_ATTEST);
+    expect(profile.verifiedAttributes.join(' ').toLowerCase()).not.toMatch(/eco friendly/);
+    expect(profile.verifiedAttributes.join(' ')).toMatch(/high suction|heavy duty|industrial/i);
+    expect(profile.certifications.join(' ').toLowerCase()).not.toMatch(/iso/);
+    expect(profile.applications.join(' ').toLowerCase()).not.toMatch(/hospital/);
+    expect(profile.unverifiedClaims.join(' ').toLowerCase()).toMatch(/eco friendly/);
+    expect(profile.evidence.every((row) => row.source !== 'KEYWORD')).toBe(true);
+  });
+
+  it('still refuses keyword self-attestation after identityUserVerified', () => {
+    const page = emptyPageData({ ...SELF_ATTEST, identityUserVerified: true });
+    const { profile } = inspectProductIdentity(page);
+    expect(profile.userVerified).toBe(true);
+    expect(profile.verifiedAttributes.join(' ').toLowerCase()).not.toMatch(/eco friendly/);
+    expect(profile.certifications.join(' ').toLowerCase()).not.toMatch(/iso/);
+    const eco = gateKeyword('Eco-Friendly Vacuum Cleaner', page, profile);
+    expect(eco.blockedReasons).toContain('UNVERIFIED_ATTRIBUTE');
+    expect(eco.status).not.toBe('PRIMARY_ELIGIBLE');
+    expect(eco.matchScore).toBeLessThan(100);
+  });
+
+  it('maps the live repro keywords to mismatch / unverified application / unverified attribute / unverified cert', () => {
+    const { profile } = inspectProductIdentity(SELF_ATTEST);
+    const steam = gateKeyword('Steam Cleaner', SELF_ATTEST, profile);
+    const hospital = gateKeyword('Hospital Vacuum Cleaner', SELF_ATTEST, profile);
+    const eco = gateKeyword('Eco-Friendly Vacuum Cleaner', SELF_ATTEST, profile);
+    const iso = gateKeyword('ISO 9001 Vacuum Cleaner', SELF_ATTEST, profile);
+
+    expect(steam.status).toBe('REJECTED_PRODUCT_MISMATCH');
+    expect(steam.blockedReasons).toContain('PRODUCT_MISMATCH');
+
+    expect(hospital.blockedReasons).toContain('APPLICATION_UNVERIFIED');
+    expect(hospital.status).not.toBe('PRIMARY_ELIGIBLE');
+
+    expect(eco.blockedReasons).toContain('UNVERIFIED_ATTRIBUTE');
+    expect(eco.status).not.toBe('PRIMARY_ELIGIBLE');
+    expect(eco.matchScore).not.toBe(100);
+
+    expect(iso.blockedReasons).toContain('CERTIFICATION_UNVERIFIED');
+    expect(iso.status).not.toBe('PRIMARY_ELIGIBLE');
+  });
+
+  it('keeps blocked phrases out of official Top3 even with fake VERIFIED evidence', () => {
+    const { profile } = inspectProductIdentity(SELF_ATTEST);
+    const { officialTop3, blocked, gated } = gateKeywordList(
+      SELF_ATTEST.keywords ?? [],
+      SELF_ATTEST,
+      profile,
+      (SELF_ATTEST.keywords ?? []).map((keyword) => ({
+        keyword,
+        status: 'VERIFIED' as const,
+        demand: 1200,
+        source: 'test-index',
+      })),
+    );
+    expect(officialTop3.every((row) => row.blockedReasons.length === 0)).toBe(true);
+    expect(officialTop3.every((row) => !/steam|hospital|eco|iso/i.test(row.keyword))).toBe(true);
+    expect(blocked.some((k) => /eco/i.test(k.keyword) && k.reasons.includes('UNVERIFIED_ATTRIBUTE'))).toBe(true);
+    expect(blocked.some((k) => /hospital/i.test(k.keyword) && k.reasons.includes('APPLICATION_UNVERIFIED'))).toBe(true);
+    expect(blocked.some((k) => /iso/i.test(k.keyword) && k.reasons.includes('CERTIFICATION_UNVERIFIED'))).toBe(true);
+    expect(blocked.some((k) => /steam/i.test(k.keyword) && k.reasons.includes('PRODUCT_MISMATCH'))).toBe(true);
+    expect(gated.find((k) => /wet and dry vacuum cleaner/i.test(k.keyword))?.blockedReasons).toEqual([]);
+  });
+
+  it('leaves official Top3 empty when search evidence is missing', () => {
+    const { profile } = inspectProductIdentity(SELF_ATTEST);
+    const { officialTop3 } = gateKeywordList(SELF_ATTEST.keywords ?? [], SELF_ATTEST, profile);
+    expect(officialTop3).toEqual([]);
+  });
+
+  it('allows certification / application / attribute only from title, specs, description, category, or cert fields', () => {
+    const withFacts = emptyPageData({
+      ...SELF_ATTEST,
+      keywords: ['Eco-Friendly Vacuum Cleaner', 'Hospital Vacuum Cleaner', 'ISO 9001 Vacuum Cleaner'],
+      certifications: ['ISO 9001'],
+      specifications: {
+        ...SELF_ATTEST.specifications,
+        Application: 'Hospital ward cleaning',
+      },
+      description: 'Eco-friendly stainless steel vacuum for hospital use. ISO 9001 certified factory.',
+    });
+    const { profile } = inspectProductIdentity(withFacts);
+    expect(profile.verifiedAttributes.join(' ').toLowerCase()).toMatch(/eco friendly/);
+    expect(profile.applications.join(' ').toLowerCase()).toMatch(/hospital/);
+    expect(profile.certifications.join(' ').toLowerCase()).toMatch(/iso/);
+    expect(gateKeyword('Eco-Friendly Vacuum Cleaner', withFacts, profile).blockedReasons).not.toContain(
+      'UNVERIFIED_ATTRIBUTE',
+    );
+    expect(gateKeyword('Hospital Vacuum Cleaner', withFacts, profile).blockedReasons).not.toContain(
+      'APPLICATION_UNVERIFIED',
+    );
+    expect(gateKeyword('ISO 9001 Vacuum Cleaner', withFacts, profile).blockedReasons).not.toContain(
+      'CERTIFICATION_UNVERIFIED',
+    );
+  });
+});

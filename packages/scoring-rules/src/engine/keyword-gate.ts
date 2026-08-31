@@ -9,6 +9,7 @@ import type {
   ProductTruthProfile,
   SearchEvidence,
 } from '@trade-ai/shared-types';
+import { pageTrustedClaimCorpus } from './claim-corpus';
 import { detectProductFamily, familiesConflict, normalizeProductText } from './product-family';
 import { buildProductTruthProfile } from './truth-profile';
 
@@ -72,17 +73,21 @@ export function scoreKeywordAgainstProfile(
   const kw = normalizeProductText(keyword);
   const core = normalizeProductText(profile.coreProduct);
   const family = normalizeProductText(profile.productFamily);
+  const trusted = pageTrustedClaimCorpus(page);
+  const verifiedAttrHay = profile.verifiedAttributes.join(' ');
   const listing = [
     profile.coreProduct,
     profile.productFamily,
     profile.productType,
-    ...profile.verifiedAttributes,
+    verifiedAttrHay,
     ...Object.entries(profile.specifications).map(([k, v]) => `${k} ${v}`),
     ...profile.applications,
     ...profile.materials,
     ...profile.certifications,
     page.productName,
     page.title,
+    page.category,
+    page.description,
   ].join(' ');
 
   let coreScore = 0;
@@ -99,11 +104,11 @@ export function scoreKeywordAgainstProfile(
   }
 
   const kwAttrs = phrasesIn(keyword, ATTRIBUTE_TOKENS);
-  const verifiedAttrHay = profile.verifiedAttributes.join(' ');
+  const attrHay = `${verifiedAttrHay} ${trusted}`;
   const attrScore =
     kwAttrs.length === 0
       ? 1
-      : kwAttrs.filter((a) => containsPhrase(verifiedAttrHay, a) || containsPhrase(listing, a)).length / kwAttrs.length;
+      : kwAttrs.filter((a) => containsPhrase(attrHay, a)).length / kwAttrs.length;
 
   const kwApps = phrasesIn(keyword, APPLICATION_TOKENS);
   const appHay = profile.applications.join(' ');
@@ -112,12 +117,19 @@ export function scoreKeywordAgainstProfile(
       ? 1
       : kwApps.filter((a) => containsPhrase(appHay, a)).length / kwApps.length;
 
+  const kwCerts = phrasesIn(keyword, CERT_TOKENS);
+  const certHay = profile.certifications.join(' ');
+  const unverifiedProtected =
+    kwAttrs.some((a) => !containsPhrase(attrHay, a)) ||
+    kwApps.some((a) => !containsPhrase(appHay, a)) ||
+    kwCerts.some((c) => !containsPhrase(certHay, c));
+
   const tokens = kw.split(' ').filter((w) => w.length > 2);
   let evidenceScore =
     tokens.length === 0
       ? 0
       : tokens.filter((t) => containsPhrase(listing, t) || containsPhrase(appHay, t)).length / tokens.length;
-  if (coreScore >= 1) evidenceScore = Math.max(evidenceScore, 1);
+  if (coreScore >= 1 && !unverifiedProtected) evidenceScore = Math.max(evidenceScore, 1);
 
   const breakdown: ProductMatchBreakdown = {
     core: pct(coreScore),
@@ -126,13 +138,14 @@ export function scoreKeywordAgainstProfile(
     applications: pct(appScore),
     evidence: pct(evidenceScore),
   };
-  const total = Math.round(
+  const rawTotal = Math.round(
     breakdown.core * WEIGHTS.core +
       breakdown.family * WEIGHTS.family +
       breakdown.attributes * WEIGHTS.attributes +
       breakdown.applications * WEIGHTS.applications +
       breakdown.evidence * WEIGHTS.evidence,
   );
+  const total = unverifiedProtected ? Math.min(rawTotal, 79) : rawTotal;
   return { total, breakdown };
 }
 
@@ -155,8 +168,8 @@ export function blockedReasonsForKeyword(
   if (productMismatch) reasons.push('PRODUCT_MISMATCH');
 
   const kwAttrs = phrasesIn(keyword, ATTRIBUTE_TOKENS);
-  const verifiedAttrHay = `${profile.verifiedAttributes.join(' ')} ${page.productName} ${Object.values(profile.specifications).join(' ')}`;
-  if (kwAttrs.some((a) => !containsPhrase(verifiedAttrHay, a))) reasons.push('UNVERIFIED_ATTRIBUTE');
+  const attrHay = `${profile.verifiedAttributes.join(' ')} ${pageTrustedClaimCorpus(page)}`;
+  if (kwAttrs.some((a) => !containsPhrase(attrHay, a))) reasons.push('UNVERIFIED_ATTRIBUTE');
 
   const kwApps = phrasesIn(keyword, APPLICATION_TOKENS);
   const appHay = profile.applications.join(' ');
@@ -192,9 +205,19 @@ export function gateKeyword(
   const profileFamily = detectProductFamily(`${profile.coreProduct} ${profile.productFamily} ${page.productName}`);
   const productMismatch = familiesConflict(profileFamily, kwFamily);
   const match = scoreKeywordAgainstProfile(keyword, profile, page);
-  const total = productMismatch ? Math.min(match.total, 20) : match.total;
-  const status = gateStatusForScore(total, productMismatch);
   const blockedReasons = blockedReasonsForKeyword(keyword, profile, page, productMismatch);
+  const protectedBlock = blockedReasons.some(
+    (r) =>
+      r === 'UNVERIFIED_ATTRIBUTE' ||
+      r === 'APPLICATION_UNVERIFIED' ||
+      r === 'CERTIFICATION_UNVERIFIED' ||
+      r === 'BLOCKED_BY_FACT_GUARD',
+  );
+  const total = productMismatch ? Math.min(match.total, 20) : match.total;
+  let status = gateStatusForScore(total, productMismatch);
+  if (protectedBlock && (status === 'PRIMARY_ELIGIBLE' || status === 'SAFE_PRIMARY_CANDIDATE' || status === 'SAFE_SECONDARY')) {
+    status = 'REVIEW_REQUIRED';
+  }
   const evidence: SearchEvidence = {
     ...searchEvidence,
     keyword,

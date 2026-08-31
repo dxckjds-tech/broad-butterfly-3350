@@ -33,6 +33,12 @@ export {
   scoreKeywordAgainstProfile,
 } from './engine/keyword-gate';
 export { detectProductFamily, PRODUCT_FAMILY_CATALOG } from './engine/product-family';
+export {
+  trustedClaimCorpus,
+  pageTrustedClaimCorpus,
+  pageKeywordCorpus,
+  corpusHasPhrase,
+} from './engine/claim-corpus';
 
 export function evaluateDiagnosis(page: PlatformPageData): Omit<DiagnosisResult, 'diagnosisId'> {
   const ctx = buildRuleContext(page);

@@ -74,10 +74,9 @@ function knownCorpus(input: KeywordOptimizeInput, productName: string): string {
   return [
     productName,
     input.category,
-    ...(input.currentKeywords ?? input.keywords ?? []),
-    ...(input.centerTerms ?? []),
     input.description,
     ...Object.entries(input.specifications ?? {}).map(([k, v]) => `${k} ${v}`),
+    ...(input.certifications ?? []),
   ]
     .filter(Boolean)
     .join(' ')

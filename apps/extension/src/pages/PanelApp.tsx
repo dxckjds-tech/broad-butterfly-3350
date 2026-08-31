@@ -35,7 +35,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.5</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.6</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>

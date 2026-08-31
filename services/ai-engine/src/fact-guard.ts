@@ -60,31 +60,31 @@ const SEVERE_KEYS = new Set<FactClaimKey>([
 type ClaimPattern = {
   key: FactClaimKey;
   re: RegExp;
-  corpus: 'listing' | 'application';
+  corpus: 'operational' | 'protected' | 'application';
 };
 
 const PATTERNS: ClaimPattern[] = [
-  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'listing' },
-  { key: 'moq', re: /\bMOQ[:\s-]?\s*\d+|\bminimum order\b[^.]{0,24}\d+/gi, corpus: 'listing' },
-  { key: 'leadTime', re: /\b(lead time|delivery(?: time)?)\s*[:\-]?\s*\d+\s*(days?|weeks?|months?)/gi, corpus: 'listing' },
-  { key: 'factorySize', re: /\b\d[\d,]*\s*(m2|m²|sqm|square meters?)\b/gi, corpus: 'listing' },
-  { key: 'employeeCount', re: /\b\d[\d,]*\s*(employees?|workers?|staff)\b/gi, corpus: 'listing' },
-  { key: 'productionCapacity', re: /\b\d[\d,]*\s*(pcs|units?|sets)\/(day|month|year)\b|\bannual (output|capacity)\b/gi, corpus: 'listing' },
-  { key: 'exportCountries', re: /\bexport(?:ed|s)? to\b[^.!]{0,40}/gi, corpus: 'listing' },
-  { key: 'patent', re: /\bpatents?\b|\bpatented\b/gi, corpus: 'listing' },
-  { key: 'price', re: /(?:USD|US\$|\$|€|RMB|CNY|¥)\s?\d[\d,]*(?:\.\d+)?/gi, corpus: 'listing' },
-  { key: 'ecoFriendly', re: /\beco[\s-]?friendly\b|\benvironmentally friendly\b/gi, corpus: 'listing' },
-  { key: 'medicalGrade', re: /\bmedical[\s-]?grade\b/gi, corpus: 'listing' },
-  { key: 'foodGrade', re: /\bfood[\s-]?grade\b/gi, corpus: 'listing' },
-  { key: 'waterproof', re: /\bwaterproof\b/gi, corpus: 'listing' },
-  { key: 'heavyDuty', re: /\bheavy[\s-]?duty\b/gi, corpus: 'listing' },
-  { key: 'highPressure', re: /\bhigh[\s-]?pressure\b/gi, corpus: 'listing' },
-  { key: 'highSuction', re: /\bhigh[\s-]?suction\b/gi, corpus: 'listing' },
-  { key: 'professional', re: /\bprofessional\b/gi, corpus: 'listing' },
-  { key: 'commercial', re: /\bcommercial\b/gi, corpus: 'listing' },
-  { key: 'industrial', re: /\bindustrial\b/gi, corpus: 'listing' },
-  { key: 'portable', re: /\bportable\b/gi, corpus: 'listing' },
-  { key: 'cordless', re: /\bcordless\b/gi, corpus: 'listing' },
+  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'protected' },
+  { key: 'moq', re: /\bMOQ[:\s-]?\s*\d+|\bminimum order\b[^.]{0,24}\d+/gi, corpus: 'operational' },
+  { key: 'leadTime', re: /\b(lead time|delivery(?: time)?)\s*[:\-]?\s*\d+\s*(days?|weeks?|months?)/gi, corpus: 'operational' },
+  { key: 'factorySize', re: /\b\d[\d,]*\s*(m2|m²|sqm|square meters?)\b/gi, corpus: 'operational' },
+  { key: 'employeeCount', re: /\b\d[\d,]*\s*(employees?|workers?|staff)\b/gi, corpus: 'operational' },
+  { key: 'productionCapacity', re: /\b\d[\d,]*\s*(pcs|units?|sets)\/(day|month|year)\b|\bannual (output|capacity)\b/gi, corpus: 'operational' },
+  { key: 'exportCountries', re: /\bexport(?:ed|s)? to\b[^.!]{0,40}/gi, corpus: 'operational' },
+  { key: 'patent', re: /\bpatents?\b|\bpatented\b/gi, corpus: 'operational' },
+  { key: 'price', re: /(?:USD|US\$|\$|€|RMB|CNY|¥)\s?\d[\d,]*(?:\.\d+)?/gi, corpus: 'operational' },
+  { key: 'ecoFriendly', re: /\beco[\s-]?friendly\b|\benvironmentally friendly\b/gi, corpus: 'protected' },
+  { key: 'medicalGrade', re: /\bmedical[\s-]?grade\b/gi, corpus: 'protected' },
+  { key: 'foodGrade', re: /\bfood[\s-]?grade\b/gi, corpus: 'protected' },
+  { key: 'waterproof', re: /\bwaterproof\b/gi, corpus: 'protected' },
+  { key: 'heavyDuty', re: /\bheavy[\s-]?duty\b/gi, corpus: 'protected' },
+  { key: 'highPressure', re: /\bhigh[\s-]?pressure\b/gi, corpus: 'protected' },
+  { key: 'highSuction', re: /\bhigh[\s-]?suction\b/gi, corpus: 'protected' },
+  { key: 'professional', re: /\bprofessional\b/gi, corpus: 'protected' },
+  { key: 'commercial', re: /\bcommercial\b/gi, corpus: 'protected' },
+  { key: 'industrial', re: /\bindustrial\b/gi, corpus: 'protected' },
+  { key: 'portable', re: /\bportable\b/gi, corpus: 'protected' },
+  { key: 'cordless', re: /\bcordless\b/gi, corpus: 'protected' },
   { key: 'application', re: /\b(cars?|automotive|sofas?|hospitals?|hotels?|workshops?|clinics?)\b/gi, corpus: 'application' },
   { key: 'application', re: /\bfactor(?:y|ies)\b/gi, corpus: 'application' },
 ];
@@ -122,8 +122,6 @@ export function knownFactsCorpus(facts: KnownFacts): string {
       facts.productName,
       facts.companyName,
       facts.category,
-      ...(facts.keywords ?? []),
-      ...(facts.centerTerms ?? []),
       spec,
       facts.description,
       ...(facts.certifications ?? []),
@@ -132,6 +130,15 @@ export function knownFactsCorpus(facts: KnownFacts): string {
     ]
       .filter(Boolean)
       .join(' '),
+  );
+}
+
+export function protectedFactsCorpus(facts: KnownFacts): string {
+  const spec = Object.entries(facts.specifications ?? {})
+    .map(([k, v]) => `${k} ${v}`)
+    .join(' ');
+  return normalize(
+    [facts.productName, facts.category, spec, facts.description, ...(facts.certifications ?? [])].filter(Boolean).join(' '),
   );
 }
 
@@ -146,7 +153,8 @@ export function applicationFactsCorpus(facts: KnownFacts): string {
 }
 
 export function applyFactGuard(text: string, facts: KnownFacts): FactGuardResult {
-  const listing = knownFactsCorpus(facts);
+  const operational = knownFactsCorpus(facts);
+  const protectedClaims = protectedFactsCorpus(facts);
   const applications = applicationFactsCorpus(facts);
   const removed: FactGuardHit[] = [];
   const warnings: string[] = [];
@@ -162,7 +170,7 @@ export function applyFactGuard(text: string, facts: KnownFacts): FactGuardResult
       if (key === 'application' && /^factor(?:y|ies)$/i.test(token) && isMarketingFactoryHit(text, m.index, value)) {
         continue;
       }
-      const allowed = corpus === 'application' ? applications : listing;
+      const allowed = corpus === 'application' ? applications : corpus === 'protected' ? protectedClaims : operational;
       if (!corpusContains(allowed, token)) {
         removed.push({ key, value });
         warnings.push(`FactGuard: unsupported ${key} claim "${value}"`);
