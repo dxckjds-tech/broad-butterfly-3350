@@ -10,7 +10,7 @@ export { imageAnalyzer, searchDataProvider, resetToolCache, runToolOnce, hashToo
 export { planKeywords } from './seo/keyword-intelligence';
 export { toProductTruthProfile } from './adapters/truth-profile';
 export { normalizeText, PROTECTED_ATTRIBUTES } from './knowledge/lexicon';
-export { identityPhrases } from './knowledge/noun-phrase';
+export { identityPhrases, identitiesCompatible } from './knowledge/noun-phrase';
 export { extractProtectedClaims, unverifiedClaimReasons } from './knowledge/protected-claims';
 export { canVerifyClaim } from './engine/evidence';
 export { extractFacts } from './engine/state';
