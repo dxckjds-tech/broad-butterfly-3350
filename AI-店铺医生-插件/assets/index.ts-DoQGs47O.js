@@ -1,0 +1,1 @@
+async function a(){var e;try{(e=chrome.sidePanel)!=null&&e.setPanelBehavior&&await chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:!0})}catch(n){console.warn("Side Panel unavailable, popup fallback will be used.",n)}}a();chrome.runtime.onInstalled.addListener(()=>{a()});

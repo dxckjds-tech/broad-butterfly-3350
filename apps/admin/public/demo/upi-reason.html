@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>UPI 推理演示（隔离 demo，非生产数据）</title>
+    <style>
+      body { font-family: sans-serif; margin: 24px; max-width: 880px; color: #1c2b3a; }
+      h1 { font-size: 20px; }
+      .card { border: 1px solid #e6ebf1; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+      .conflict { background: #fde8ea; }
+      .ok { background: #e7f6ee; }
+      button { padding: 8px 12px; cursor: pointer; }
+      pre { white-space: pre-wrap; font-size: 12px; }
+      .muted { color: #5c6e80; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>Universal Product Intelligence 现场复测</h1>
+    <p class="muted">本页在 /demo/ 下，只调用本地 API，不写入 MIC，不伪造搜索量。</p>
+    <p>
+      <button id="run" type="button">对 3 个类目调用 /ai/mic/universal-reason</button>
+    </p>
+    <div id="out"></div>
+    <script>
+      const cases = [
+        {
+          name: '吸尘器（身份冲突）',
+          productName: 'High Suction Heavy Duty Wet and Dry Vacuum Cleaner for Industrial Use',
+          category: 'Steam Cleaner',
+          keywords: ['Steam Cleaner', 'Hospital Vacuum Cleaner', 'Eco-Friendly Vacuum Cleaner'],
+          specifications: { Type: 'Wet and Dry Vacuum Cleaner', Material: 'Stainless Steel', Application: 'Industrial workshop', Suction: 'High Suction' },
+          description: 'High quality industrial cleaner. Best quality factory price.',
+        },
+        {
+          name: '水泵',
+          productName: 'Stainless Steel Centrifugal Water Pump for Irrigation',
+          category: 'Water Pump',
+          keywords: ['ISO 9001 Water Pump', 'Garden Fountain Pump'],
+          specifications: { Type: 'Centrifugal Water Pump', Material: 'Stainless Steel', Application: 'Irrigation' },
+          description: 'Centrifugal water pump with stainless steel housing for irrigation systems.',
+        },
+        {
+          name: 'LED灯',
+          productName: 'IP65 Waterproof LED Flood Light 50W',
+          category: 'LED Flood Light',
+          keywords: ['Solar LED Street Light'],
+          specifications: { Type: 'LED Flood Light', Power: '50W', Material: 'Aluminum', Application: 'Outdoor', Waterproof: 'IP65' },
+          description: 'LED flood light 50W. IP65 housing. Suitable for outdoor area lighting.',
+        },
+      ];
+
+      async function runOne(item) {
+        const res = await fetch('http://127.0.0.1:3000/api/ai/mic/universal-reason', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item),
+        });
+        const json = await res.json();
+        const r = json.data.reasoning;
+        return { name: item.name, r };
+      }
+
+      document.getElementById('run').onclick = async () => {
+        const out = document.getElementById('out');
+        out.textContent = '请求中…';
+        const rows = [];
+        for (const item of cases) rows.push(await runOne(item));
+        out.innerHTML = rows
+          .map(({ name, r }) => {
+            const cls = r.status === 'CONFLICT' ? 'conflict' : 'ok';
+            return `<article class="card ${cls}">
+              <h2>${name} · ${r.status}</h2>
+              <p><strong>识别</strong> ${r.productProfile.identity.label} · 置信 ${Math.round(r.confidence.score * 100)}% (${r.confidence.formulaVersion})</p>
+              <p><strong>候选</strong> ${r.productProfile.identity.candidates.map((c) => c.label).join(' / ')}</p>
+              <p><strong>冲突</strong> ${r.conflicts.map((c) => c.code).join(', ') || '无'}</p>
+              <p><strong>未知</strong> ${r.unknowns.map((u) => u.slot).join(', ')}</p>
+              <p><strong>正式 Top3</strong> ${JSON.stringify(r.seo.officialTop3)} · demand=${r.seo.searchDemand} · autoApply=${r.seo.autoApplyAllowed}</p>
+            </article>`;
+          })
+          .join('');
+      };
+    </script>
+  </body>
+</html>
