@@ -484,9 +484,13 @@ export interface RecommendedTitle {
 export interface TitleOptimizePayload {
   originalTitle: string;
   coreProductTerm: string;
+  trustedIdentity: string;
   problems: string[];
   recommendedTitles: RecommendedTitle[];
   keywordSuggestions: string[];
+  identityConflict: ProductIdentityConflict | null;
+  productTruthProfile: ProductTruthProfile | null;
+  titleRecommendationsPaused: boolean;
   factGuard: {
     ok: boolean;
     warnings: string[];

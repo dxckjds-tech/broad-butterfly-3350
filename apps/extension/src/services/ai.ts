@@ -50,6 +50,7 @@ export async function optimizeMicTitle(input: {
   url?: string;
   moq?: string;
   deliveryTime?: string;
+  identityUserVerified?: boolean;
 }): Promise<TitleOptimizePayload> {
   return postJson<TitleOptimizePayload>('/ai/mic/optimize-title', input);
 }

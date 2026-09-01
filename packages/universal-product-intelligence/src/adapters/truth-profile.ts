@@ -38,9 +38,9 @@ export function toProductTruthProfile(state: ReasoningState, page: PlatformPageD
     productType: p.specifications['spec.Type']?.replace(/^[^:]+:\s*/, '') || p.identity.label,
     verifiedAttributes: unique(verifiedAttributes),
     specifications: { ...(page.specifications ?? {}) },
-    applications: unique(p.applications.map((a) => a.value)),
-    materials: unique(p.materials.map((m) => m.value)),
-    certifications: unique(p.certifications.map((c) => c.value)),
+    applications: unique(p.applications.filter((a) => a.status === 'VERIFIED').map((a) => a.value)),
+    materials: unique(p.materials.filter((m) => m.status === 'VERIFIED').map((m) => m.value)),
+    certifications: unique(p.certifications.filter((c) => c.status === 'VERIFIED').map((c) => c.value)),
     capabilities: [
       page.oemAvailable ? 'OEM' : '',
       page.moq ? `MOQ ${page.moq}` : '',

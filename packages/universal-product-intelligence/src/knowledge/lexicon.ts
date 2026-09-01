@@ -89,7 +89,7 @@ export const MATERIAL_FAMILIES: Record<string, string[]> = {
   rubber: ['rubber', 'silicone', 'tpe', 'tpu'],
 };
 
-export const CERT_RE = /\b(iso\s?\d{3,5}|ce|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp|en\s?\d+)\b/gi;
+export const CERT_RE = /\b(iso\s?\d{3,5}|ce|cb|etl|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp|en\s?\d+)\b/gi;
 
 export const TRUSTED_SPEC_NAMES = /^(type|product type|item name|product name|name|function|application|used for|material|power|voltage|size|capacity|suction|pressure|ip rating|color)$/i;
 
@@ -101,7 +101,7 @@ export const PERFORMANCE_SPEC_NAMES = /power|voltage|watt|pressure|capacity|suct
 
 /** Generic performance measures: number + unit. Not product-specific. */
 export const PERFORMANCE_MEASURE_RE =
-  /\b(\d+(?:\.\d+)?)\s*(k?w|kw|hp|v|volt|a|amp|bar|psi|mpa|kpa|l|liter|rpm|hz|kg|t|m3|gal|gpm)\b/gi;
+  /\b(\d+(?:\.\d+)?)\s*(k?w|kw|hp|v|volt|a|amp|bar|psi|mpa|kpa|pa|l|liter|rpm|hz|kg|t|m3|gal|gpm)\b/gi;
 
 /** Structured spec tokens that are not certifications. */
 export const SPECIFICATION_TOKEN_RE = /\b(ip\s?\d{2}|dn\s?\d+|pn\s?\d+|npt|bsp|ansi|din\s?\d+)\b/gi;

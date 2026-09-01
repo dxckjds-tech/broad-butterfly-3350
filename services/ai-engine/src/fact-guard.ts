@@ -64,7 +64,7 @@ type ClaimPattern = {
 };
 
 const PATTERNS: ClaimPattern[] = [
-  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'protected' },
+  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|CB|ETL|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'protected' },
   { key: 'moq', re: /\bMOQ[:\s-]?\s*\d+|\bminimum order\b[^.]{0,24}\d+/gi, corpus: 'operational' },
   { key: 'leadTime', re: /\b(lead time|delivery(?: time)?)\s*[:\-]?\s*\d+\s*(days?|weeks?|months?)/gi, corpus: 'operational' },
   { key: 'factorySize', re: /\b\d[\d,]*\s*(m2|m²|sqm|square meters?)\b/gi, corpus: 'operational' },
@@ -113,49 +113,53 @@ function isMarketingFactoryHit(text: string, index: number, value: string): bool
   return /factory\s+(price|direct|outlet)|our\s+factory|from\s+(the\s+)?factory/.test(window);
 }
 
-export function knownFactsCorpus(facts: KnownFacts): string {
+export function knownFactsCorpus(facts: KnownFacts, opts?: { structuredOnly?: boolean }): string {
   const spec = Object.entries(facts.specifications ?? {})
     .map(([k, v]) => `${k} ${v}`)
     .join(' ');
-  return normalize(
-    [
-      facts.productName,
-      facts.companyName,
-      facts.category,
-      spec,
-      facts.description,
-      ...(facts.certifications ?? []),
-      facts.moq,
-      facts.deliveryTime,
-    ]
-      .filter(Boolean)
-      .join(' '),
-  );
+  const parts = opts?.structuredOnly
+    ? [facts.productName, facts.category, spec, ...(facts.certifications ?? []), facts.moq, facts.deliveryTime]
+    : [
+        facts.productName,
+        facts.companyName,
+        facts.category,
+        spec,
+        facts.description,
+        ...(facts.certifications ?? []),
+        facts.moq,
+        facts.deliveryTime,
+      ];
+  return normalize(parts.filter(Boolean).join(' '));
 }
 
-export function protectedFactsCorpus(facts: KnownFacts): string {
+export function protectedFactsCorpus(facts: KnownFacts, opts?: { structuredOnly?: boolean }): string {
   const spec = Object.entries(facts.specifications ?? {})
     .map(([k, v]) => `${k} ${v}`)
     .join(' ');
-  return normalize(
-    [facts.productName, facts.category, spec, facts.description, ...(facts.certifications ?? [])].filter(Boolean).join(' '),
-  );
+  const parts = opts?.structuredOnly
+    ? [facts.productName, facts.category, spec, ...(facts.certifications ?? [])]
+    : [facts.productName, facts.category, spec, facts.description, ...(facts.certifications ?? [])];
+  return normalize(parts.filter(Boolean).join(' '));
 }
 
 /** Application evidence only: spec Application / Used for, plus "used for" phrases. Never "factory price". */
-export function applicationFactsCorpus(facts: KnownFacts): string {
+export function applicationFactsCorpus(facts: KnownFacts, opts?: { structuredOnly?: boolean }): string {
   const specApps = Object.entries(facts.specifications ?? {})
     .filter(([k]) => /application|used for|scene|industry/i.test(k))
     .map(([k, v]) => `${k} ${v}`);
-  const desc = facts.description ?? '';
+  const desc = opts?.structuredOnly ? '' : (facts.description ?? '');
   const phrases = desc.match(/\b(suitable for|used for|application[s]?[:\s]+)[^.!]{0,80}/gi) ?? [];
   return normalize([...specApps, ...phrases].join(' '));
 }
 
-export function applyFactGuard(text: string, facts: KnownFacts): FactGuardResult {
-  const operational = knownFactsCorpus(facts);
-  const protectedClaims = protectedFactsCorpus(facts);
-  const applications = applicationFactsCorpus(facts);
+export function applyFactGuard(
+  text: string,
+  facts: KnownFacts,
+  opts?: { structuredOnly?: boolean },
+): FactGuardResult {
+  const operational = knownFactsCorpus(facts, opts);
+  const protectedClaims = protectedFactsCorpus(facts, opts);
+  const applications = applicationFactsCorpus(facts, opts);
   const removed: FactGuardHit[] = [];
   const warnings: string[] = [];
   let cleaned = text;

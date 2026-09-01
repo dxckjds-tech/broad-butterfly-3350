@@ -255,6 +255,9 @@ importers:
       '@trade-ai/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@trade-ai/universal-product-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/universal-product-intelligence
       zod:
         specifier: ^3.24.2
         version: 3.25.76

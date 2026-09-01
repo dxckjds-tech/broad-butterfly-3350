@@ -69,8 +69,18 @@ export class AiService {
           url: dto.url,
           moq: dto.moq,
           deliveryTime: dto.deliveryTime,
+          companyName: dto.companyName,
+          identityUserVerified: await this.resolveUserVerified(dto.url, dto.identityUserVerified),
         },
       });
+      if (result.productTruthProfile) {
+        await this.persistTruthProfile(
+          dto,
+          result.productTruthProfile,
+          result.identityConflict,
+          result.titleRecommendationsPaused,
+        );
+      }
       await this.logCall({
         taskType: result.meta.taskType,
         provider: result.meta.provider,

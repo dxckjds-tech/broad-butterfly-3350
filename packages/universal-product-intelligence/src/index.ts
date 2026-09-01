@@ -8,9 +8,19 @@ export { reflect, revise } from './engine/reflector';
 export { buildProductProfile } from './engine/product-profile';
 export { imageAnalyzer, searchDataProvider, resetToolCache, runToolOnce, hashToolInput } from './engine/tools';
 export { planKeywords } from './seo/keyword-intelligence';
+export {
+  guardGeneratedTitle,
+  identitySpecValue,
+  resolveTrustedIdentity,
+  titleMatchesTrustedIdentity,
+  titleRecommendationsPaused,
+  verifiedFactsForTitle,
+  withTrustedCore,
+} from './seo/title-intelligence';
+export type { VerifiedTitleFacts } from './seo/title-intelligence';
 export { toProductTruthProfile } from './adapters/truth-profile';
 export { normalizeText, PROTECTED_ATTRIBUTES } from './knowledge/lexicon';
 export { identityPhrases, identitiesCompatible } from './knowledge/noun-phrase';
-export { extractProtectedClaims, unverifiedClaimReasons } from './knowledge/protected-claims';
+export { claimVerifiedInProfile, extractProtectedClaims, unverifiedClaimReasons } from './knowledge/protected-claims';
 export { canVerifyClaim } from './engine/evidence';
 export { extractFacts } from './engine/state';

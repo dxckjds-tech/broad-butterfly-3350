@@ -77,6 +77,34 @@ describe('FactGuard', () => {
     expect(r.cleaned.toLowerCase()).not.toContain('iso 9001');
   });
 
+  it('strips CB and ETL unless the certification field verifies them', () => {
+    const invented = applyFactGuard('CB ETL RoHS Canister Vacuum Cleaner', {
+      productName: 'industrial Canister Vacuum Cleaner',
+      category: 'industrial Canister Vacuum Cleaner',
+      description: 'CE CB ETL RoHS certified steam cleaner',
+      certifications: [],
+    }, { structuredOnly: true });
+    expect(invented.ok).toBe(false);
+    expect(invented.removed.some((x) => x.key === 'certification' && /cb/i.test(x.value))).toBe(true);
+    expect(invented.removed.some((x) => x.key === 'certification' && /etl/i.test(x.value))).toBe(true);
+    expect(invented.cleaned.toLowerCase()).not.toMatch(/\b(cb|etl|rohs)\b/);
+    const allowed = applyFactGuard('CB ETL Canister Vacuum Cleaner', {
+      productName: 'industrial Canister Vacuum Cleaner',
+      certifications: ['CB', 'ETL'],
+    }, { structuredOnly: true });
+    expect(allowed.ok).toBe(true);
+  });
+
+  it('does not let description self-attest certifications when structuredOnly', () => {
+    const r = applyFactGuard('CE Industrial Vacuum Cleaner', {
+      productName: SAMPLE.productName,
+      description: 'CE certified vacuum',
+      certifications: [],
+    }, { structuredOnly: true });
+    expect(r.ok).toBe(false);
+    expect(r.removed.some((x) => x.key === 'certification')).toBe(true);
+  });
+
   it('allows certification present on the page', () => {
     const r = applyFactGuard('CE Industrial Vacuum Cleaner', {
       productName: SAMPLE.productName,
@@ -168,12 +196,30 @@ describe('Zod title schema', () => {
 describe('optimizeTitle mock path', () => {
   beforeEach(() => clearAiCache());
 
-  it('returns 3 titles without calling network', async () => {
+  it('pauses title AI when grouping and stale title disagree', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const out = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
+    expect(out.titleRecommendationsPaused).toBe(true);
+    expect(out.recommendedTitles).toEqual([]);
+    expect(out.trustedIdentity.toLowerCase()).toMatch(/vacuum/);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('returns 3 titles after identityUserVerified without calling network', async () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
     const provider = createLlmProvider(cfg);
-    const out = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
+    const out = await optimizeTitle({
+      provider,
+      config: cfg,
+      input: { ...SAMPLE, identityUserVerified: true, url: `${SAMPLE.url}?title-verified=1` },
+    });
+    expect(out.titleRecommendationsPaused).toBe(false);
     expect(out.originalTitle).toContain('Vacuum Cleaner');
     expect(out.recommendedTitles).toHaveLength(3);
+    expect(out.recommendedTitles.every((row) => /vacuum/i.test(row.title))).toBe(true);
+    expect(out.recommendedTitles.every((row) => !/steam cleaner/i.test(row.title))).toBe(true);
     expect(out.keywordSuggestions.length).toBeGreaterThan(0);
     expect(out.meta.provider).toBe('mock');
     expect(out.meta.taskType).toBe('TITLE_OPTIMIZATION');
@@ -183,10 +229,62 @@ describe('optimizeTitle mock path', () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
     const provider = createLlmProvider(cfg);
     const spy = vi.spyOn(provider, 'generateStructured');
-    await optimizeTitle({ provider, config: cfg, input: SAMPLE });
-    const second = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
+    const input = { ...SAMPLE, identityUserVerified: true, url: `${SAMPLE.url}?title-cache=1` };
+    await optimizeTitle({ provider, config: cfg, input });
+    const second = await optimizeTitle({ provider, config: cfg, input });
     expect(spy).toHaveBeenCalledTimes(1);
     expect(second.meta.cached).toBe(true);
+  });
+});
+
+const SCREENSHOT_TITLE = {
+  productName: 'Heavy-Duty Steam Cleaner for Home and Industrial Use',
+  category: 'industrial Canister Vacuum Cleaner',
+  keywords: [] as string[],
+  specifications: { Model: 'ZN-560' },
+  description: 'CE CB ETL RoHS certified. Heavy-duty steam cleaner for home and industrial use.',
+  certifications: [] as string[],
+  url: 'https://membercenter.made-in-china.com/product/zn-560-canister',
+};
+
+describe('optimizeTitle screenshot scenario', () => {
+  beforeEach(() => clearAiCache());
+
+  it('pauses on unconfirmed grouping vs Steam Cleaner title and does not call the LLM', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    const out = await optimizeTitle({ provider, config: cfg, input: SCREENSHOT_TITLE });
+    expect(out.titleRecommendationsPaused).toBe(true);
+    expect(out.recommendedTitles).toEqual([]);
+    expect(out.trustedIdentity.toLowerCase()).toMatch(/canister vacuum/);
+    expect(out.coreProductTerm.toLowerCase()).not.toMatch(/steam/);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('after confirm, titles follow canister vacuum identity and never copy Steam Cleaner or description certs', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const out = await optimizeTitle({
+      provider,
+      config: cfg,
+      skipCache: true,
+      input: {
+        ...SCREENSHOT_TITLE,
+        identityUserVerified: true,
+        url: `${SCREENSHOT_TITLE.url}?verified=1`,
+      },
+    });
+    expect(out.titleRecommendationsPaused).toBe(false);
+    expect(out.recommendedTitles).toHaveLength(3);
+    const blob = out.recommendedTitles.map((row) => row.title).join(' ').toLowerCase();
+    expect(blob).toMatch(/canister vacuum|vacuum cleaner/);
+    expect(blob).not.toMatch(/steam cleaner/);
+    expect(blob).not.toMatch(/\bce\b/);
+    expect(blob).not.toMatch(/\bcb\b/);
+    expect(blob).not.toMatch(/\betl\b/);
+    expect(blob).not.toMatch(/\brohs\b/);
+    expect(out.trustedIdentity.toLowerCase()).toMatch(/canister vacuum/);
   });
 });
 

@@ -16,6 +16,7 @@
     "@trade-ai/prompts": "workspace:*",
     "@trade-ai/scoring-rules": "workspace:*",
     "@trade-ai/shared-types": "workspace:*",
+    "@trade-ai/universal-product-intelligence": "workspace:*",
     "zod": "^3.24.2"
   },
   "devDependencies": {

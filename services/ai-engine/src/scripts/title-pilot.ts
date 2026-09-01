@@ -13,7 +13,8 @@ const SAMPLE = {
   description:
     'High suction heavy duty wet and dry vacuum cleaner for industrial use. Suitable for workshop cleaning of dust and liquid.',
   certifications: [] as string[],
-  url: 'https://membercenter.made-in-china.com/product/title-pilot',
+          url: 'https://membercenter.made-in-china.com/product/title-pilot',
+  identityUserVerified: true,
 };
 
 async function main(): Promise<void> {
