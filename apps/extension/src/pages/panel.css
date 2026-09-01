@@ -704,6 +704,66 @@ body {
   padding: 0 0 28px;
 }
 
+.wb-chrome {
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 16px 8px;
+}
+
+.wb-chrome__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.wb-dot {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.wb-dot--ok {
+  color: var(--ok);
+}
+
+.wb-chrome__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.wb-chrome__setup {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wb-chrome__setup summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.wb-confirm {
+  margin-top: 8px;
+}
+
+.wb-confirm__btn {
+  width: auto;
+  margin-top: 8px;
+}
+
+.wb-scores {
+  margin: 0 0 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.wb-pad {
+  padding: 0 16px 8px;
+}
+
 .app-topbar {
   background: #fff;
   border-bottom: 1px solid var(--line);
@@ -1043,7 +1103,8 @@ body {
     display: none;
   }
   .wb-cols,
-  .wb-evidence {
+  .wb-evidence,
+  .wb-scores {
     grid-template-columns: 1fr;
   }
 }

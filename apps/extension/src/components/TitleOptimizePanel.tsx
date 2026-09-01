@@ -24,11 +24,13 @@ export function TitleOptimizePanel({
   trigger = 0,
   requireConfirm = false,
   layout = 'stack',
+  showKeywordSuggestions = true,
 }: {
   page: PlatformPageData | null;
   trigger?: number;
   requireConfirm?: boolean;
   layout?: 'stack' | 'plans';
+  showKeywordSuggestions?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -155,7 +157,7 @@ export function TitleOptimizePanel({
               </article>
             );
           })}
-          {result.keywordSuggestions.length ? (
+          {showKeywordSuggestions && result.keywordSuggestions.length ? (
             <p>
               <strong>前三关键词建议</strong>
               <br />

@@ -35,7 +35,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-connected={connected ? 'yes' : 'no'}>
       <aside className="app-nav">
         <div className="app-nav__brand">
           <strong>MIC 店铺医生</strong>
@@ -64,12 +64,7 @@ export function AppShell({
           </button>
         </div>
       </aside>
-      <div className="app-body">
-        <header className="app-topbar">
-          <p>{connected ? '已连接当前页面' : '未识别当前页面'}</p>
-        </header>
-        {children}
-      </div>
+      <div className="app-body">{children}</div>
     </div>
   );
 }

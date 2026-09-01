@@ -46,7 +46,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-CRTf2KvP.js"
+        "assets/index.ts-loader-DUbaomwU.js"
       ],
       "matches": [
         "*://*.made-in-china.com/*",
@@ -64,8 +64,8 @@
         "http://localhost:5173/*"
       ],
       "resources": [
-        "assets/quality-Dhdge0G4.js",
-        "assets/index.ts-CdFKGv9w.js"
+        "assets/index-CRMLv4KP.js",
+        "assets/index.ts-nOLJOu9-.js"
       ],
       "use_dynamic_url": false
     }

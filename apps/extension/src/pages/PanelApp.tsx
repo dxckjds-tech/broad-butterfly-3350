@@ -1,21 +1,14 @@
 import { useEffect, useState } from 'react';
-import { AiStatusBar } from '../components/AiStatusBar';
-import { IssueList } from '../components/IssueList';
-import { MicSyncBar } from '../components/MicSyncBar';
-import { ParseStatus } from '../components/ParseStatus';
-import { ScoreCard } from '../components/ScoreCard';
 import { StatusBlock } from '../components/StatusBlock';
 import { TitleOptimizePanel } from '../components/TitleOptimizePanel';
 import { KeywordOptimizePanel } from '../components/KeywordOptimizePanel';
-import { CategoryCheckPanel } from '../components/CategoryCheckPanel';
-import { DescriptionOptimizePanel } from '../components/DescriptionOptimizePanel';
-import { GeoAnalysisPanel } from '../components/GeoAnalysisPanel';
 import { AppShell, type WorkbenchNavId } from '../components/workbench/AppShell';
 import { ComingSoonPanel } from '../components/workbench/ComingSoonPanel';
+import { DetailDiagnosisView } from '../components/workbench/DetailDiagnosisView';
 import { ProductDiagnosisView } from '../components/workbench/ProductDiagnosisView';
+import { WorkbenchChrome } from '../components/workbench/WorkbenchChrome';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { copyRequiresConfirm, useUniversalReasoning } from '../hooks/useUniversalReasoning';
-import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
 
 type DiagnosisTab = 'identity' | 'keywords' | 'titles' | 'detail';
@@ -31,50 +24,67 @@ export function PanelApp() {
   const [categoryTrigger, setCategoryTrigger] = useState(0);
   const [descriptionTrigger, setDescriptionTrigger] = useState(0);
   const [geoTrigger, setGeoTrigger] = useState(0);
-  const [identityTrigger, setIdentityTrigger] = useState(0);
 
   useEffect(() => {
     void loadPage();
   }, [loadPage]);
 
-  const productName = page?.productName || page?.title || '当前页面';
   const connected = Boolean(page && page.platform !== 'UNKNOWN');
 
-  return (
-    <AppShell version={EXTENSION_VERSION} connected={connected} nav={nav} onNav={setNav}>
-      <div className="app-toolbar">
-        <div>
-          <p className="eyebrow">
-            {platformLabel(page?.platform ?? 'UNKNOWN')} · {pageTypeLabel(page?.pageType ?? 'UNKNOWN')} · UPI 1.0
-          </p>
-          <h1>{productName}</h1>
-        </div>
-        <div className="app-toolbar__actions">
-          <button type="button" className="ghost" onClick={() => void loadPage(true)}>
-            刷新页面
-          </button>
-          <button type="button" className="primary app-toolbar__run" disabled={!page || state === 'ANALYZING'} onClick={() => void run()}>
-            {state === 'ANALYZING' ? '诊断中…' : '开始诊断'}
-          </button>
-        </div>
-      </div>
+  function go(nextNav: WorkbenchNavId, nextTab?: DiagnosisTab): void {
+    setNav(nextNav);
+    if (nextTab) setDiagTab(nextTab);
+  }
 
-      {nav === 'diagnosis' ? (
+  function afterIdentityVerified(verified: boolean): void {
+    void setIdentityVerified(verified).then(() => {
+      if (!verified) return;
+      setTitleTrigger((n) => n + 1);
+      setKeywordTrigger((n) => n + 1);
+    });
+  }
+
+  const showDiagnosisTabs = nav === 'diagnosis' || nav === 'keywords' || nav === 'titles' || nav === 'detail';
+  const tab: DiagnosisTab =
+    nav === 'keywords' ? 'keywords' : nav === 'titles' ? 'titles' : nav === 'detail' ? 'detail' : diagTab;
+
+  return (
+    <AppShell
+      version={EXTENSION_VERSION}
+      connected={connected}
+      nav={nav}
+      onNav={(id) => {
+        setNav(id);
+        if (id === 'diagnosis') setDiagTab('identity');
+        if (id === 'keywords') setDiagTab('keywords');
+        if (id === 'titles') setDiagTab('titles');
+        if (id === 'detail') setDiagTab('detail');
+      }}
+    >
+      <WorkbenchChrome
+        page={page}
+        connected={connected}
+        diagnosing={state === 'ANALYZING'}
+        onRefresh={() => void loadPage(true)}
+        onDiagnose={() => void run()}
+      />
+
+      {showDiagnosisTabs ? (
         <div className="app-tabs" role="tablist">
           {(
             [
-              ['identity', '商品识别与诊断'],
-              ['keywords', '关键词诊断'],
-              ['titles', '标题诊断'],
-              ['detail', '详情页诊断'],
+              ['identity', '商品识别与诊断', 'diagnosis'],
+              ['keywords', '关键词诊断', 'keywords'],
+              ['titles', '标题诊断', 'titles'],
+              ['detail', '详情页诊断', 'detail'],
             ] as const
-          ).map(([id, label]) => (
+          ).map(([id, label, targetNav]) => (
             <button
               key={id}
               type="button"
               role="tab"
-              className={diagTab === id ? 'app-tabs__item app-tabs__item--active' : 'app-tabs__item'}
-              onClick={() => setDiagTab(id)}
+              className={tab === id ? 'app-tabs__item app-tabs__item--active' : 'app-tabs__item'}
+              onClick={() => go(targetNav, id)}
             >
               {label}
             </button>
@@ -91,92 +101,60 @@ export function PanelApp() {
       {state === 'CAPTURE_FAILED' && (
         <StatusBlock title="页面读取失败" detail="无法读取当前标签页。请刷新页面后重试，或确认已授权读取该站点。" />
       )}
-      {state === 'OFFLINE' && (
-        <StatusBlock title="后端离线" detail="当前版本已改为本地诊断，请点击开始诊断。无需启动 API。" />
-      )}
-      {state === 'FAILED' && (
-        <StatusBlock title="分析失败" detail={error || '诊断请求失败，请稍后重试。'} />
-      )}
+      {state === 'FAILED' && <StatusBlock title="分析失败" detail={error || '诊断请求失败，请稍后重试。'} />}
       {state === 'ANALYZING' && <StatusBlock title="正在分析" detail="规则引擎正在评估当前页面，请稍候…" />}
 
-      <div className="app-status-row">
-        <AiStatusBar />
-        <MicSyncBar pageUrl={page?.url} />
-      </div>
-
-      {page && page.platform !== 'UNKNOWN' && state !== 'ANALYZING' ? <ParseStatus page={page} /> : null}
-
-      {nav === 'diagnosis' && page && diagTab === 'identity' ? (
+      {tab === 'identity' && page && state !== 'ANALYZING' ? (
         <ProductDiagnosisView
           page={page}
           reasoning={reasoning}
+          result={result}
           titleTrigger={titleTrigger}
-          identityTrigger={identityTrigger}
+          keywordTrigger={keywordTrigger}
           requireConfirm={requireConfirm}
-          onVerified={(verified) => {
-            void setIdentityVerified(verified);
-          }}
+          onVerified={afterIdentityVerified}
         />
       ) : null}
 
-      {(nav === 'keywords' || (nav === 'diagnosis' && diagTab === 'keywords')) && (
-        <KeywordOptimizePanel page={page} trigger={keywordTrigger} requireConfirm={requireConfirm} />
+      {tab === 'keywords' && (
+        <div className="wb">
+          <KeywordOptimizePanel page={page} trigger={keywordTrigger} requireConfirm={requireConfirm} layout="workbench" />
+        </div>
       )}
-      {(nav === 'titles' || (nav === 'diagnosis' && diagTab === 'titles')) && (
-        <TitleOptimizePanel page={page} trigger={titleTrigger} requireConfirm={requireConfirm} />
+      {tab === 'titles' && (
+        <div className="wb">
+          <TitleOptimizePanel page={page} trigger={titleTrigger} requireConfirm={requireConfirm} layout="plans" />
+        </div>
       )}
-      {(nav === 'detail' || (nav === 'diagnosis' && diagTab === 'detail')) && (
-        <>
-          <CategoryCheckPanel page={page} trigger={categoryTrigger} />
-          <DescriptionOptimizePanel page={page} trigger={descriptionTrigger} />
-          <GeoAnalysisPanel page={page} trigger={geoTrigger} />
-        </>
+      {tab === 'detail' && (
+        <DetailDiagnosisView
+          page={page}
+          result={result}
+          error={error}
+          categoryTrigger={categoryTrigger}
+          descriptionTrigger={descriptionTrigger}
+          geoTrigger={geoTrigger}
+          onTitleAi={() => {
+            go('titles', 'titles');
+            setTitleTrigger((n) => n + 1);
+          }}
+          onKeywordAi={() => {
+            go('keywords', 'keywords');
+            setKeywordTrigger((n) => n + 1);
+          }}
+          onCategoryAi={() => setCategoryTrigger((n) => n + 1)}
+          onDescriptionAi={() => setDescriptionTrigger((n) => n + 1)}
+          onGeoAi={() => setGeoTrigger((n) => n + 1)}
+          onIdentityFocus={() => {
+            go('diagnosis', 'identity');
+            document.getElementById('product-identity-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+        />
       )}
       {nav === 'compete' ? <ComingSoonPanel title="竞争分析" /> : null}
       {nav === 'buyers' ? <ComingSoonPanel title="买家洞察" /> : null}
       {nav === 'monitor' ? <ComingSoonPanel title="监控中心" /> : null}
       {nav === 'history' ? <ComingSoonPanel title="历史记录" /> : null}
-
-      {result && state === 'SUCCESS' && nav === 'diagnosis' && diagTab === 'detail' ? (
-        <>
-          {error ? <StatusBlock title="说明" detail={error} /> : null}
-          <section className="health">
-            <span>综合健康度</span>
-            <strong>
-              {result.totalScore} <small>/ 100</small>
-            </strong>
-          </section>
-          <div className="score-grid">
-            <ScoreCard label="MIC SEO" value={result.scores.micSeo} />
-            <ScoreCard label="Google SEO" value={result.scores.googleSeo} />
-            <ScoreCard label="GEO / AI Visibility" value={result.scores.geo} />
-            <ScoreCard label="内容质量" value={result.scores.contentQuality} />
-            <ScoreCard label="B2B 转化" value={result.scores.b2bConversion} />
-          </div>
-          <IssueList
-            issues={result.issues}
-            onTitleAi={() => {
-              setNav('titles');
-              setDiagTab('titles');
-              setTitleTrigger((n) => n + 1);
-            }}
-            onKeywordAi={() => {
-              setNav('keywords');
-              setDiagTab('keywords');
-              setKeywordTrigger((n) => n + 1);
-            }}
-            onCategoryAi={() => setCategoryTrigger((n) => n + 1)}
-            onDescriptionAi={() => setDescriptionTrigger((n) => n + 1)}
-            onGeoAi={() => setGeoTrigger((n) => n + 1)}
-            onIdentityFocus={() => {
-              setNav('diagnosis');
-              setDiagTab('identity');
-              setIdentityTrigger((n) => n + 1);
-              document.getElementById('product-identity-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-          />
-        </>
-      ) : null}
     </AppShell>
   );
 }

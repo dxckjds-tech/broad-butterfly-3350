@@ -16,10 +16,12 @@ export function KeywordOptimizePanel({
   page,
   trigger = 0,
   requireConfirm = false,
+  layout = 'stack',
 }: {
   page: PlatformPageData | null;
   trigger?: number;
   requireConfirm?: boolean;
+  layout?: 'stack' | 'workbench';
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -88,9 +90,9 @@ export function KeywordOptimizePanel({
   const copyBlocked = requireConfirm && !confirmed;
 
   return (
-    <section className="ai-title">
+    <section className={layout === 'workbench' ? 'wb-card wb-kw-panel' : 'ai-title'} id="keyword-optimize-panel">
       <div className="ai-title__head">
-        <h3>AI 关键词优化</h3>
+        <h3>{layout === 'workbench' ? '核心关键词' : 'AI 关键词优化'}</h3>
         <button
           type="button"
           onClick={() => void run()}

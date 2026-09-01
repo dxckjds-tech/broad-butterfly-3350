@@ -29,7 +29,15 @@ export function useDiagnosis() {
         if (data.pageType === 'UNKNOWN' && data.platform === 'UNKNOWN') {
           setState('UNRECOGNIZED');
         } else {
-          setState('READY');
+          setState('ANALYZING');
+          try {
+            const diagnosed = await diagnosePage({ ...data, identityUserVerified });
+            setResult(diagnosed);
+            setState('SUCCESS');
+          } catch (err) {
+            setState('FAILED');
+            setError(err instanceof Error ? err.message : '分析失败');
+          }
         }
       } catch {
         setPage({
