@@ -1,6 +1,6 @@
 import type { EvidenceRecord, IdentityHypothesis, ReasoningConflict } from '@trade-ai/shared-types';
 import { APPLICATION_SCENES, CERT_RE, MATERIAL_SPEC_NAMES, PROTECTED_ATTRIBUTES, materialFamily, normalizeText } from '../knowledge/lexicon';
-import { containsPhrase, distinctModifiers, phraseOverlap, sharedOnlyGenericNoun } from '../knowledge/noun-phrase';
+import { containsPhrase, identitiesCompatible, phraseOverlap } from '../knowledge/noun-phrase';
 import { canVerifyClaim, channelsOf } from './evidence';
 
 export function checkHypothesisEvidence(hyps: IdentityHypothesis[], evidence: EvidenceRecord[]): IdentityHypothesis[] {
@@ -35,14 +35,7 @@ export function checkHypothesisEvidence(hyps: IdentityHypothesis[], evidence: Ev
 }
 
 export function identityClash(a: string, b: string): boolean {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  if (!na || !nb) return false;
-  if (na === nb || na.includes(nb) || nb.includes(na)) return false;
-  if (phraseOverlap(a, b) >= 0.5) return false;
-  const { left, right } = distinctModifiers(a, b);
-  if (sharedOnlyGenericNoun(a, b) && left.length && right.length) return true;
-  return phraseOverlap(a, b) < 0.22 && left.length > 0 && right.length > 0;
+  return !identitiesCompatible(a, b);
 }
 
 export function detectConflicts(
