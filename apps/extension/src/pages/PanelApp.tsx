@@ -12,11 +12,15 @@ import { CategoryCheckPanel } from '../components/CategoryCheckPanel';
 import { DescriptionOptimizePanel } from '../components/DescriptionOptimizePanel';
 import { GeoAnalysisPanel } from '../components/GeoAnalysisPanel';
 import { useDiagnosis } from '../hooks/useDiagnosis';
+import { copyRequiresConfirm, useUniversalReasoning } from '../hooks/useUniversalReasoning';
 import { pageTypeLabel, platformLabel } from '../utils/labels';
 import { EXTENSION_VERSION } from '../services/diagnosis';
+import { UniversalReasoningPanel } from '../components/UniversalReasoningPanel';
 
 export function PanelApp() {
   const { state, page, result, error, loadPage, run, setIdentityVerified } = useDiagnosis();
+  const reasoning = useUniversalReasoning(page);
+  const requireConfirm = copyRequiresConfirm(reasoning);
   const [titleTrigger, setTitleTrigger] = useState(0);
   const [keywordTrigger, setKeywordTrigger] = useState(0);
   const [categoryTrigger, setCategoryTrigger] = useState(0);
@@ -35,7 +39,7 @@ export function PanelApp() {
       <header className="panel__header">
         <div>
           <h1>AI 店铺医生</h1>
-          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.1.6</p>
+          <p className="eyebrow">v{EXTENSION_VERSION} · MIC Adapter 3.0 · AI Engine 1.2.0 · UPI 1.0.0</p>
           <p>当前平台：{platformLabel(page?.platform ?? 'UNKNOWN')}</p>
           <p>当前页面类型：{pageTypeLabel(page?.pageType ?? 'UNKNOWN')}</p>
         </div>
@@ -75,7 +79,7 @@ export function PanelApp() {
 
       {page && page.platform !== 'UNKNOWN' && state !== 'ANALYZING' ? <ParseStatus page={page} /> : null}
 
-      <TitleOptimizePanel page={page} trigger={titleTrigger} />
+      <TitleOptimizePanel page={page} trigger={titleTrigger} requireConfirm={requireConfirm} />
       <ProductIdentityPanel
         page={page}
         trigger={identityTrigger}
@@ -83,7 +87,8 @@ export function PanelApp() {
           void setIdentityVerified(verified);
         }}
       />
-      <KeywordOptimizePanel page={page} trigger={keywordTrigger} />
+      <UniversalReasoningPanel reasoning={reasoning} />
+      <KeywordOptimizePanel page={page} trigger={keywordTrigger} requireConfirm={requireConfirm} />
       <CategoryCheckPanel page={page} trigger={categoryTrigger} />
       <DescriptionOptimizePanel page={page} trigger={descriptionTrigger} />
       <GeoAnalysisPanel page={page} trigger={geoTrigger} />

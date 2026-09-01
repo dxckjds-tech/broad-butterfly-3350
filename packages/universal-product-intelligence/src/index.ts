@@ -1,0 +1,16 @@
+export { reasonAboutProduct, runUniversalReasoning } from './engine/orchestrator';
+export { observePage } from './engine/observe';
+export { generateHypotheses, topCandidates } from './engine/hypothesis';
+export { detectConflicts, challengeConclusion, identityClash } from './engine/conflicts';
+export { computeConfidence } from './engine/confidence';
+export { planNextAction, scoreCandidateActions, MAX_REASONING_STEPS, conclusionSufficient } from './engine/planner';
+export { reflect, revise } from './engine/reflector';
+export { buildProductProfile } from './engine/product-profile';
+export { imageAnalyzer, searchDataProvider, resetToolCache, runToolOnce, hashToolInput } from './engine/tools';
+export { planKeywords } from './seo/keyword-intelligence';
+export { toProductTruthProfile } from './adapters/truth-profile';
+export { normalizeText, PROTECTED_ATTRIBUTES } from './knowledge/lexicon';
+export { identityPhrases } from './knowledge/noun-phrase';
+export { extractProtectedClaims, unverifiedClaimReasons } from './knowledge/protected-claims';
+export { canVerifyClaim } from './engine/evidence';
+export { extractFacts } from './engine/state';

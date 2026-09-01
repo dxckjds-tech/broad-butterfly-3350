@@ -117,6 +117,7 @@ export class DiagnosisService {
       productTruthProfile: result.productTruthProfile,
       identityConflict: result.identityConflict,
       keywordRecommendationsPaused: result.keywordRecommendationsPaused,
+      universalReasoning: result.universalReasoning,
     };
   }
 

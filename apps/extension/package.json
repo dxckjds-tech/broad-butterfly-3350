@@ -1,6 +1,6 @@
 {
   "name": "@trade-ai/extension",
-  "version": "0.6.9",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +14,7 @@
     "@trade-ai/platform-adapters": "workspace:*",
     "@trade-ai/scoring-rules": "workspace:*",
     "@trade-ai/shared-types": "workspace:*",
+    "@trade-ai/universal-product-intelligence": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

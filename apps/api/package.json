@@ -27,6 +27,7 @@
     "@trade-ai/production-safety": "workspace:*",
     "@trade-ai/scoring-rules": "workspace:*",
     "@trade-ai/shared-types": "workspace:*",
+    "@trade-ai/universal-product-intelligence": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "ioredis": "^5.6.0",
