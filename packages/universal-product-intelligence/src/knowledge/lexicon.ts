@@ -89,7 +89,7 @@ export const MATERIAL_FAMILIES: Record<string, string[]> = {
   rubber: ['rubber', 'silicone', 'tpe', 'tpu'],
 };
 
-export const CERT_RE = /\b(iso\s?\d{3,5}|ce|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp|en\s?\d+)\b/gi;
+export const CERT_RE = /\b(iso\s?\d{3,5}|ce|cb|etl|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp|en\s?\d+)\b/gi;
 
 export const TRUSTED_SPEC_NAMES = /^(type|product type|item name|product name|name|function|application|used for|material|power|voltage|size|capacity|suction|pressure|ip rating|color)$/i;
 

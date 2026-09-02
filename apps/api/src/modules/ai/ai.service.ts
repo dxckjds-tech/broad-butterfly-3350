@@ -88,6 +88,7 @@ export class AiService {
           url: dto.url,
           moq: dto.moq,
           deliveryTime: dto.deliveryTime,
+          identityUserVerified: dto.identityUserVerified,
         },
       });
       await this.logCall({

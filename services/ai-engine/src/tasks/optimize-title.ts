@@ -3,7 +3,7 @@ import {
   TITLE_OPTIMIZER_SYSTEM,
   buildTitleOptimizerUserPrompt,
 } from '@trade-ai/prompts';
-import { detectCoreProductTerm } from '@trade-ai/scoring-rules';
+import { detectCoreProductTerm, inspectProductIdentity, listingToPage } from '@trade-ai/scoring-rules';
 import { emptyPageData } from '@trade-ai/shared-types';
 import { cacheKey, getCached, setCached } from '../cache';
 import type { AiRuntimeConfig } from '../config';
@@ -37,6 +37,7 @@ export interface TitleOptimizeInput {
   url?: string;
   moq?: string;
   deliveryTime?: string;
+  identityUserVerified?: boolean;
 }
 
 export interface TitleOptimizeResult {
@@ -79,7 +80,27 @@ export async function optimizeTitle(opts: {
     throw new AiUnavailableError('产品标题为空，无法优化。');
   }
 
-  const key = cacheKey(['TITLE_OPTIMIZATION', opts.input.url, productName]);
+  const identity = inspectProductIdentity(listingToPage({
+    ...opts.input,
+    productName,
+  }));
+  if (identity.conflict) {
+    throw new AiUnavailableError(
+      `PRODUCT_IDENTITY_CONFLICT：${identity.conflict.summary} 请先修正原标题或冲突字段，再生成标题。`,
+    );
+  }
+
+  const key = cacheKey([
+    'TITLE_OPTIMIZATION',
+    opts.input.url,
+    productName,
+    opts.input.category,
+    JSON.stringify(opts.input.keywords ?? []),
+    JSON.stringify(opts.input.centerTerms ?? []),
+    JSON.stringify(opts.input.specifications ?? {}),
+    JSON.stringify(opts.input.certifications ?? []),
+    Number(Boolean(opts.input.identityUserVerified)),
+  ]);
   if (!opts.skipCache) {
     const hit = getCached<TitleOptimizeResult>(key);
     if (hit) {

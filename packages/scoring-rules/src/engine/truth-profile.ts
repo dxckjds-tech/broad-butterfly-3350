@@ -41,7 +41,7 @@ const ATTRIBUTE_PHRASES = [
 ];
 
 const MATERIAL_RE = /\b(stainless steel|stainless|steel|aluminum|aluminium|plastic|abs|pp|pe|pvc|copper|brass|iron|rubber|wood)\b/gi;
-const CERT_RE = /\b(iso\s?\d{3,5}|ce|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp)\b/gi;
+const CERT_RE = /\b(iso\s?\d{3,5}|ce|cb|etl|fda|rohs|ul\s?\d*|sgs|tuv|iec\s?\d+|ccc|reach|gmp)\b/gi;
 
 function unique(values: string[]): string[] {
   const seen = new Set<string>();

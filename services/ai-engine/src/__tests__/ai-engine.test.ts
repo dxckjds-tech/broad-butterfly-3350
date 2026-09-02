@@ -99,6 +99,7 @@ describe('FactGuard', () => {
   it('allows certification present on the page', () => {
     const r = applyFactGuard('CE Industrial Vacuum Cleaner', {
       productName: SAMPLE.productName,
+      category: 'Industrial Vacuum Cleaner',
       certifications: ['CE'],
     });
     expect(r.ok).toBe(true);
@@ -139,15 +140,26 @@ describe('FactGuard', () => {
     expect(r.removed.some((x) => x.key === 'application' && /factory/i.test(x.value))).toBe(true);
   });
 
-  it('allows workshop application and heavy duty / high suction from listing facts', () => {
+  it('allows workshop application and heavy duty / high suction only from structured facts', () => {
     const facts = {
       productName: SAMPLE.productName,
       specifications: SAMPLE.specifications,
       description: SAMPLE.description,
     };
     expect(applyFactGuard('workshop vacuum cleaner', facts).ok).toBe(true);
-    expect(applyFactGuard('heavy duty vacuum cleaner', facts).ok).toBe(true);
+    expect(applyFactGuard('heavy duty vacuum cleaner', facts).ok).toBe(false);
     expect(applyFactGuard('high suction vacuum cleaner', facts).ok).toBe(true);
+  });
+
+  it('does not let legacy title or description self-attest certifications', () => {
+    const facts = {
+      productName: 'CE CB ETL RoHS Steam Cleaner',
+      description: 'Certified with CE, CB, ETL and RoHS.',
+      certifications: [] as string[],
+    };
+    const result = applyFactGuard('CE CB ETL RoHS Steam Cleaner', facts);
+    expect(result.ok).toBe(false);
+    expect(result.cleaned).not.toMatch(/\b(?:CE|CB|ETL|RoHS)\b/i);
   });
 
   it('does not let candidate keywords self-attest eco-friendly, hospital, or ISO', () => {
@@ -199,10 +211,16 @@ describe('Zod title schema', () => {
 describe('optimizeTitle mock path', () => {
   beforeEach(() => clearAiCache());
 
+  const TITLE_SAMPLE = {
+    ...SAMPLE,
+    category: 'Industrial Vacuum Cleaners',
+    keywords: ['wet and dry vacuum cleaner', 'industrial vacuum cleaner'],
+  };
+
   it('returns 3 titles without calling network', async () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'deepseek' });
     const provider = createLlmProvider(cfg);
-    const out = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
+    const out = await optimizeTitle({ provider, config: cfg, input: TITLE_SAMPLE });
     expect(out.originalTitle).toContain('Vacuum Cleaner');
     expect(out.recommendedTitles).toHaveLength(3);
     expect(out.keywordSuggestions.length).toBeGreaterThan(0);
@@ -214,10 +232,29 @@ describe('optimizeTitle mock path', () => {
     const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
     const provider = createLlmProvider(cfg);
     const spy = vi.spyOn(provider, 'generateStructured');
-    await optimizeTitle({ provider, config: cfg, input: SAMPLE });
-    const second = await optimizeTitle({ provider, config: cfg, input: SAMPLE });
+    await optimizeTitle({ provider, config: cfg, input: TITLE_SAMPLE });
+    const second = await optimizeTitle({ provider, config: cfg, input: TITLE_SAMPLE });
     expect(spy).toHaveBeenCalledTimes(1);
     expect(second.meta.cached).toBe(true);
+  });
+
+  it('pauses title generation when legacy Steam Cleaner title conflicts with vacuum product facts', async () => {
+    const cfg = loadAiConfig({ LLM_PROVIDER: 'mock' });
+    const provider = createLlmProvider(cfg);
+    const spy = vi.spyOn(provider, 'generateStructured');
+    await expect(optimizeTitle({
+      provider,
+      config: cfg,
+      input: {
+        productName: 'Heavy-Duty Steam Cleaner for Home and Industrial Use',
+        category: 'Cleaning Equipment',
+        keywords: ['industrial Canister Vacuum Cleaner'],
+        specifications: { Model: 'ZN-560', Capacity: '20L' },
+        description: 'CE CB ETL RoHS steam cleaner',
+        certifications: [],
+      },
+    })).rejects.toThrow(/PRODUCT_IDENTITY_CONFLICT/);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 

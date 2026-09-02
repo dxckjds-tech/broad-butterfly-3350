@@ -2,5 +2,5 @@ Chrome / Edge 加载插件时：
 请选中「AI-店铺医生-插件」这一层文件夹（本文件所在目录）。
 该目录内必须能看到 manifest.json。
 
-版本：0.7.0（Universal Product Intelligence · 产品身份 + 关键词门禁 + 按需翻译 · DeepSeek · DRY_RUN · 不保存 API Key）
+版本：0.7.1（标题身份与认证安全门禁 · Universal Product Intelligence · 按需翻译 · DeepSeek · DRY_RUN）
 /Users/tao/Documents/Codex/2026-07-27/ni-h/work/broad-butterfly-3350/AI-店铺医生-插件

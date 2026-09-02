@@ -64,7 +64,7 @@ type ClaimPattern = {
 };
 
 const PATTERNS: ClaimPattern[] = [
-  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'protected' },
+  { key: 'certification', re: /\b(ISO\s?\d{3,5}|CE|CB|ETL|FDA|RoHS|UL\s?\d*|SGS|T[UÜ]V|IEC\s?\d+|CCC|REACH|GMP)\b/gi, corpus: 'protected' },
   { key: 'moq', re: /\bMOQ[:\s-]?\s*\d+|\bminimum order\b[^.]{0,24}\d+/gi, corpus: 'operational' },
   { key: 'leadTime', re: /\b(lead time|delivery(?: time)?)\s*[:\-]?\s*\d+\s*(days?|weeks?|months?)/gi, corpus: 'operational' },
   { key: 'factorySize', re: /\b\d[\d,]*\s*(m2|m²|sqm|square meters?)\b/gi, corpus: 'operational' },
@@ -138,7 +138,7 @@ export function protectedFactsCorpus(facts: KnownFacts): string {
     .map(([k, v]) => `${k} ${v}`)
     .join(' ');
   return normalize(
-    [facts.productName, facts.category, spec, facts.description, ...(facts.certifications ?? [])].filter(Boolean).join(' '),
+    [facts.category, spec, ...(facts.certifications ?? [])].filter(Boolean).join(' '),
   );
 }
 

@@ -50,6 +50,7 @@ export function TitleOptimizePanel({
         url: page.url,
         moq: page.moq,
         deliveryTime: page.deliveryTime,
+        identityUserVerified: page.identityUserVerified,
       });
       setResult(data);
     } catch (err) {
