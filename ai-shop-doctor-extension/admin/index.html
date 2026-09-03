@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 店铺医生 · 运营驾驶舱 · 今日概览</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Noto Sans SC', system-ui, sans-serif;
+    font-size: 13px; color: #1A2433;
+    background: #F7F8FA;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8DCE2; border-radius: 4px; }
+
+  .layout { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 230px; flex: none;
+    background: #0F2540;
+    padding: 20px 12px;
+    display: flex; flex-direction: column; gap: 3px;
+    overflow-y: auto;
+  }
+  .sidebar-brand { padding: 0 8px 16px; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 700; color: #FFFFFF; }
+  .sidebar-brand-sub { font-size: 11px; color: #7FBDB4; margin-top: 2px; }
+  .nav-item {
+    font-size: 12px; padding: 8px 11px; border-radius: 6px;
+    cursor: pointer; color: #B9C4D2; font-weight: 400;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none; display: block;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: #FFFFFF; }
+  .nav-item.active { background: #12385F; color: #FFFFFF; font-weight: 700; }
+
+  /* Main content */
+  .main { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+  .page-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .page-title { font-size: 18px; font-weight: 700; color: #0F2540; }
+  .page-date { font-size: 12px; color: #8B95A1; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .stat-card {
+    background: #FFFFFF; border: 1px solid #E2E5EA; border-radius: 10px;
+    padding: 15px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .stat-label { font-size: 11px; color: #5B6472; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-note { font-size: 10px; color: #8B95A1; }
+
+  /* Task table card */
+  .table-card {
+    background: #FFFFFF; border: 1px solid #E2E5EA; border-radius: 10px;
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .table-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .table-card-title { font-size: 12.5px; font-weight: 700; color: #0F2540; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-chip {
+    font-size: 10.5px; font-weight: 600; padding: 5px 10px; border-radius: 12px;
+    cursor: pointer; border: 1px solid #D8DCE2;
+    transition: background 0.15s, color 0.15s;
+  }
+  .filter-chip.active { background: #0F2540; color: #FFFFFF; border-color: #0F2540; }
+  .filter-chip:not(.active) { background: #FFFFFF; color: #5B6472; }
+  .filter-chip:hover:not(.active) { background: #F1F2F4; }
+
+  .table-header {
+    display: grid;
+    grid-template-columns: 2.2fr 1.1fr 0.7fr 0.9fr 0.7fr;
+    font-size: 10.5px; color: #8B95A1;
+    padding: 6px 0; border-bottom: 1px solid #EEF0F3;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 2.2fr 1.1fr 0.7fr 0.9fr 0.7fr;
+    align-items: center; font-size: 12px; color: #1A2433;
+    padding: 8px 0; border-bottom: 1px solid #EEF0F3;
+  }
+  .table-row:last-child { border-bottom: none; }
+  .row-product { overflow-wrap: break-word; padding-right: 8px; }
+  .row-status { color: #5B6472; }
+  .row-action { color: #0E8E82; font-weight: 600; cursor: pointer; }
+  .row-action:hover { text-decoration: underline; }
+  .issue-badge {
+    font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 6px;
+    display: inline-block;
+  }
+
+  /* Footnote */
+  .footnote { font-size: 10.5px; color: #8B95A1; line-height: 1.6; }
+
+  /* Drawer */
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: 360px;
+    background: #FFFFFF; border-left: 1px solid #E2E5EA;
+    box-shadow: -8px 0 24px rgba(15,37,64,0.10);
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    z-index: 100; transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .drawer-title { font-size: 14px; font-weight: 700; color: #0F2540; overflow-wrap: break-word; padding-right: 10px; }
+  .drawer-close { cursor: pointer; color: #8B95A1; font-size: 12px; flex: none; }
+  .drawer-close:hover { color: #0F2540; }
+  .drawer-row { display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #EEF0F3; padding-bottom: 8px; }
+  .drawer-row:last-child { border-bottom: none; }
+  .drawer-row-label { font-size: 10.5px; color: #8B95A1; }
+  .drawer-row-value { font-size: 12.5px; color: #1A2433; overflow-wrap: break-word; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name">AI 店铺医生</div>
+      <div class="sidebar-brand-sub">运营驾驶舱</div>
+    </div>
+    <a href="index.html" class="nav-item active">今日概览</a>
+    <a href="#" class="nav-item">店铺扫描</a>
+    <a href="#" class="nav-item">产品中心</a>
+    <a href="#" class="nav-item">商品真相</a>
+    <a href="#" class="nav-item">关键词中心</a>
+    <a href="#" class="nav-item">内容优化</a>
+    <a href="#" class="nav-item">询盘与买家问题</a>
+    <a href="opportunities.html" class="nav-item">商机与 Quick Wins</a>
+    <a href="#" class="nav-item">任务中心</a>
+    <a href="#" class="nav-item">Before / After</a>
+    <a href="#" class="nav-item">数据源与系统设置</a>
+  </nav>
+
+  <!-- Main -->
+  <main class="main" id="main">
+    <div class="page-header">
+      <div class="page-title">今日概览</div>
+      <div class="page-date" id="today-date"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <!-- Task table -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">今日最优先任务</div>
+        <div class="filter-row" id="task-filters"></div>
+      </div>
+      <div class="table-header">
+        <div>产品</div><div>问题</div><div>优先级</div><div>状态</div><div>操作</div>
+      </div>
+      <div id="task-table-body"></div>
+    </div>
+
+    <!-- Footnote -->
+    <div class="footnote">
+      Opportunity Score 计算维度：商业价值 · 页面缺陷严重度 · 搜索机会（需真实数据）· 修改成本 · 数据完整度 · 可控性。无真实搜索数据的产品不计入"高流量机会"。
+    </div>
+  </main>
+</div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-title"></div>
+    <div class="drawer-close" onclick="closeDrawer()">关闭</div>
+  </div>
+  <div id="drawer-body"></div>
+</div>
+
+<script>
+const STATUS_MAP = {
+  VERIFIED: { bg: '#EAF7EF', fg: '#1C9A5A', border: '#BEE8CB' },
+  OBSERVED: { bg: '#EAF1FD', fg: '#2D6FE0', border: '#C6DBFB' },
+  INFERRED: { bg: '#FFF6DC', fg: '#96690A', border: '#F0DBA0' },
+  CONFLICT: { bg: '#FDEAEA', fg: '#C63C3C', border: '#F5C2C2' },
+  NOT_AVAILABLE: { bg: '#F1F2F4', fg: '#6B7280', border: '#DCE0E5' },
+  UNKNOWN: { bg: '#F1F2F4', fg: '#6B7280', border: '#DCE0E5' },
+};
+function ss(key) { return STATUS_MAP[key] || STATUS_MAP.UNKNOWN; }
+
+// Date
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+
+// Stats
+const statsData = [
+  { label: '身份冲突产品数',         value: '23',           tone: 'CONFLICT' },
+  { label: '关键词错误流量风险产品数',  value: '41',           tone: 'INFERRED' },
+  { label: '可快速优化产品数',        value: '67',           tone: 'VERIFIED' },
+  { label: '搜索数据覆盖率',          value: 'NOT_AVAILABLE', tone: 'NOT_AVAILABLE', note: '搜索数据源未接入' },
+  { label: '待人工确认事实数',        value: '156',          tone: 'OBSERVED' },
+  { label: '已优化待复检产品数',       value: '34',           tone: 'OBSERVED' },
+];
+const statsGrid = document.getElementById('stats-grid');
+statsData.forEach(c => {
+  const s = ss(c.tone);
+  const card = document.createElement('div');
+  card.className = 'stat-card';
+  card.innerHTML = `
+    <div class="stat-label">${c.label}</div>
+    <div class="stat-value" style="color:${s.fg}">${c.value}</div>
+    ${c.note ? `<div class="stat-note">${c.note}</div>` : ''}
+  `;
+  statsGrid.appendChild(card);
+});
+
+// Tasks
+const allTasks = [
+  { product: 'Canister Vacuum Cleaner 20L',  issue: '身份冲突',   priority: 'P0', status: '待确认', action: '确认商品身份后可解除阻断', tone: 'CONFLICT' },
+  { product: 'Hydraulic Gear Pump 2 Inch',   issue: '关键词风险',  priority: 'P0', status: '待处理', action: '复核关键词匹配并接入搜索数据源', tone: 'INFERRED' },
+  { product: 'Reflective Safety Vest Class 2',issue: '内容就绪度低', priority: 'P1', status: '待处理', action: '补充材质/认证结构化字段', tone: 'OBSERVED' },
+  { product: 'CNC Aluminum Machining Part',   issue: '认证未验证',  priority: 'P1', status: '待处理', action: '上传认证证书或移除认证声明', tone: 'INFERRED' },
+  { product: 'LED Panel Light 60x60',         issue: '可快速优化',  priority: 'P2', status: '待处理', action: '直接应用已生成的安全标题建议', tone: 'OBSERVED' },
+];
+
+const priorityRank = { P0: 0, P1: 1, P2: 2 };
+let currentFilter = 'ALL';
+let sortDesc = true;
+
+const filterDefs = [
+  { key: 'ALL',      label: '全部' },
+  { key: 'CONFLICT', label: '身份冲突' },
+  { key: 'RISK',     label: '关键词风险' },
+  { key: 'OPT',      label: '可优化' },
+];
+
+function filterMatch(issue, key) {
+  if (key === 'ALL') return true;
+  if (key === 'CONFLICT') return issue.includes('冲突');
+  if (key === 'RISK') return issue.includes('风险');
+  if (key === 'OPT') return issue.includes('优化') || issue.includes('未验证') || issue.includes('低');
+  return true;
+}
+
+function renderFilters() {
+  const row = document.getElementById('task-filters');
+  row.innerHTML = '';
+  filterDefs.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip' + (currentFilter === f.key ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { currentFilter = f.key; renderFilters(); renderTable(); });
+    row.appendChild(chip);
+  });
+
+  const sortBtn = document.createElement('div');
+  sortBtn.className = 'filter-chip';
+  sortBtn.textContent = sortDesc ? '优先级 P0→P2 ↓' : '优先级 P2→P0 ↑';
+  sortBtn.addEventListener('click', () => { sortDesc = !sortDesc; renderFilters(); renderTable(); });
+  row.appendChild(sortBtn);
+}
+
+function renderTable() {
+  const body = document.getElementById('task-table-body');
+  body.innerHTML = '';
+
+  const tasks = allTasks
+    .filter(t => filterMatch(t.issue, currentFilter))
+    .sort((a, b) => sortDesc
+      ? priorityRank[a.priority] - priorityRank[b.priority]
+      : priorityRank[b.priority] - priorityRank[a.priority]
+    );
+
+  tasks.forEach(t => {
+    const s = ss(t.tone);
+    const row = document.createElement('div');
+    row.className = 'table-row';
+    row.innerHTML = `
+      <div class="row-product">${t.product}</div>
+      <div><span class="issue-badge" style="background:${s.bg};color:${s.fg};border:1px solid ${s.border}">${t.issue}</span></div>
+      <div>${t.priority}</div>
+      <div class="row-status">${t.status}</div>
+      <div class="row-action" data-product="${t.product}" data-issue="${t.issue}" data-priority="${t.priority}" data-status="${t.status}" data-action="${t.action}">详情</div>
+    `;
+    row.querySelector('.row-action').addEventListener('click', (e) => {
+      const el = e.currentTarget;
+      openDrawer(el.dataset.product, [
+        { label: '问题类型', value: el.dataset.issue },
+        { label: '优先级',   value: el.dataset.priority },
+        { label: '状态',    value: el.dataset.status },
+        { label: '建议动作', value: el.dataset.action },
+      ]);
+    });
+    body.appendChild(row);
+  });
+}
+
+function openDrawer(title, rows) {
+  document.getElementById('drawer-title').textContent = title;
+  const body = document.getElementById('drawer-body');
+  body.innerHTML = '';
+  rows.forEach(r => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'drawer-row';
+    rowEl.innerHTML = `<div class="drawer-row-label">${r.label}</div><div class="drawer-row-value">${r.value}</div>`;
+    body.appendChild(rowEl);
+  });
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+}
+
+renderFilters();
+renderTable();
+</script>
+</body>
+</html>
