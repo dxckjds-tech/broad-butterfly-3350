@@ -60,7 +60,11 @@
     }, 1000)
     try {
       state = ns.sidepanel.state.get()
-      const r = await chrome.runtime.sendMessage({ type: 'ANALYZE_PRODUCT', fields: state.fields })
+      const r = await chrome.runtime.sendMessage({
+        type: 'ANALYZE_PRODUCT',
+        fields: state.fields,
+        product: state.product,
+      })
       if (r?.ok) {
         ns.sidepanel.state.update(
           {

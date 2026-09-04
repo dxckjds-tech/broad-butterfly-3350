@@ -8,7 +8,7 @@
 - [x] P0-2 新采集器不再静默退回 `document.body`；旧 `fields.visibleText` 仍保留兼容（Step 4）
 - [x] password 隐藏弹窗不再误判 loginRequired（Step 4）
 - [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
-- [ ] `JSON.stringify(compactFields).slice(0, 30000)` 字符串截断可能切断 JSON（Step 6）
+- [x] `JSON.stringify(compactFields).slice(0, 30000)` 已删除，改为对象级预算（Step 6）
 - [ ] `ANALYZE_PRODUCT` 无重入保护，可并发多次请求（Step 9）
 - [ ] `REQUEST_MIC_FIELDS` 无 sidepanel 调用方，仍保留 handler
 

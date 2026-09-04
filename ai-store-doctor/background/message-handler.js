@@ -54,8 +54,9 @@
     }
     if (message?.type === 'ANALYZE_PRODUCT') {
       const source = message.fields || {}
-      const compact = ASD.bg.payloadBuilder.compactFields(source)
-      const payload = JSON.stringify(compact).slice(0, 30000)
+      const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source)
+      const nonce = ASD.bg.payloadBuilder.randomNonce()
+      const wrapped = ASD.bg.payloadBuilder.wrapUntrusted(built.text, nonce)
       const cfg = await ASD.bg.settings.load()
       const activeModel = cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel
       const visionCapable = /kimi-k3|kimi-k2\.5|vision/i.test(activeModel)
@@ -63,20 +64,18 @@
         ? await Promise.all((source.images || []).slice(0, 4).map((image) => ASD.bg.imageFetcher.imageAsDataUrl(image.src)))
         : []
       const imageBlocks = visionUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
-      const userContent = imageBlocks.length
-        ? [
-            {
-              type: 'text',
-              text: `请结合真实图片像素与以下页面字段完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容：\n${payload}`,
-            },
-            ...imageBlocks,
-          ]
-        : `请诊断以下商品页面数据并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据：\n${payload}`
+      const intro = imageBlocks.length
+        ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
+        : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
+      const userText = `${intro}\n${wrapped}`
+      const userContent = imageBlocks.length ? [{ type: 'text', text: userText }, ...imageBlocks] : userText
       const out = await ASD.bg.aiClient.callAI([
         { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
         { role: 'user', content: userContent },
       ])
       out.visionUsed = imageBlocks.length > 0
+      out.payloadMode = built.mode
+      out.payloadTruncated = built.truncated
       return { ok: true, ...out }
     }
     return { ok: false, reason: 'UNKNOWN_MESSAGE' }
