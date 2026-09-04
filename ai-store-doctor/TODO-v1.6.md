@@ -5,9 +5,9 @@
 ## 采集 / 数据
 
 - [ ] P0-1 `visibleText` / `formFields` 无 PII 脱敏，整页文本可发往 DeepSeek/Kimi（Step 5）
-- [ ] P0-2 `formFields` 抓全页控件；`visibleText` 可回退到 `document.body`（Step 4）
-- [ ] 任意角落的 `input[type=password]` 会使整页采集返回 `loginRequired`（Step 4/9）
-- [ ] 关键词选择器命中 span/div 时 `controlValue` 只读 `.value`，公开详情页 chip 常抽不到关键词（fixtures/01 已复现）
+- [x] P0-2 新采集器不再静默退回 `document.body`；旧 `fields.visibleText` 仍保留兼容（Step 4）
+- [x] password 隐藏弹窗不再误判 loginRequired（Step 4）
+- [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
 - [ ] `JSON.stringify(compactFields).slice(0, 30000)` 字符串截断可能切断 JSON（Step 6）
 - [ ] `ANALYZE_PRODUCT` 无重入保护，可并发多次请求（Step 9）
 - [ ] `REQUEST_MIC_FIELDS` 无 sidepanel 调用方，仍保留 handler

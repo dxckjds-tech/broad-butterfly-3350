@@ -7,6 +7,7 @@
     tab: 0,
     subtab: 0,
     fields: null,
+    product: null,
     report: null,
     loading: false,
     elapsed: 0,

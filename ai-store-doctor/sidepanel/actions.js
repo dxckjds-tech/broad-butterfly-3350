@@ -7,7 +7,7 @@
     const state = ns.sidepanel.state.get()
     ns.sidepanel.state.update({ error: '', report: null, loading: false }, 'readUrl:start')
     if (!url) {
-      ns.sidepanel.state.update({ fields: null, error: '请先粘贴完整商品 URL' }, 'readUrl:empty')
+      ns.sidepanel.state.update({ fields: null, product: null, error: '请先粘贴完整商品 URL' }, 'readUrl:empty')
       ns.sidepanel.app.render()
       return false
     }
@@ -15,13 +15,13 @@
     ns.sidepanel.app.render()
     const r = await chrome.runtime.sendMessage({ type: 'REQUEST_URL_FIELDS', url })
     if (r?.ok) {
-      ns.sidepanel.state.update({ fields: r.fields }, 'readUrl:ok')
+      ns.sidepanel.state.update({ fields: r.fields, product: r.product || null }, 'readUrl:ok')
       document.getElementById('productUrl').value = r.url
       document.getElementById('dockUrl').textContent = r.url
       ns.sidepanel.app.render()
       return true
     }
-    ns.sidepanel.state.update({ fields: null, error: r?.reason || 'URL 读取失败' }, 'readUrl:fail')
+    ns.sidepanel.state.update({ fields: null, product: null, error: r?.reason || 'URL 读取失败' }, 'readUrl:fail')
     document.getElementById('dockUrl').textContent = r?.loginRequired
       ? '需要登录'
       : `URL 读取失败：${r?.reason || '未知错误'}`

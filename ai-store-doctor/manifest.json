@@ -18,7 +18,14 @@
   "content_scripts": [
     {
       "matches": ["https://*.made-in-china.com/*", "https://*.vemic.com/*"],
-      "js": ["content-script.js"],
+      "js": [
+        "shared/constants.js",
+        "shared/product-fields.js",
+        "content/dom-read.js",
+        "content/field-map.js",
+        "content/extractors.js",
+        "content-script.js"
+      ],
       "run_at": "document_idle"
     }
   ],

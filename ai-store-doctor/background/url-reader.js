@@ -81,7 +81,12 @@
       }
       if (!fieldsResponse?.fields)
         return { ok: false, reason: `页面已加载，但数据读取脚本未就绪${lastMessageError ? `：${lastMessageError}` : ''}` }
-      return { ok: true, fields: fieldsResponse.fields, url: loaded.url }
+      return {
+        ok: true,
+        fields: fieldsResponse.fields,
+        product: fieldsResponse.product || null,
+        url: loaded.url,
+      }
     } finally {
       const current = await chrome.tabs.get(tab.id).catch(() => null)
       if (current && !current.active) await chrome.tabs.remove(tab.id).catch(() => {})

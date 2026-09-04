@@ -183,12 +183,27 @@ function extractFields() {
     url: location.href,
   }
 }
+function collectDualTrack() {
+  const fields = extractFields()
+  const product = ASD.content && ASD.content.extractors ? ASD.content.extractors.extractAll() : null
+  if (product && ASD.productFields) {
+    product.debug.oldFieldCount = ASD.productFields.countOldFields(fields)
+    product.debug.newFieldCount = ASD.productFields.countNewFields(product)
+  }
+  const loginRequired =
+    ASD.content && ASD.content.dom
+      ? ASD.content.dom.detectLoginRequired(product)
+      : false
+  return { fields, product, loginRequired }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'EXTRACT_MIC_FIELDS') {
-    const docs = documents()
-    const loginRequired =
-      docs.some((doc) => doc.querySelector('input[type="password"]')) ||
-      /login|signin|passport/i.test(location.pathname + location.search)
-    sendResponse(loginRequired ? { loginRequired: true, url: location.href } : { fields: extractFields() })
+    const collected = collectDualTrack()
+    sendResponse(
+      collected.loginRequired
+        ? { loginRequired: true, url: location.href }
+        : { fields: collected.fields, product: collected.product, url: location.href },
+    )
   }
 })
