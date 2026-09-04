@@ -1,0 +1,13 @@
+{
+  "name": "ai-store-doctor-tests",
+  "private": true,
+  "description": "Offline fixtures for v1.5.1 regression. Not packed into the Chrome extension.",
+  "type": "module",
+  "scripts": {
+    "regression": "node run-regression.mjs",
+    "baseline": "node run-regression.mjs --write"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}
