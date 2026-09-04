@@ -13,9 +13,7 @@
     "background/**/*.js",
     "sidepanel/**/*.js",
     "content-script.js",
-    "background.js",
-    "options.js",
-    "sidepanel.js"
+    "options.js"
   ],
   "exclude": ["tests", "node_modules"]
 }

@@ -9,7 +9,7 @@ function toggle() {
 
 async function load() {
   const d = ASD.constants.DEFAULTS
-  const s = await chrome.storage.local.get(null)
+  const s = await chrome.storage.local.get(ASD.storageKeys.SETTINGS)
   $('provider').value = s.provider || d.provider
   $('deepseekApiKey').value = s.deepseekApiKey || s.apiKey || ''
   $('deepseekBaseUrl').value = s.deepseekBaseUrl || s.baseUrl || d.deepseekBaseUrl

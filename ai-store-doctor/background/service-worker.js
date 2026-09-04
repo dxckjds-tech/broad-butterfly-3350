@@ -1,5 +1,6 @@
 importScripts(
   '../shared/constants.js',
+  '../shared/storage-keys.js',
   './settings.js',
   './model-router.js',
   './prompt-builder.js',
