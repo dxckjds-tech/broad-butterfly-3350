@@ -61,7 +61,7 @@ const contentJs = manifest.content_scripts[0].js
 if (contentJs[contentJs.length - 1] !== 'content-script.js') {
   errors.push('content_scripts must keep content-script.js last')
 }
-const requiredPrefix = ['shared/constants.js', 'shared/product-fields.js', 'content/dom-read.js']
+const requiredPrefix = ['shared/constants.js', 'shared/product-fields.js', 'shared/pii-patterns.js']
 requiredPrefix.forEach((file, i) => {
   if (contentJs[i] !== file) errors.push(`content_scripts.js[${i}] expected ${file}, got ${contentJs[i]}`)
 })

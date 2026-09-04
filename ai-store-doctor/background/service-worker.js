@@ -1,6 +1,8 @@
 importScripts(
   '../shared/constants.js',
   '../shared/storage-keys.js',
+  '../shared/pii-patterns.js',
+  '../shared/sanitize.js',
   './settings.js',
   './model-router.js',
   './prompt-builder.js',

@@ -4,6 +4,8 @@ import path from 'node:path'
 export const CONTENT_SCRIPTS = [
   'shared/constants.js',
   'shared/product-fields.js',
+  'shared/pii-patterns.js',
+  'shared/sanitize.js',
   'content/dom-read.js',
   'content/field-map.js',
   'content/extractors.js',

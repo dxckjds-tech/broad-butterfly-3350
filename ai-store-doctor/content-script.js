@@ -184,16 +184,19 @@ function extractFields() {
   }
 }
 function collectDualTrack() {
-  const fields = extractFields()
-  const product = ASD.content && ASD.content.extractors ? ASD.content.extractors.extractAll() : null
+  let fields = extractFields()
+  let product = ASD.content && ASD.content.extractors ? ASD.content.extractors.extractAll() : null
   if (product && ASD.productFields) {
     product.debug.oldFieldCount = ASD.productFields.countOldFields(fields)
     product.debug.newFieldCount = ASD.productFields.countNewFields(product)
   }
+  if (ASD.sanitize) {
+    const sanitized = ASD.sanitize.sanitizeCollected({ fields: fields, product: product })
+    fields = sanitized.fields
+    product = sanitized.product
+  }
   const loginRequired =
-    ASD.content && ASD.content.dom
-      ? ASD.content.dom.detectLoginRequired(product)
-      : false
+    ASD.content && ASD.content.dom ? ASD.content.dom.detectLoginRequired(product) : false
   return { fields, product, loginRequired }
 }
 

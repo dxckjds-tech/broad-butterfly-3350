@@ -29,9 +29,10 @@
                 content: `上一次响应${lastReason}。请立即重新输出完整、非空、可解析的 JSON 对象，不要使用 Markdown 代码块。`,
               },
             ]
+      const safeMessages = ASD.sanitize ? ASD.sanitize.sanitizePayload(retryMessages) : retryMessages
       const body = {
         model,
-        messages: retryMessages,
+        messages: safeMessages,
         max_tokens: isK3 ? Math.max(maxTokens, 6000) : maxTokens,
         temperature: isKimi ? 1 : 0.2,
       }
