@@ -11,7 +11,7 @@
     "default_path": "sidepanel.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/service-worker.js"
   },
   "permissions": ["sidePanel", "storage", "activeTab"],
   "host_permissions": ["https://*.made-in-china.com/*", "https://*.vemic.com/*", "https://api.deepseek.com/*", "https://api.moonshot.cn/*"],
