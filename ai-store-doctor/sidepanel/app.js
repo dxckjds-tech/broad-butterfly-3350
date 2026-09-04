@@ -116,5 +116,5 @@
     if (e.key === 'Enter') ns.sidepanel.actions.readUrl(e.currentTarget.value.trim())
   })
   render()
-  ns.sidepanel.actions.read()
+  ns.sidepanel.actions.previewActiveUrl()
 })(typeof globalThis !== 'undefined' ? globalThis : self)

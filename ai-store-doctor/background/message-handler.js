@@ -3,6 +3,18 @@
   const ns = (root.ASD = root.ASD || {})
   ns.bg = ns.bg || {}
 
+  function classify(error) {
+    const msg = (error && error.message) || String(error || '')
+    if (/API Key|设置页|HTTPS/.test(msg)) return 'CONFIG_ERROR'
+    if (/SCHEMA_ERROR|PAYLOAD_/.test(msg)) return 'SCHEMA_ERROR'
+    if (/商品 URL|NO_|无法取得|CONTENT_SCRIPT/.test(msg)) return 'FIELD_ERROR'
+    return 'AI_ERROR'
+  }
+
+  function fail(reason, code) {
+    return { ok: false, reason: reason, code: code || 'FIELD_ERROR' }
+  }
+
   async function handle(message, sender) {
     if (message?.type === 'REQUEST_URL_FIELDS') return await ASD.bg.urlReader.readUrlInAuthenticatedTab(message.url)
     if (message?.type === 'GET_ACTIVE_URL') {
@@ -11,12 +23,22 @@
     }
     if (message?.type === 'REQUEST_MIC_FIELDS') {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tab?.id) return { ok: false, reason: 'NO_ACTIVE_TAB' }
+      if (!tab?.id) return fail('NO_ACTIVE_TAB')
+      let hostname = ''
+      try {
+        hostname = new URL(tab.url).hostname
+      } catch (e) {
+        return fail('无法取得当前页面 URL')
+      }
+      if (!ASD.constants.isSupportedHost(hostname)) return fail('当前页不是 VEMIC / Made-in-China')
       try {
         const response = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MIC_FIELDS' })
-        return response?.fields ? { ok: true, fields: response.fields } : { ok: false, reason: 'NO_FIELDS' }
-      } catch {
-        return { ok: false, reason: 'CONTENT_SCRIPT_UNAVAILABLE' }
+        if (response?.loginRequired) return fail(response.reason || '需要登录')
+        if (response?.fields)
+          return { ok: true, fields: response.fields, product: response.product || null, url: tab.url }
+        return fail('NO_FIELDS')
+      } catch (e) {
+        return fail('CONTENT_SCRIPT_UNAVAILABLE')
       }
     }
     if (message?.type === 'OPEN_OPTIONS') {
@@ -54,42 +76,67 @@
     }
     if (message?.type === 'ANALYZE_PRODUCT') {
       const source = message.fields || {}
-      const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source)
-      const nonce = ASD.bg.payloadBuilder.randomNonce()
-      const wrapped = ASD.bg.payloadBuilder.wrapUntrusted(built.text, nonce)
       const cfg = await ASD.bg.settings.load()
       const activeModel = cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel
-      const visionCapable = /kimi-k3|kimi-k2\.5|vision/i.test(activeModel)
-      const visionSource = (message.product && message.product.images) || source.images || []
-      const visionPack = visionCapable ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource) : { urls: [], ranked: [] }
-      const visionUrls = visionPack.urls
-      const imageBlocks = visionUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
-      const intro = imageBlocks.length
-        ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
-        : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
-      const userText = `${intro}\n${wrapped}`
-      const userContent = imageBlocks.length ? [{ type: 'text', text: userText }, ...imageBlocks] : userText
-      const out = await ASD.bg.aiClient.callAI([
-        { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
-        { role: 'user', content: userContent },
-      ])
-      out.visionUsed = imageBlocks.length > 0
-      out.payloadMode = built.mode
-      out.payloadTruncated = built.truncated
-      out.imageRank = (visionPack.ranked || []).map(function (img) {
-        return {
-          src: ASD.imageScore ? ASD.imageScore.redactSrc(img.src) : img.src,
-          score: img.score || 0,
-          reasons: img.reasons || [],
-          selected: visionUrls.indexOf(img.src) !== -1 || visionUrls.some(function (url) {
-            return typeof url === 'string' && url.indexOf('data:') === 0
-          }),
-        }
+      const key = ASD.bg.requests.fingerprint({
+        url: source.url,
+        title: source.title,
+        name: message.product && message.product.product && message.product.product.name,
+        model: activeModel,
+        promptVersion: ASD.constants.PROMPT_VERSION,
       })
-      return { ok: true, ...out }
+      try {
+        return await ASD.bg.requests.run(key, async function () {
+          const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source)
+          const nonce = ASD.bg.payloadBuilder.randomNonce()
+          const wrapped = ASD.bg.payloadBuilder.wrapUntrusted(built.text, nonce)
+          const visionCapable = /kimi-k3|kimi-k2\.5|vision/i.test(activeModel)
+          const visionSource = (message.product && message.product.images) || source.images || []
+          const visionPack = visionCapable
+            ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
+            : { urls: [], ranked: [] }
+          const visionUrls = visionPack.urls
+          const imageBlocks = visionUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
+          const intro = imageBlocks.length
+            ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
+            : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
+          const userText = `${intro}\n${wrapped}`
+          const userContent = imageBlocks.length ? [{ type: 'text', text: userText }, ...imageBlocks] : userText
+          const out = await ASD.bg.aiClient.callAI([
+            { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
+            { role: 'user', content: userContent },
+          ])
+          out.visionUsed = imageBlocks.length > 0
+          out.payloadMode = built.mode
+          out.payloadTruncated = built.truncated
+          out.requestId = message.requestId || null
+          out.fieldsVersion = message.fieldsVersion || 0
+          out.imageRank = (visionPack.ranked || []).map(function (img) {
+            return {
+              src: ASD.imageScore ? ASD.imageScore.redactSrc(img.src) : img.src,
+              score: img.score || 0,
+              reasons: img.reasons || [],
+              selected:
+                visionUrls.indexOf(img.src) !== -1 ||
+                visionUrls.some(function (url) {
+                  return typeof url === 'string' && url.indexOf('data:') === 0
+                }),
+            }
+          })
+          return { ok: true, ...out }
+        })
+      } catch (error) {
+        return {
+          ok: false,
+          reason: error.message || 'AI 分析失败',
+          code: classify(error),
+          requestId: message.requestId || null,
+          fieldsVersion: message.fieldsVersion || 0,
+        }
+      }
     }
     return { ok: false, reason: 'UNKNOWN_MESSAGE' }
   }
 
-  ns.bg.messageHandler = { handle }
+  ns.bg.messageHandler = { handle, classify }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

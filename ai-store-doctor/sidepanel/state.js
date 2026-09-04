@@ -14,6 +14,9 @@
     error: '',
     meta: null,
     manualIdentityDraft: '',
+    inflight: false,
+    requestId: '',
+    fieldsVersion: 0,
   }
 
   const listeners = []

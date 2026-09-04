@@ -10,8 +10,8 @@
 - [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
 - [x] `JSON.stringify(compactFields).slice(0, 30000)` 已删除，改为对象级预算（Step 6）
 - [ ] REAL_AI_REGRESSION_PENDING：环境无 DeepSeek/Kimi Key，Step 6/7 未跑真实模型回归
-- [ ] `ANALYZE_PRODUCT` 无重入保护，可并发多次请求（Step 9）
-- [ ] `REQUEST_MIC_FIELDS` 无 sidepanel 调用方，仍保留 handler
+- [x] `ANALYZE_PRODUCT` 有 requestId / inflight / registry 去重（Step 9）
+- [x] `REQUEST_MIC_FIELDS` 作为当前页 L1 读取（Step 9）
 
 ## 配置
 
@@ -22,9 +22,9 @@
 ## UI
 
 - [ ] 存量 tab 仍用 `innerHTML` + `esc()`，尚未迁到 `shared/dom.js`（本轮只约束新增 UI）
-- [ ] 启动仍自动 `read()` 当前页 URL（P1-1，Step 9）
+- [x] 启动不再自动采集，只预填当前 URL（Step 9）
 - [ ] `styles.css` 仍有未使用的 `.modal` 规则（对应已删除的 `#modal`）
-- [ ] `analyze()` 无 guard / requestId，迟到响可能覆盖新请求（Step 9）
+- [x] `analyze()` 使用 requestId / fieldsVersion 丢弃乱序响应（Step 9）
 
 ## 不要在本文件对应的后续 Step 之前做
 
