@@ -16,10 +16,10 @@ These HTML samples are synthetic and sanitized. They do **not** come from a logg
 
 `*.baseline.compact.json` is the `compactFields` payload that `ANALYZE_PRODUCT` would send (string truncation applied later in background). Used to prove payload assembly did not change during refactors.
 
-## Run
+`npm run regression` also boots the service worker, side panel, and options page in Node (chrome mock) to catch `ASD.xxx is undefined` and script-order mistakes.
 
 ```
 cd tests && npm install && npm run regression
 ```
 
-`--write` regenerates baselines. Do not use it after Step 1 unless the extractor is supposed to change.
+`--write` regenerates field/report/compact baselines. Do not use it after Step 1 unless the extractor is supposed to change.
