@@ -75,6 +75,7 @@
               usage: r.usage,
               attempts: r.attempts,
               visionUsed: r.visionUsed,
+              imageRank: r.imageRank,
             },
           },
           'analyze:ok',

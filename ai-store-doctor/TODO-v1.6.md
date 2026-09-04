@@ -16,7 +16,7 @@
 ## 配置
 
 - [ ] Kimi 默认模型不一致：`settings()` 默认 `kimi-k2.5`，options 无保存时回退 `moonshot-v1-8k`。本轮有意保留两套值以免改变调用/UI。
-- [ ] `imageAsDataUrl` 只允许 `*.made-in-china.com` / `*.vemic.com` 子域，apex 域名 `made-in-china.com` / `vemic.com` 与 URL 读取白名单不一致
+- [x] `imageAsDataUrl` 已支持 apex + 子域（Step 8；未新增 host_permissions）
 - [ ] options 页 `refreshModels` 仍对 datalist 使用 `innerHTML = ''`（清空子节点，无不可信插值）
 
 ## UI

@@ -4,6 +4,7 @@ importScripts(
   '../shared/pii-patterns.js',
   '../shared/sanitize.js',
   '../shared/result-schema.js',
+  '../shared/image-score.js',
   './settings.js',
   './model-router.js',
   './prompt-builder.js',

@@ -6,6 +6,7 @@ export const CONTENT_SCRIPTS = [
   'shared/product-fields.js',
   'shared/pii-patterns.js',
   'shared/sanitize.js',
+  'shared/image-score.js',
   'content/dom-read.js',
   'content/field-map.js',
   'content/extractors.js',

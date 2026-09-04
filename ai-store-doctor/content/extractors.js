@@ -192,7 +192,28 @@
     const filled = ns.productFields.countProductFields(product)
     const budget = filled >= 8 ? 800 : filled >= 4 ? 2000 : 4000
     bundle.fallbackText = clean(root.textContent).slice(0, budget)
-    bundle.images = ns.content.dom.collectImageMeta(doc, root, titleEl)
+    const rawImages = ns.content.dom.collectImageMeta(doc, root, titleEl)
+    const productWords = unique(
+      [product.name, product.brand, product.model]
+        .concat(product.keywords || [])
+        .join(' ')
+        .split(/\s+/)
+        .filter(function (word) {
+          return word && word.length > 2
+        }),
+    )
+    bundle.images = ns.imageScore
+      ? ns.imageScore.topN(rawImages, 8, { productWords: productWords })
+      : rawImages.slice(0, 8)
+    bundle.debug.imageCandidates = (bundle.images || []).map(function (img) {
+      return {
+        src: ns.imageScore ? ns.imageScore.redactSrc(img.src) : img.src,
+        score: img.score || 0,
+        reasons: img.reasons || [],
+        width: img.width,
+        height: img.height,
+      }
+    })
 
     bundle.debug.completeProduct = !listPage && !!(product.name && (product.keywords.length || product.specifications.length || product.sku || product.description))
     bundle.debug.degraded = listPage || !bundle.debug.completeProduct
@@ -205,9 +226,19 @@
       return ns.productFields.countNewFields(b) - ns.productFields.countNewFields(a)
     })[0]
     const merged = JSON.parse(JSON.stringify(best))
-    parts.forEach(function (part) {
+    const allImages = parts.flatMap(function (part) {
       if (!merged.debug.productRootFound && part.debug.productRootFound) merged.debug.productRootFound = true
-      merged.images = merged.images.concat(part.images || [])
+      return part.images || []
+    })
+    merged.images = ns.imageScore ? ns.imageScore.topN(allImages, 8) : allImages.slice(0, 8)
+    merged.debug.imageCandidates = (merged.images || []).map(function (img) {
+      return {
+        src: ns.imageScore ? ns.imageScore.redactSrc(img.src) : img.src,
+        score: img.score || 0,
+        reasons: img.reasons || [],
+        width: img.width,
+        height: img.height,
+      }
     })
     return merged
   }

@@ -60,9 +60,9 @@
       const cfg = await ASD.bg.settings.load()
       const activeModel = cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel
       const visionCapable = /kimi-k3|kimi-k2\.5|vision/i.test(activeModel)
-      const visionUrls = visionCapable
-        ? await Promise.all((source.images || []).slice(0, 4).map((image) => ASD.bg.imageFetcher.imageAsDataUrl(image.src)))
-        : []
+      const visionSource = (message.product && message.product.images) || source.images || []
+      const visionPack = visionCapable ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource) : { urls: [], ranked: [] }
+      const visionUrls = visionPack.urls
       const imageBlocks = visionUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
       const intro = imageBlocks.length
         ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
@@ -76,6 +76,16 @@
       out.visionUsed = imageBlocks.length > 0
       out.payloadMode = built.mode
       out.payloadTruncated = built.truncated
+      out.imageRank = (visionPack.ranked || []).map(function (img) {
+        return {
+          src: ASD.imageScore ? ASD.imageScore.redactSrc(img.src) : img.src,
+          score: img.score || 0,
+          reasons: img.reasons || [],
+          selected: visionUrls.indexOf(img.src) !== -1 || visionUrls.some(function (url) {
+            return typeof url === 'string' && url.indexOf('data:') === 0
+          }),
+        }
+      })
       return { ok: true, ...out }
     }
     return { ok: false, reason: 'UNKNOWN_MESSAGE' }
