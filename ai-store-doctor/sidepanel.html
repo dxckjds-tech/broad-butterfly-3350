@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI 店铺医生</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="panel">
+    <div class="dock-bar"><span class="dot"></span><span id="dockUrl" class="mono">未检测到 VEMIC / Made-in-China 商品页</span></div>
+
+    <div class="header">
+      <div class="brand"><span class="dot"></span><span class="brand-name">AI 店铺医生</span></div>
+      <div id="scenarioToggle" class="pill-btn" data-action="settings">API 设置</div>
+    </div>
+
+    <div class="url-reader"><input id="productUrl" type="url" placeholder="粘贴 VEMIC / Made-in-China 商品 URL"><button data-action="read-url">读取 URL</button></div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="content" id="content"></div>
+
+    <div class="action-bar">
+      <div class="btn-outline" data-action="reload-fields">读取当前页 URL</div>
+      <div class="btn-primary" data-action="analyze">AI 分析商品</div>
+    </div>
+  </div>
+
+  <script src="shared/dom.js"></script>
+  <script src="sidepanel/state.js"></script>
+  <script src="sidepanel/render/helpers.js"></script>
+  <script src="sidepanel/render/overview.js"></script>
+  <script src="sidepanel/render/truth.js"></script>
+  <script src="sidepanel/render/keywords.js"></script>
+  <script src="sidepanel/render/content.js"></script>
+  <script src="sidepanel/render/debug.js"></script>
+  <script src="sidepanel/actions.js"></script>
+  <script src="sidepanel/app.js"></script>
+</body>
+</html>

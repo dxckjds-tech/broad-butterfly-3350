@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "AI 店铺医生",
+  "version": "1.5.1",
+  "description": "使用 DeepSeek 或 Kimi 视觉模型诊断并优化 VEMIC / Made-in-China 商品",
+  "action": {
+    "default_title": "AI 店铺医生"
+  },
+  "options_page": "options.html",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": ["sidePanel", "storage", "activeTab"],
+  "host_permissions": ["https://*.made-in-china.com/*", "https://*.vemic.com/*", "https://api.deepseek.com/*", "https://api.moonshot.cn/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.made-in-china.com/*", "https://*.vemic.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
