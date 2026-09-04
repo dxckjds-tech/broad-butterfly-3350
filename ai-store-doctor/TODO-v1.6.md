@@ -9,6 +9,7 @@
 - [x] password 隐藏弹窗不再误判 loginRequired（Step 4）
 - [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
 - [x] `JSON.stringify(compactFields).slice(0, 30000)` 已删除，改为对象级预算（Step 6）
+- [ ] REAL_AI_REGRESSION_PENDING：环境无 DeepSeek/Kimi Key，Step 6/7 未跑真实模型回归
 - [ ] `ANALYZE_PRODUCT` 无重入保护，可并发多次请求（Step 9）
 - [ ] `REQUEST_MIC_FIELDS` 无 sidepanel 调用方，仍保留 handler
 

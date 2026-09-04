@@ -3,6 +3,23 @@
   const ns = (root.ASD = root.ASD || {})
   ns.bg = ns.bg || {}
 
+  function acceptParsed(raw, data, model, providerName, attempt) {
+    const parsed = ASD.schema ? ASD.schema.normalizeAndValidate(raw) : { ok: true, result: raw }
+    if (!parsed.ok) {
+      const error = new Error('SCHEMA_ERROR:' + (parsed.errors || []).join(';'))
+      error.schema = true
+      throw error
+    }
+    return {
+      result: ASD.bg.payloadBuilder.sanitizeModelEvidence(parsed.result),
+      usage: data.usage || null,
+      model: data.model || model,
+      provider: providerName,
+      attempts: attempt + 1,
+      schemaRepaired: parsed.repaired || [],
+    }
+  }
+
   async function callAI(messages, maxTokens = 4200) {
     const cfg = await ASD.bg.settings.load()
     const isKimi = cfg.provider === 'kimi'
@@ -81,14 +98,10 @@
             end = reasoning.lastIndexOf('}')
           if (start >= 0 && end > start) {
             try {
-              return {
-                result: ASD.bg.payloadBuilder.sanitizeModelEvidence(JSON.parse(reasoning.slice(start, end + 1))),
-                usage: data.usage || null,
-                model: data.model || model,
-                provider: providerName,
-                attempts: attempt + 1,
-              }
-            } catch {}
+              return acceptParsed(JSON.parse(reasoning.slice(start, end + 1)), data, model, providerName, attempt)
+            } catch (error) {
+              lastReason = error.schema ? error.message : lastReason
+            }
           }
         }
         lastReason = `为空${lastFinishReason ? `（finish_reason: ${lastFinishReason}）` : ''}`
@@ -99,26 +112,21 @@
         .replace(/\s*```$/, '')
         .trim()
       try {
-        return {
-          result: ASD.bg.payloadBuilder.sanitizeModelEvidence(JSON.parse(cleaned)),
-          usage: data.usage || null,
-          model: data.model || model,
-          provider: providerName,
-          attempts: attempt + 1,
+        return acceptParsed(JSON.parse(cleaned), data, model, providerName, attempt)
+      } catch (error) {
+        if (error.schema) {
+          lastReason = error.message
+          continue
         }
-      } catch {
         const start = cleaned.indexOf('{'),
           end = cleaned.lastIndexOf('}')
         if (start >= 0 && end > start) {
           try {
-            return {
-              result: ASD.bg.payloadBuilder.sanitizeModelEvidence(JSON.parse(cleaned.slice(start, end + 1))),
-              usage: data.usage || null,
-              model: data.model || model,
-              provider: providerName,
-              attempts: attempt + 1,
-            }
-          } catch {}
+            return acceptParsed(JSON.parse(cleaned.slice(start, end + 1)), data, model, providerName, attempt)
+          } catch (inner) {
+            lastReason = inner.schema ? inner.message : '不是有效 JSON'
+            continue
+          }
         }
         lastReason = '不是有效 JSON'
       }
