@@ -8,15 +8,16 @@ function toggle() {
 }
 
 async function load() {
+  const d = ASD.constants.DEFAULTS
   const s = await chrome.storage.local.get(null)
-  $('provider').value = s.provider || 'deepseek'
+  $('provider').value = s.provider || d.provider
   $('deepseekApiKey').value = s.deepseekApiKey || s.apiKey || ''
-  $('deepseekBaseUrl').value = s.deepseekBaseUrl || s.baseUrl || 'https://api.deepseek.com'
-  $('deepseekModel').value = s.deepseekModel || s.model || 'deepseek-v4-flash'
-  $('deepseekThinking').value = s.deepseekThinking || s.thinking || 'disabled'
+  $('deepseekBaseUrl').value = s.deepseekBaseUrl || s.baseUrl || d.deepseekBaseUrl
+  $('deepseekModel').value = s.deepseekModel || s.model || d.deepseekModel
+  $('deepseekThinking').value = s.deepseekThinking || s.thinking || d.deepseekThinking
   $('kimiApiKey').value = s.kimiApiKey || ''
-  $('kimiBaseUrl').value = s.kimiBaseUrl || 'https://api.moonshot.cn/v1'
-  $('kimiModel').value = s.kimiModel || 'moonshot-v1-8k'
+  $('kimiBaseUrl').value = s.kimiBaseUrl || d.kimiBaseUrl
+  $('kimiModel').value = s.kimiModel || ASD.constants.OPTIONS_KIMI_MODEL_FALLBACK
   toggle()
 }
 

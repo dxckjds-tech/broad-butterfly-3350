@@ -1,11 +1,4 @@
-const DEFAULTS = {
-  provider: 'deepseek',
-  deepseekBaseUrl: 'https://api.deepseek.com',
-  deepseekModel: 'deepseek-v4-flash',
-  deepseekThinking: 'disabled',
-  kimiBaseUrl: 'https://api.moonshot.cn/v1',
-  kimiModel: 'kimi-k2.5',
-}
+importScripts('shared/constants.js')
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
@@ -14,7 +7,7 @@ chrome.runtime.onInstalled.addListener(() => {
 async function settings() {
   const saved = await chrome.storage.local.get(null)
   if (saved.apiKey && !saved.deepseekApiKey) saved.deepseekApiKey = saved.apiKey
-  return { ...DEFAULTS, ...saved }
+  return { ...ASD.constants.DEFAULTS, ...saved }
 }
 
 async function callAI(messages, maxTokens = 4200) {
