@@ -72,13 +72,35 @@ Kimi 请求固定使用其模型要求的 `temperature: 1`；DeepSeek 使用 `te
 ## 文件结构
 
 ```
-manifest.json       扩展清单与权限
-background.js       登录会话 URL 读取、DeepSeek/Kimi 请求与消息转发
-content-script.js   商品页面字段读取
-sidepanel.html/js   诊断侧边栏
-options.html/js     API 配置和连接测试
-styles.css          共用样式
-icons/              扩展图标
+manifest.json
+shared/
+  constants.js          域名、模型默认值、版本号
+  storage-keys.js       配置键与 hist: 命名约定
+  types.js              JSDoc 类型
+  dom.js                安全 DOM 构造器（新增 UI 使用）
+background/
+  service-worker.js     唯一 onMessage 入口 + importScripts
+  message-handler.js
+  settings.js
+  model-router.js
+  prompt-builder.js
+  payload-builder.js
+  image-fetcher.js
+  ai-client.js
+  url-reader.js
+  request-registry.js   Step 9 占位
+content-script.js
+sidepanel.html
+sidepanel/
+  state.js
+  actions.js
+  app.js
+  render/
+options.html / options.js
+styles.css
+icons/
+tests/                  不打包进扩展
+TODO-v1.6.md
 ```
 
 ## 技术验证说明

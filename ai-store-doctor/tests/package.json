@@ -4,8 +4,9 @@
   "description": "Offline fixtures for v1.5.1 regression. Not packed into the Chrome extension.",
   "type": "module",
   "scripts": {
-    "regression": "node run-regression.mjs",
-    "baseline": "node run-regression.mjs --write"
+    "regression": "node run-regression.mjs && node render-smoke.mjs && node check-architecture.mjs && node check-innerhtml.mjs && node dom-smoke.mjs && node settings-legacy-smoke.mjs",
+    "baseline": "node run-regression.mjs --write",
+    "render": "node render-smoke.mjs"
   },
   "devDependencies": {
     "jsdom": "^25.0.1"
