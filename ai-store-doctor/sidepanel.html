@@ -11,7 +11,7 @@
 
     <div class="header">
       <div class="brand"><span class="dot"></span><span class="brand-name">AI 店铺医生</span></div>
-      <div id="scenarioToggle" class="pill-btn" data-action="toggle-scenario">示例数据</div>
+      <div id="scenarioToggle" class="pill-btn" data-action="settings">API 设置</div>
     </div>
 
     <div class="url-reader"><input id="productUrl" type="url" placeholder="粘贴 VEMIC / Made-in-China 商品 URL"><button data-action="read-url">读取 URL</button></div>
@@ -24,10 +24,8 @@
 
     <div class="action-bar">
       <div class="btn-outline" data-action="reload-fields">读取当前页 URL</div>
-      <div class="btn-primary" data-action="sync-task">保存诊断报告</div>
+      <div class="btn-primary" data-action="analyze">AI 分析商品</div>
     </div>
-
-    <div id="modal" class="modal hidden"></div>
   </div>
 
   <script src="sidepanel.js"></script>
