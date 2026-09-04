@@ -4,7 +4,7 @@
 
 ## 采集 / 数据
 
-- [ ] P0-1 `visibleText` / `formFields` 无 PII 脱敏，整页文本可发往 DeepSeek/Kimi（Step 5）
+- [x] P0-1 采集后 `sanitizeCollected()` + 发送前 `sanitizePayload()` 双层脱敏（Step 5；debug 只记数量）
 - [x] P0-2 新采集器不再静默退回 `document.body`；旧 `fields.visibleText` 仍保留兼容（Step 4）
 - [x] password 隐藏弹窗不再误判 loginRequired（Step 4）
 - [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
@@ -26,10 +26,10 @@
 - [ ] `styles.css` 仍有未使用的 `.modal` 规则（对应已删除的 `#modal`）
 - [x] `analyze()` 使用 requestId / fieldsVersion 丢弃乱序响应（Step 9）
 
-## 不要在本文件对应的后续 Step 之前做
+## 不要在验收前开始
 
-- 新白名单采集、PII sanitize、Prompt Injection 条款、Schema Validator
-- 图片评分、并发控制、健康评分、历史报告、内容对比
-- MutationObserver、CRM、询盘、SaaS
+- 健康评分、历史报告、当前内容 VS AI 建议
+- MutationObserver、Chrome Web Store 最终发布
+- CRM、询盘、SaaS
 - 修改 `SYSTEM_PROMPT` 既有事实约束
 - 新增 Chrome 权限
