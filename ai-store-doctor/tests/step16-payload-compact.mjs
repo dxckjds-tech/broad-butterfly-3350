@@ -182,7 +182,10 @@ const built = builder.buildAnalyzePayload(
   { images: compactImages },
 )
 assert(built.mode === 'product', 'build mode')
-assert(built.profile === 'COMPACT' || built.profile === 'MINIMAL', 'build profile ' + built.profile)
+assert(built.profile === 'FULL' || built.profile === 'COMPACT' || built.profile === 'MINIMAL', 'build profile ' + built.profile)
+assert(built.object.fallbackText == null || built.object.fallbackText.length <= 1200, 'payload fallback must stay bounded')
+assert(!built.object.visibleText, 'payload must not send visibleText')
+assert(!built.object.formFields || !built.object.formFields.length, 'payload must not send formFields')
 JSON.parse(built.text)
 assert(built.object.product.name === 'Canister Vacuum Cleaner 20L', 'built name')
 assert(built.payloadDebug && !/F{20}/.test(JSON.stringify(built.payloadDebug)), 'built debug no fallback blob')

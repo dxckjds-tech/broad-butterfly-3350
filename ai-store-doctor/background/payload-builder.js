@@ -35,14 +35,14 @@
       category: stripImageNames(source.category),
       keywords: cleanEvidenceRows(source.keywords),
       specs: cleanEvidenceRows(source.specs).slice(0, 120),
-      formFields: cleanEvidenceRows(source.formFields).slice(0, 120),
+      formFields: [],
       certifications: cleanEvidenceRows(source.certifications),
       description: stripImageNames(source.description).slice(0, 5000),
       sku: stripImageNames(source.sku),
       brand: stripImageNames(source.brand),
       companyName: stripImageNames(source.companyName),
       companyProfile: stripImageNames(source.companyProfile).slice(0, 6000),
-      visibleText: stripImageNames(source.visibleText).slice(0, 15000),
+      visibleText: '',
       imageCount: (source.images || []).length,
       frameCount: source.frameCount,
       url: source.url,
@@ -105,8 +105,9 @@
       },
       company: bundle.company || { name: null, profile: null },
       current: bundle.current || { title: null, keywords: [], description: null },
-      fallbackText: stripImageNames(bundle.fallbackText || ''),
+      fallbackText: stripImageNames(bundle.fallbackText || '').slice(0, 1200),
       userConfirmedIdentity: (fields && fields.userConfirmedIdentity) || null,
+      fieldProvenance: bundle.fieldProvenance || (bundle.debug && bundle.debug.fieldProvenance) || null,
     }
   }
 
