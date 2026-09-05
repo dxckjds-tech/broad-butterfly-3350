@@ -852,6 +852,16 @@
         { provider: (diagnosisStage && diagnosisStage.provider) || '', model: (diagnosisStage && diagnosisStage.model) || '' },
         risk,
       )
+      const fusedDiag = ASD.bg.fusionEngine
+        ? ASD.bg.fusionEngine.fuse({
+            report: { facts: (verified.diagnosis && verified.diagnosis.facts) || [] },
+            productBundle: opts.productBundle || opts.product,
+            fieldProvenance: (opts.productBundle && opts.productBundle.fieldProvenance) || (opts.product && opts.product.fieldProvenance),
+            contentSource: traces.some(function (item) { return item && item.contentSource === 'REASONING_RECOVERY' }) ? 'REASONING_RECOVERY' : '',
+            roles: { reasoning: verified.diagnosis, evidence: evidence },
+          })
+        : null
+      if (fusedDiag && fusedDiag.result && verified.diagnosis) verified.diagnosis.facts = fusedDiag.result.facts
       const finalized = schemas.finalizeOrchestrationReport(
         verified.diagnosis,
         contentRaw,
