@@ -73,6 +73,31 @@
       preferred: {},
       weights: { jsonReliability: 0.7, speed: 0.3 },
     },
+    evidence_analysis: {
+      required: { structuredOutput: true, text: true },
+      preferred: { vision: true, reasoning: true },
+      weights: { jsonReliability: 0.35, vision: 0.35, reasoning: 0.15, reliability: 0.15 },
+    },
+    diagnosis_reasoning: {
+      required: { structuredOutput: true, text: true },
+      preferred: { reasoning: true },
+      weights: { reasoning: 0.4, jsonReliability: 0.3, quality: 0.15, reliability: 0.15 },
+    },
+    content_generation: {
+      required: { structuredOutput: true, text: true },
+      preferred: {},
+      weights: { writingQuality: 0.55, jsonReliability: 0.25, reliability: 0.2 },
+    },
+    diagnosis_and_content: {
+      required: { structuredOutput: true, text: true },
+      preferred: { reasoning: true },
+      weights: { writingQuality: 0.35, reasoning: 0.3, jsonReliability: 0.35 },
+    },
+    evidence_and_diagnosis: {
+      required: { structuredOutput: true, text: true },
+      preferred: { vision: true, reasoning: true },
+      weights: { jsonReliability: 0.35, reasoning: 0.3, vision: 0.2, reliability: 0.15 },
+    },
   }
 
   function get(task) {
@@ -83,7 +108,12 @@
     const profile = get(task)
     const required = Object.assign({}, profile.required)
     const ctx = context || {}
-    const imageTask = task === 'product_diagnosis' || task === 'product_identity' || task === 'vision_analysis'
+    const imageTask =
+      task === 'product_diagnosis' ||
+      task === 'product_identity' ||
+      task === 'vision_analysis' ||
+      task === 'evidence_analysis' ||
+      task === 'evidence_and_diagnosis'
     if (imageTask && ctx.hasImages) required.vision = true
     return required
   }

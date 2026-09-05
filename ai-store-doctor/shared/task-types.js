@@ -17,5 +17,10 @@
     FAQ_GENERATION: 'faq_generation',
     GEO_GENERATION: 'geo_generation',
     SCHEMA_REPAIR: 'schema_repair',
+    EVIDENCE_ANALYSIS: 'evidence_analysis',
+    DIAGNOSIS_REASONING: 'diagnosis_reasoning',
+    CONTENT_GENERATION: 'content_generation',
+    DIAGNOSIS_AND_CONTENT: 'diagnosis_and_content',
+    EVIDENCE_AND_DIAGNOSIS: 'evidence_and_diagnosis',
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

@@ -56,6 +56,7 @@
         translation: { provider: '', model: '' },
         content: { provider: '', model: '' },
       },
+      orchestrationMode: incoming.orchestrationMode === 'single' || incoming.orchestrationMode === 'multi' ? incoming.orchestrationMode : 'auto',
       configs: configs,
     }
   }

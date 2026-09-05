@@ -48,7 +48,9 @@
         : ASD.modelCapabilities
           ? ASD.modelCapabilities.resolve(id, model, override, slot.modelMetadata || null)
           : { text: true, vision: false, reasoning: false, structuredOutput: false, longContext: false }
-    const scores = ASD.modelCapabilities ? ASD.modelCapabilities.scoresFor(id, model) : { quality: { writing: 70 }, reliability: 70, speed: 70, cost: 70 }
+    const scores = ASD.modelCapabilities
+      ? ASD.modelCapabilities.scoresFor(id, model, slot.scoreOverride || null)
+      : { quality: { writing: 70 }, reliability: 70, speed: 70, cost: 70 }
     const health = ASD.bg.modelHealth ? ASD.bg.modelHealth.get(id, model) : { consecutiveFailures: 0, successCount: 0, failureCount: 0, avgLatencyMs: 0 }
     return {
       provider: id,
@@ -76,6 +78,13 @@
   function qualityScore(item, profile, task) {
     const q = item.scores.quality || {}
     if (task === 'translation') return q.translation != null ? q.translation : 70
+    if (task === 'evidence_analysis' || task === 'vision_analysis' || task === 'evidence_and_diagnosis') {
+      return q.vision != null ? q.vision : 70
+    }
+    if (task === 'diagnosis_reasoning') return q.reasoning != null ? q.reasoning : 70
+    if (task === 'content_generation' || task === 'title_generation' || task === 'detail_generation') {
+      return q.writing != null ? q.writing : 70
+    }
     let value = q.writing != null ? q.writing : 70
     if (profile.preferred && profile.preferred.reasoning && item.capabilities.reasoning) {
       value = Math.round((value + (q.reasoning || value)) / 2)
@@ -192,7 +201,12 @@
     const profile = ASD.taskProfiles ? ASD.taskProfiles.get(task) : { required: { text: true }, preferred: {} }
     const required = ASD.taskProfiles ? ASD.taskProfiles.requiredFor(task, ctx) : profile.required || {}
     const canTextFallback =
-      !!ctx.hasImages && (task === 'product_diagnosis' || task === 'product_identity' || task === 'fact_extraction')
+      !!ctx.hasImages &&
+      (task === 'product_diagnosis' ||
+        task === 'product_identity' ||
+        task === 'fact_extraction' ||
+        task === 'evidence_analysis' ||
+        task === 'evidence_and_diagnosis')
     let pool = []
 
     if (mode === 'fixed') {
@@ -234,7 +248,13 @@
           penalty: scored.penalty,
           providerName: item.providerName,
           reason: explain(item, task, extraReasons && extraReasons.textFallback ? { hasImages: false } : ctx, preference, profile).concat(
-            extraReasons && extraReasons.textFallback ? ['未配置已确认支持视觉的模型，改为纯文本诊断'] : [],
+            extraReasons && extraReasons.textFallback
+              ? [
+                  task === 'evidence_analysis' || task === 'evidence_and_diagnosis'
+                    ? '未配置已确认支持视觉的模型，Stage 1 使用文本证据模式。'
+                    : '未配置已确认支持视觉的模型，改为纯文本诊断',
+                ]
+              : [],
           ),
         })
       })
@@ -253,7 +273,13 @@
     if (
       !ranked.length &&
       mode !== 'fixed' &&
-      (task === 'product_diagnosis' || task === 'product_identity' || task === 'fact_extraction')
+      (task === 'product_diagnosis' ||
+        task === 'product_identity' ||
+        task === 'fact_extraction' ||
+        task === 'evidence_analysis' ||
+        task === 'evidence_and_diagnosis' ||
+        task === 'diagnosis_reasoning' ||
+        task === 'content_generation')
     ) {
       const loose = Object.assign({}, required)
       delete loose.vision
