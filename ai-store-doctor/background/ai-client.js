@@ -186,10 +186,39 @@
     }
   }
 
-  async function callAI(input, maxTokens) {
-    const opts = normalizeCall(input, maxTokens)
-    const cfg = await ASD.bg.settings.load()
-    const routed = resolveRouted(opts, cfg)
+  function messagesHaveImages(messages) {
+    return (messages || []).some(function (item) {
+      return (
+        Array.isArray(item.content) &&
+        item.content.some(function (part) {
+          return part && part.type === 'image_url'
+        })
+      )
+    })
+  }
+
+  function pickSelection(opts, cfg) {
+    if (opts.route) return opts.route
+    if (opts.provider) return null
+    if (!ASD.bg.modelRouter || typeof ASD.bg.modelRouter.selectModel !== 'function') return null
+    return ASD.bg.modelRouter.selectModel(
+      opts.task,
+      {
+        settings: cfg,
+        hasImages: (opts.requestContext && opts.requestContext.hasImages) || messagesHaveImages(opts.messages),
+      },
+      null,
+    )
+  }
+
+  function recordHealth(routed, ok, startedAt) {
+    if (!ASD.bg.modelHealth || !routed) return
+    const latency = Date.now() - startedAt
+    if (ok) ASD.bg.modelHealth.recordSuccess(routed.id || routed.providerName, routed.model, latency)
+    else ASD.bg.modelHealth.recordFailure(routed.id || routed.providerName, routed.model, latency)
+  }
+
+  async function executeOnRouted(opts, cfg, routed) {
     const isKimi = !!(routed && routed.isKimi)
     const apiKey = opts.apiKey || (routed && routed.apiKey)
     const providerName = opts.providerName || (routed && routed.providerName) || 'AI'
@@ -317,6 +346,49 @@
     error.code = lastCode
     error.finishReason = lastFinishReason
     throw error
+  }
+
+  async function callAI(input, maxTokens) {
+    const opts = normalizeCall(input, maxTokens)
+    const cfg = await ASD.bg.settings.load()
+    const selection = pickSelection(opts, cfg)
+    if (selection && selection.ok === false) {
+      const error = new Error((selection.reason || []).join('；') || '没有兼容模型')
+      error.code = selection.code || 'NO_COMPATIBLE_MODEL'
+      error.suggestAuto = !!selection.suggestAuto
+      throw error
+    }
+    const primary =
+      selection && selection.selected
+        ? resolveRouted({ provider: selection.selected.provider, model: selection.selected.model }, cfg)
+        : resolveRouted(opts, cfg)
+    if (primary && selection && selection.selected && selection.selected.model) primary.model = selection.selected.model
+    const startedAt = Date.now()
+    try {
+      const out = await executeOnRouted(opts, cfg, primary)
+      out.route = selection || null
+      recordHealth(primary, true, startedAt)
+      return out
+    } catch (error) {
+      recordHealth(primary, false, startedAt)
+      const backup = selection && selection.fallbacks && selection.fallbacks[0]
+      if (backup && error.code === 'CONNECTION_ERROR') {
+        const second = resolveRouted({ provider: backup.provider, model: backup.model }, cfg)
+        if (backup.model) second.model = backup.model
+        const retryAt = Date.now()
+        try {
+          const out = await executeOnRouted(opts, cfg, second)
+          out.route = selection
+          out.usedFallback = true
+          recordHealth(second, true, retryAt)
+          return out
+        } catch (inner) {
+          recordHealth(second, false, retryAt)
+          throw inner
+        }
+      }
+      throw error
+    }
   }
 
   async function listAIModels(providerHint) {

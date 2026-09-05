@@ -17,6 +17,7 @@ importScripts(
   './providers/anthropic.js',
   './providers/gemini.js',
   './provider-manager.js',
+  './model-health.js',
   './model-router.js',
   './prompt-builder.js',
   './payload-builder.js',

@@ -11,7 +11,8 @@
         error.code === 'LENGTH_ERROR' ||
         error.code === 'RESPONSE_ERROR' ||
         error.code === 'SCHEMA_ERROR' ||
-        error.code === 'CONFIG_ERROR'
+        error.code === 'CONFIG_ERROR' ||
+        error.code === 'NO_COMPATIBLE_MODEL'
       ) {
         return error.code
       }
@@ -101,7 +102,23 @@
     if (message?.type === 'ANALYZE_PRODUCT') {
       const source = message.fields || {}
       const cfg = await ASD.bg.settings.load()
-      const activeModel = cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel
+      const visionSource = (message.product && message.product.images) || source.images || []
+      const route = ASD.bg.modelRouter && ASD.bg.modelRouter.selectModel
+        ? ASD.bg.modelRouter.selectModel(
+            'product_diagnosis',
+            { hasImages: visionSource.length > 0, settings: cfg },
+            null,
+          )
+        : { ok: true, selected: { provider: cfg.provider, model: cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel, capabilities: {} } }
+      if (!route.ok || !route.selected) {
+        return {
+          ok: false,
+          reason: (route.reason || []).join('；') || '没有兼容模型',
+          code: route.code || 'NO_COMPATIBLE_MODEL',
+          suggestAuto: !!route.suggestAuto,
+        }
+      }
+      const activeModel = route.selected.model
       const key = ASD.bg.requests.fingerprint({
         url: source.url,
         title: source.title,
@@ -114,8 +131,7 @@
           const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source)
           const nonce = ASD.bg.payloadBuilder.randomNonce()
           const wrapped = ASD.bg.payloadBuilder.wrapUntrusted(built.text, nonce)
-          const visionCapable = /kimi-k3|kimi-k2\.5|vision/i.test(activeModel)
-          const visionSource = (message.product && message.product.images) || source.images || []
+          const visionCapable = !!(route.selected.capabilities && route.selected.capabilities.vision)
           const visionPack = visionCapable
             ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
             : { urls: [], picked: [], ranked: [] }
@@ -133,11 +149,16 @@
           const userContent = imageBlocks.length ? [{ type: 'text', text: userText }, ...imageBlocks] : userText
           const out = await ASD.bg.aiClient.callAI({
             task: 'product_diagnosis',
+            provider: route.selected.provider,
+            model: route.selected.model,
+            route: route,
+            requestContext: { hasImages: visionSource.length > 0 },
             messages: [
               { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
               { role: 'user', content: userContent },
             ],
           })
+          out.route = route
           out.visionUsed = imageBlocks.length > 0
           out.payloadMode = built.mode
           out.payloadTruncated = built.truncated
