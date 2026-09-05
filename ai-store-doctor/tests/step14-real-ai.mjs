@@ -34,6 +34,7 @@ function loadAnalyze(settings) {
     Date: Date,
     Math: Math,
     crypto: crypto,
+    AbortController: AbortController,
     chrome: {
       storage: {
         local: {

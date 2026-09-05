@@ -64,6 +64,19 @@ const settings = dom.window.document.getElementById('scenarioToggle')
 if (settings.textContent !== 'API 设置') throw new Error('settings label mismatch')
 const analyze = dom.window.document.querySelector('[data-action="analyze"]')
 if (analyze.textContent !== 'AI 分析商品') throw new Error('analyze label mismatch')
+ASD.sidepanel.state.update(
+  {
+    fields: { title: '', url: 'https://sample.made-in-china.com/x' },
+    product: { debug: { collectGaps: ['title', 'category'] } },
+    collectWarning: '页面商品信息读取可能不完整，请检查页面是否加载完成或平台页面结构是否发生变化。',
+  },
+  'collect-warning',
+)
+ASD.sidepanel.app.render()
+if (!dom.window.document.getElementById('summary').textContent.includes('可能不完整')) {
+  throw new Error('collect warning missing from summary')
+}
+if (!analyze || analyze.textContent !== 'AI 分析商品') throw new Error('analyze blocked by collect warning')
 console.log(
   JSON.stringify({
     ok: true,

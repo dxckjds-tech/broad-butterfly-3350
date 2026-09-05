@@ -202,7 +202,9 @@ function collectDualTrack() {
   return { fields, product, loginRequired }
 }
 
-if (ASD.content) ASD.content.collect = collectDualTrack
+if (typeof globalThis !== 'undefined' && globalThis.ASD && globalThis.ASD.content) {
+  globalThis.ASD.content.collect = collectDualTrack
+}
 
 function replyCollected(collected, sendResponse) {
   sendResponse(
