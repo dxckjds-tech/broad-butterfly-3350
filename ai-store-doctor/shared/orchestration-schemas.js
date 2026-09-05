@@ -2,7 +2,21 @@
   'use strict'
   const ns = (root.ASD = root.ASD || {})
 
-  const PAGE_SOURCE = { product_field: true, spec_table: true, json_ld: true, page_label: true, explicit_page_field: true }
+  const PAGE_SOURCE = {
+    product_field: true,
+    spec_table: true,
+    spec_row: true,
+    json_ld: true,
+    page_label: true,
+    explicit_page_field: true,
+    explicit_form: true,
+    paired_id_text: true,
+    EXPLICIT_FORM: true,
+    SPEC_TABLE: true,
+    JSON_LD: true,
+    PAIRED_ID_TEXT: true,
+    EXPLICIT_PAGE_FIELD: true,
+  }
   const EVIDENCE_STATUS = { VERIFIED: true, OBSERVED: true, UNKNOWN: true }
   const FACT_STATUS = { VERIFIED: true, OBSERVED: true, INFERRED: true, UNKNOWN: true }
 
@@ -57,12 +71,18 @@
       repaired.push('stage1-status->UNKNOWN')
       return 'UNKNOWN'
     }
-    if (up === 'VERIFIED' && !isPageSource(sourceType)) {
+    if (ASD.fieldProvenance && typeof ASD.fieldProvenance.canSupportVerified === 'function') {
+      if (up === 'VERIFIED' && !ASD.fieldProvenance.canSupportVerified(sourceType, 80)) {
+        repaired.push('stage1-verified-blocked:' + sourceType)
+        return 'OBSERVED'
+      }
+    } else if (up === 'VERIFIED' && !isPageSource(sourceType)) {
       repaired.push('stage1-verified-blocked:' + sourceType)
       return 'OBSERVED'
     }
-    if (String(sourceType || '') === 'vision' && up === 'VERIFIED') {
-      repaired.push('vision-cannot-verify')
+    const low = String(sourceType || '')
+    if ((low === 'vision' || low === 'REASONING_RECOVERY' || low === 'reasoning_recovery' || low === 'SEMANTIC_DOM' || low === 'FALLBACK') && up === 'VERIFIED') {
+      repaired.push('low-trust-cannot-verify')
       return 'OBSERVED'
     }
     return up

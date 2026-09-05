@@ -57,6 +57,12 @@
         content: { provider: '', model: '' },
       },
       orchestrationMode: incoming.orchestrationMode === 'single' || incoming.orchestrationMode === 'multi' ? incoming.orchestrationMode : 'auto',
+      collaborationMode: incoming.collaborationMode || 'auto',
+      roleAssignments: incoming.roleAssignments || (ASD.collaborationConfig && ASD.collaborationConfig.defaultAssignments ? ASD.collaborationConfig.defaultAssignments() : {}),
+      singleModel: incoming.singleModel || { provider: '', model: '' },
+      failurePolicy: incoming.failurePolicy || '',
+      allowTemporaryAuto: incoming.allowTemporaryAuto === true,
+      continueTextMode: incoming.continueTextMode === true,
       configs: configs,
     }
   }
