@@ -22,12 +22,19 @@
 
 ## 发送到哪里
 
-根据用户在设置页选择的提供商，页面数据会发送给：
+用户主动分析时，页面数据可能发送给**用户已配置且启用**的 AI Provider，而不是所有列出的厂商。可能的目标包括：
 
 - DeepSeek（`api.deepseek.com`）
-- 或 Kimi / Moonshot（`api.moonshot.cn`）
+- Moonshot / Kimi（`api.moonshot.cn`）
+- OpenAI（`api.openai.com`）
+- Anthropic / Claude（`api.anthropic.com`）
+- Google Gemini（`generativelanguage.googleapis.com`）
+- Qwen（`dashscope.aliyuncs.com`）
+- 用户填写的 Custom OpenAI-Compatible 地址
 
-扩展不会同时发送给两个提供商。当前版本不会把商品数据上传到 AI 店铺医生自有服务器。
+**只会调用用户已配置且启用的 Provider。** 未填写 API Key 或未启用的 Provider 不会收到数据。
+
+智能自动模式下，一次任务通常只调用路由器选中的一个 Provider；当前版本不会把同一次诊断并行发给多个厂商。当前版本不会把商品数据上传到 AI 店铺医生自有服务器。
 
 ## 隐私过滤
 

@@ -49,8 +49,47 @@
     </section>
   </section>
 
+  <section id="routingSection" class="card">
+    <h2>AI 调度模式</h2>
+    <label class="check-line"><input id="modeAuto" type="radio" name="routeMode" value="auto"> 智能自动</label>
+    <label class="check-line"><input id="modeFixed" type="radio" name="routeMode" value="fixed"> 固定模型</label>
+    <label class="check-line"><input id="modeAdvanced" type="radio" name="routeMode" value="advanced"> 高级自定义</label>
+
+    <div id="autoPrefs">
+      <p class="muted">优化目标</p>
+      <label class="check-line"><input id="prefBalanced" type="radio" name="costPref" value="balanced"> 平衡</label>
+      <label class="check-line"><input id="prefEconomy" type="radio" name="costPref" value="economy"> 省钱</label>
+      <label class="check-line"><input id="prefQuality" type="radio" name="costPref" value="quality"> 最佳质量</label>
+    </div>
+
+    <div id="fixedPrefs" hidden>
+      <label>固定提供商<select id="fixedProvider"></select></label>
+      <label>固定模型<input id="fixedModel" placeholder="Model ID"></label>
+    </div>
+
+    <div id="advancedPrefs" hidden>
+      <p class="muted">只配置当前会用到的任务。未填写的任务回退到智能自动。</p>
+      <label>商品诊断
+        <select id="advDiagnosisProvider"></select>
+        <input id="advDiagnosisModel" placeholder="Model ID">
+      </label>
+      <label>视觉
+        <select id="advVisionProvider"></select>
+        <input id="advVisionModel" placeholder="Model ID">
+      </label>
+      <label>翻译
+        <select id="advTranslationProvider"></select>
+        <input id="advTranslationModel" placeholder="Model ID">
+      </label>
+      <label>内容生成
+        <select id="advContentProvider"></select>
+        <input id="advContentModel" placeholder="Model ID">
+      </label>
+    </div>
+  </section>
+
   <section id="enabledSummary" class="card">
-    <h2>已配置提供商</h2>
+    <h2>已启用模型</h2>
     <div id="enabledList" class="muted">尚未保存任何 API Key</div>
   </section>
 

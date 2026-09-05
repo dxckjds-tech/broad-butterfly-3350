@@ -1,8 +1,8 @@
 # AI 店铺医生
 
-Chrome Manifest V3 侧边栏扩展。它读取 Made-in-China / VEMIC 商品页字段，调用 DeepSeek 或 Kimi 做商品诊断和内容优化。
+Chrome Manifest V3 侧边栏扩展。它读取 Made-in-China / VEMIC 商品页字段，按任务自动选择已配置的 AI Provider 做商品诊断和内容优化。
 
-当前版本：`1.6.0`（发布候选，以 `EXTENSION_VERSION` 为准）。  
+当前版本：`1.6.1`（以 `EXTENSION_VERSION` 为准）。  
 Prompt 版本：`1.6.0`（独立字段，不与扩展版本混用）。
 
 ## 产品说明
@@ -20,6 +20,8 @@ AI 店铺医生帮助跨境卖家检查商品页事实是否完整、标题和�
 
 - 商品字段提取（双轨 `fields` + `product`）
 - MutationObserver + 低频轮询的动态页采集
+- 多 Provider 配置（DeepSeek / Kimi / OpenAI / Claude / Gemini / Qwen / Custom）
+- 智能自动模型路由（平衡 / 省钱 / 最佳质量）
 - AI 诊断
 - 商品事实台账（VERIFIED / OBSERVED / INFERRED / UNKNOWN）
 - 确定性健康评分
@@ -35,7 +37,7 @@ AI 店铺医生帮助跨境卖家检查商品页事实是否完整、标题和�
 3. 开启开发者模式。
 4. 点击“加载已解压的扩展程序”，选择解压后的扩展根目录（含 `manifest.json`）。
 5. 点击扩展图标打开 Side Panel。
-6. 打开“API 设置”，选择 DeepSeek 或 Kimi，填写 API Key 并测试连接。
+6. 打开“API 设置”，可同时保存多个 Provider 的 API Key，选择智能自动或固定模型，并测试当前 Provider。
 7. 粘贴商品 URL 后点“读取 URL”，或在商品页点“读取当前页 URL”，再点“AI 分析商品”。
 
 ## API 设置

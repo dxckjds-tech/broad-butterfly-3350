@@ -22,6 +22,82 @@
     return !!(item && item.supportsModelList)
   }
 
+  function fillProviderSelect(node, includeBlank) {
+    node.replaceChildren()
+    if (includeBlank) {
+      const blank = document.createElement('option')
+      blank.value = ''
+      blank.textContent = '（智能自动）'
+      node.appendChild(blank)
+    }
+    ASD.providerRegistry.list().forEach(function (item) {
+      const opt = document.createElement('option')
+      opt.value = item.id
+      opt.textContent = item.name
+      node.appendChild(opt)
+    })
+  }
+
+  function routeMode() {
+    if ($('modeFixed').checked) return 'fixed'
+    if ($('modeAdvanced').checked) return 'advanced'
+    return 'auto'
+  }
+
+  function costPref() {
+    if ($('prefEconomy').checked) return 'economy'
+    if ($('prefQuality').checked) return 'quality'
+    return 'balanced'
+  }
+
+  function showRouting() {
+    const mode = routeMode()
+    $('autoPrefs').hidden = mode !== 'auto'
+    $('fixedPrefs').hidden = mode !== 'fixed'
+    $('advancedPrefs').hidden = mode !== 'advanced'
+  }
+
+  function renderRouting() {
+    $('modeAuto').checked = bundle.activeMode !== 'fixed' && bundle.activeMode !== 'advanced'
+    $('modeFixed').checked = bundle.activeMode === 'fixed'
+    $('modeAdvanced').checked = bundle.activeMode === 'advanced'
+    $('prefBalanced').checked = bundle.costPreference !== 'economy' && bundle.costPreference !== 'quality'
+    $('prefEconomy').checked = bundle.costPreference === 'economy'
+    $('prefQuality').checked = bundle.costPreference === 'quality'
+    fillProviderSelect($('fixedProvider'), false)
+    ;['advDiagnosisProvider', 'advVisionProvider', 'advTranslationProvider', 'advContentProvider'].forEach(function (id) {
+      fillProviderSelect($(id), true)
+    })
+    const fixed = bundle.fixed || {}
+    $('fixedProvider').value = ASD.providerRegistry.canonicalId(fixed.provider || currentId)
+    $('fixedModel').value = fixed.model || ''
+    const adv = bundle.advanced || {}
+    $('advDiagnosisProvider').value = (adv.product_diagnosis && adv.product_diagnosis.provider) || ''
+    $('advDiagnosisModel').value = (adv.product_diagnosis && adv.product_diagnosis.model) || ''
+    $('advVisionProvider').value = (adv.vision_analysis && adv.vision_analysis.provider) || ''
+    $('advVisionModel').value = (adv.vision_analysis && adv.vision_analysis.model) || ''
+    $('advTranslationProvider').value = (adv.translation && adv.translation.provider) || ''
+    $('advTranslationModel').value = (adv.translation && adv.translation.model) || ''
+    $('advContentProvider').value = (adv.content && adv.content.provider) || ''
+    $('advContentModel').value = (adv.content && adv.content.model) || ''
+    showRouting()
+  }
+
+  function readRouting() {
+    bundle.activeMode = routeMode()
+    bundle.costPreference = costPref()
+    bundle.fixed = {
+      provider: $('fixedProvider').value,
+      model: $('fixedModel').value.trim(),
+    }
+    bundle.advanced = {
+      product_diagnosis: { provider: $('advDiagnosisProvider').value, model: $('advDiagnosisModel').value.trim() },
+      vision_analysis: { provider: $('advVisionProvider').value, model: $('advVisionModel').value.trim() },
+      translation: { provider: $('advTranslationProvider').value, model: $('advTranslationModel').value.trim() },
+      content: { provider: $('advContentProvider').value, model: $('advContentModel').value.trim() },
+    }
+  }
+
   function renderSummary() {
     const box = $('enabledList')
     box.replaceChildren()
@@ -73,6 +149,7 @@
       list.appendChild(opt)
     }
     renderSummary()
+    renderRouting()
   }
 
   function readForm() {
@@ -111,6 +188,7 @@
   async function persist(opts) {
     const options = opts || {}
     readForm()
+    readRouting()
     const cfg = slot()
     if (options.validate) {
       if (!cfg.apiKey) throw new Error('请输入 ' + ((meta() && meta().name) || currentId) + ' API Key')
@@ -150,21 +228,47 @@
 
   $('provider').addEventListener('change', function () {
     readForm()
+    readRouting()
     currentId = $('provider').value
     renderForm()
     persist({ quiet: true }).catch(function (error) {
       $('status').textContent = error.message
     })
   })
-  ;['enabled', 'routeEnabled', 'baseUrl', 'model', 'thinking', 'capVision', 'capJson', 'capReasoning', 'capModelList'].forEach(
-    function (id) {
-      $(id).addEventListener('change', function () {
-        persist({ quiet: true }).catch(function (error) {
-          $('status').textContent = error.message
-        })
+  ;[
+    'enabled',
+    'routeEnabled',
+    'baseUrl',
+    'model',
+    'thinking',
+    'capVision',
+    'capJson',
+    'capReasoning',
+    'capModelList',
+    'modeAuto',
+    'modeFixed',
+    'modeAdvanced',
+    'prefBalanced',
+    'prefEconomy',
+    'prefQuality',
+    'fixedProvider',
+    'fixedModel',
+    'advDiagnosisProvider',
+    'advDiagnosisModel',
+    'advVisionProvider',
+    'advVisionModel',
+    'advTranslationProvider',
+    'advTranslationModel',
+    'advContentProvider',
+    'advContentModel',
+  ].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      showRouting()
+      persist({ quiet: true }).catch(function (error) {
+        $('status').textContent = error.message
       })
-    },
-  )
+    })
+  })
   ;['apiKey', 'customName'].forEach(function (id) {
     $(id).addEventListener('input', scheduleSave)
   })

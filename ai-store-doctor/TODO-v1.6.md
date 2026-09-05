@@ -1,5 +1,10 @@
 # TODO v1.6 / v1.7 技术债
 
+## 已完成（v1.6.1 Provider + Router）
+
+- [x] Step 14.1 Task Validator / Provider Registry / Adapters / Settings 迁移
+- [x] Step 15 Capability / Task Profile / Model Router / Routing UI
+
 ## 已完成（v1.6.0 RC 代码）
 
 - [x] Step 4–12 可信诊断与产品价值层
@@ -18,6 +23,12 @@
 - [ ] 视觉模型：Logo 在前、商品图在后的真实页确认
 - [ ] RC 人工：5–10 个不同品类商品页
 - [ ] Chrome Web Store 最终发布
+
+## 下一阶段（未开始）
+
+- Multi-Model Orchestration（一次诊断拆 vision / facts / keywords / content / synthesis）
+- 完整自动 Failover（超过 1 个备用）
+- 批量店铺分析 / CRM / 询盘
 
 ## v1.7 技术债（本轮不修）
 

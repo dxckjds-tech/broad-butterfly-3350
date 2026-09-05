@@ -31,11 +31,22 @@
       dProduct && (dProduct.finalQualityScore != null || dProduct.qualityScore != null)
         ? `<div class="card"><b>采集性能</b><p>quality：${esc(dProduct.finalQualityScore != null ? dProduct.finalQualityScore : dProduct.qualityScore)}</p><p>sampleCount：${esc(dProduct.sampleCount || 0)}</p><p>observerTriggered：${esc(dProduct.observerTriggeredCount || 0)}</p><p>readDurationMs：${esc(dProduct.readDurationMs || 0)}</p></div>`
         : ''
+    const route = meta && meta.route
+    const routeCard = route
+      ? `<div class="card"><b>本次自动选择</b><p>Provider：${esc((route.selected && route.selected.provider) || meta.provider || '—')}</p><p>Model：${esc((route.selected && route.selected.model) || meta.model || '—')}</p><p>评分：${esc((route.selected && route.selected.score) || '—')}</p>${
+          arr(route.reason)
+            .map(function (item) {
+              return `<p>• ${esc(item)}</p>`
+            })
+            .join('') || '<p class="muted">无解释</p>'
+        }</div>`
+      : ''
     const collectCompare = dProduct
       ? `<div class="card"><b>采集双轨</b><p>旧结构字段：${esc(dProduct.oldFieldCount || 0)}</p><p>新结构字段：${esc(dProduct.newFieldCount || 0)}</p><p>productRoot：${dProduct.productRootFound ? '已找到' : '未找到'}</p><p>完整商品：${dProduct.completeProduct ? '是' : '否'}</p></div>`
       : ''
     return (
       collectCompare +
+      routeCard +
       hitsCard +
       perfCard +
       imageCard +

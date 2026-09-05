@@ -155,11 +155,20 @@
               visionUsed: r.visionUsed,
               imageRank: r.imageRank,
               code: r.code,
+              route: r.route || null,
             },
           },
           'analyze:ok',
         )
-      } else ns.sidepanel.state.update({ error: r?.reason || 'AI 分析失败', meta: { code: r?.code || 'AI_ERROR' } }, 'analyze:fail')
+      } else {
+        let reason = r?.reason || 'AI 分析失败'
+        if (r?.code === 'NO_COMPATIBLE_MODEL') {
+          reason = r?.suggestAuto
+            ? (r.reason || '当前固定模型不支持该任务所需能力') + '。可改为智能自动，或取消。'
+            : r.reason || '没有已配置且支持该任务能力的模型'
+        }
+        ns.sidepanel.state.update({ error: reason, meta: { code: r?.code || 'AI_ERROR' } }, 'analyze:fail')
+      }
     } catch (error) {
       const now = ns.sidepanel.state.get()
       if (now.requestId !== requestId) return

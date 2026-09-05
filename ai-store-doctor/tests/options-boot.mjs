@@ -67,6 +67,8 @@ if ($('apiKey').value !== 'deepseek-legacy') throw new Error('legacy apiKey not 
 if (!stored.providerConfigs || !stored.providerConfigs.configs.moonshot.apiKey) {
   throw new Error('providerConfigs was not persisted')
 }
+if (!$('modeAuto') || !$('modeAuto').checked) throw new Error('default routing mode should be auto')
+if (!$('prefBalanced') || !$('prefBalanced').checked) throw new Error('default cost preference should be balanced')
 console.log(
   JSON.stringify({
     ok: true,

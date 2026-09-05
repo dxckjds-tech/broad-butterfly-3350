@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI 店铺医生",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "使用已配置的 AI Provider 诊断并优化 VEMIC / Made-in-China 商品",
   "action": {
     "default_title": "AI 店铺医生"
