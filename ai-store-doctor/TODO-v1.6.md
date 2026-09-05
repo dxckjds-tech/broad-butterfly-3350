@@ -1,34 +1,24 @@
-# TODO v1.6（Step 0–3 发现，本轮未修）
+# TODO v1.6 / v1.7 技术债
 
-以下问题在架构审查或本次重构中确认存在。按指令记录在此，不在 Step 0–3 顺手修复。
+## 已完成（v1.6.0 RC 代码）
 
-## 采集 / 数据
+- [x] Step 4–12 可信诊断与产品价值层
+- [x] Step 12.1 标题证据边界 + History sanitizer fail-closed
+- [x] Step 13 MutationObserver + 低频轮询 + 采集质量
+- [x] Kimi 默认模型统一为 `shared/constants.js` 的 `kimi-k2.5`
+- [x] options datalist 改为 `replaceChildren()`
+- [x] 删除无用 `.modal` CSS
+- [x] Manifest CSP `extension_pages`
+- [x] PRIVACY.md / README / 发布 ZIP 排除 tests
 
-- [x] P0-1 采集后 `sanitizeCollected()` + 发送前 `sanitizePayload()` 双层脱敏（Step 5；debug 只记数量）
-- [x] P0-2 新采集器不再静默退回 `document.body`；旧 `fields.visibleText` 仍保留兼容（Step 4）
-- [x] password 隐藏弹窗不再误判 loginRequired（Step 4）
-- [x] 新采集器对 span/div 关键词 chip 使用 textContent（Step 4；旧 fields 仍为空以保持双轨）
-- [x] `JSON.stringify(compactFields).slice(0, 30000)` 已删除，改为对象级预算（Step 6）
-- [ ] REAL_AI_REGRESSION_PENDING：环境无 DeepSeek/Kimi Key，Step 6/7 未跑真实模型回归
-- [x] `ANALYZE_PRODUCT` 有 requestId / inflight / registry 去重（Step 9）
-- [x] `REQUEST_MIC_FIELDS` 作为当前页 L1 读取（Step 9）
+## 仍待真实环境
 
-## 配置
+- [ ] REAL_AI_REGRESSION：DeepSeek 需环境 Key；Kimi 若正式宣称支持需同样 1 MIC + 1 VEMIC
+- [ ] 视觉模型：Logo 在前、商品图在后的真实页确认
+- [ ] RC 人工：5–10 个不同品类商品页
+- [ ] Chrome Web Store 最终发布
 
-- [ ] Kimi 默认模型不一致：`settings()` 默认 `kimi-k2.5`，options 无保存时回退 `moonshot-v1-8k`。本轮有意保留两套值以免改变调用/UI。
-- [x] `imageAsDataUrl` 已支持 apex + 子域（Step 8；未新增 host_permissions）
-- [ ] options 页 `refreshModels` 仍对 datalist 使用 `innerHTML = ''`（清空子节点，无不可信插值）
+## v1.7 技术债（本轮不修）
 
-## UI
-
-- [ ] 存量 tab 仍用 `innerHTML` + `esc()`，尚未迁到 `shared/dom.js`（本轮只约束新增 UI）
-- [x] 启动不再自动采集，只预填当前 URL（Step 9）
-- [ ] `styles.css` 仍有未使用的 `.modal` 规则（对应已删除的 `#modal`）
-- [x] `analyze()` 使用 requestId / fieldsVersion 丢弃乱序响应（Step 9）
-
-## 不要在验收前开始
-
-- MutationObserver、Chrome Web Store 最终发布
-- CRM、询盘、SaaS
-- 修改 `SYSTEM_PROMPT` 既有事实约束
-- 新增 Chrome 权限
+- 存量 overview / truth / keywords / content / debug 仍用 `esc()` + `innerHTML`，不强制迁到 `dom.js`
+- CRM / 询盘 / WhatsApp / 企业微信 / SaaS / 批量诊断 / 新 Agent

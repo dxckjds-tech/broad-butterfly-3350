@@ -44,7 +44,6 @@ body{margin:0;font-family:'Noto Sans SC',system-ui,sans-serif;background:#fff;co
 .subtab-btn{flex:1;text-align:center;font-size:10.5px;font-weight:600;padding:6px 1px;border-radius:6px;cursor:pointer;color:var(--muted)}
 .subtab-btn.active{background:var(--navy);color:#fff}
 .action-bar{flex:none;display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border)}
-.modal{position:absolute;inset:0;background:#fff;z-index:50;display:flex;flex-direction:column;padding:18px;gap:12px;overflow-y:auto}
 .hidden{display:none !important}
 .cand-row{border:2px solid var(--border);border-radius:8px;padding:11px;cursor:pointer;display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
 .cand-row.selected{border-color:var(--teal)}

@@ -17,7 +17,7 @@ async function load() {
   $('deepseekThinking').value = s.deepseekThinking || s.thinking || d.deepseekThinking
   $('kimiApiKey').value = s.kimiApiKey || ''
   $('kimiBaseUrl').value = s.kimiBaseUrl || d.kimiBaseUrl
-  $('kimiModel').value = s.kimiModel || ASD.constants.OPTIONS_KIMI_MODEL_FALLBACK
+  $('kimiModel').value = s.kimiModel || d.kimiModel
   toggle()
 }
 
@@ -92,7 +92,7 @@ async function refreshModels() {
     const r = await chrome.runtime.sendMessage({ type: 'LIST_AI_MODELS' })
     if (!r?.ok) throw new Error(r?.reason || '获取模型失败')
     const list = $('kimiModels')
-    list.innerHTML = ''
+    list.replaceChildren()
     r.models.forEach((id) => {
       const option = document.createElement('option')
       option.value = id

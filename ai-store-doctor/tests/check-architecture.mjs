@@ -23,6 +23,10 @@ const hosts = [
 if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(hosts)) {
   errors.push('host_permissions changed')
 }
+const csp = manifest.content_security_policy && manifest.content_security_policy.extension_pages
+if (!csp) errors.push('extension_pages CSP missing')
+if (csp && /unsafe-eval|unsafe-inline|https?:\/\/|cdn/i.test(csp)) errors.push('CSP must not allow eval or remote script')
+if (manifest.version !== '1.6.0') errors.push('manifest version must be 1.6.0, got ' + manifest.version)
 
 const sw = fs.readFileSync(path.join(root, 'background/service-worker.js'), 'utf8')
 const listenerCount = (sw.match(/onMessage\.addListener/g) || []).length
@@ -42,7 +46,7 @@ if (scripts[scripts.length - 1] !== 'sidepanel/app.js') errors.push('sidepanel a
 
 function walk(dir, acc = []) {
   for (const name of fs.readdirSync(dir)) {
-    if (name === 'tests' || name === 'node_modules') continue
+    if (name === 'tests' || name === 'node_modules' || name === 'scripts' || name === 'dist') continue
     const full = path.join(dir, name)
     if (fs.statSync(full).isDirectory()) walk(full, acc)
     else if (name.endsWith('.js')) acc.push(full)
