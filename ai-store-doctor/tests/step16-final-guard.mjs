@@ -80,7 +80,7 @@ const R = await Rbox.ASD.bg.orchestrator.runProductDiagnosis({
       throw error
     }
     if (opts.task === 'fact_verification') {
-      return { result: { decisions: [{ claimId: 'power', decision: 'downgrade', toStatus: 'UNKNOWN', reasonCode: 'x', explanation: 'y' }] } }
+      return { result: { decisions: [{ claimId: Rbox.ASD.orchestrationSchemas.claimIdentity({ field: 'power', value: '1500W', sourceType: 'vision', sourceRef: 'img' }), decision: 'downgrade', toStatus: 'UNKNOWN', reasonCode: 'x', explanation: 'y' }] } }
     }
     return { result: report() }
   },

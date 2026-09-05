@@ -43,7 +43,7 @@ const A = await box.ASD.bg.orchestrator.runProductDiagnosis({
     if (opts.task === 'fact_verification') {
       return {
         result: {
-          decisions: [{ claimId: 'power', decision: 'downgrade', toStatus: 'UNKNOWN', reasonCode: 'conflict', explanation: 'page 1200W' }],
+          decisions: [{ claimId: box.ASD.orchestrationSchemas.claimIdentity({ field: 'power', value: '1500W', sourceType: 'vision', sourceRef: 'img' }), decision: 'downgrade', toStatus: 'UNKNOWN', reasonCode: 'conflict', explanation: 'page 1200W' }],
         },
       }
     }

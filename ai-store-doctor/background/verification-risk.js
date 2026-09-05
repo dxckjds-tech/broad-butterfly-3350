@@ -24,8 +24,12 @@
   }
 
   function toClaim(fact, reason) {
+    const schemas = ASD.orchestrationSchemas
+    const id =
+      (fact && fact.claimId) ||
+      (schemas && typeof schemas.claimIdentity === 'function' ? schemas.claimIdentity(fact) : fieldKey(fact) || String((fact && fact.value) || ''))
     return {
-      claimId: fieldKey(fact) || String((fact && fact.value) || ''),
+      claimId: id,
       field: (fact && (fact.field || fact.label)) || '',
       value: (fact && fact.value) || '',
       status: (fact && fact.status) || '',
@@ -116,6 +120,20 @@
         score += critical ? 60 : 30
         reasons.push('fact_conflict')
         claims.push(toClaim(fact, 'conflict'))
+        claims.push(
+          toClaim(
+            {
+              field: fieldKey(fact),
+              label: (fact && (fact.field || fact.label)) || fieldKey(fact),
+              value: pageValue,
+              status: 'VERIFIED',
+              sourceType: 'spec_table',
+              sourceRef: fieldKey(fact),
+              sourceStage: 'page',
+            },
+            'conflict_page',
+          ),
+        )
       }
 
       const weak = String(fact.status || '').toUpperCase()

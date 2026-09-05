@@ -18,6 +18,9 @@
         error.code === 'ORCHESTRATION_BUDGET_EXCEEDED' ||
         error.code === 'BUDGET_EXCEEDED' ||
         error.code === 'COST_BUDGET_EXCEEDED' ||
+        error.code === 'TOKEN_BUDGET_EXCEEDED' ||
+        error.code === 'TOKEN_INPUT_BUDGET_EXCEEDED' ||
+        error.code === 'TOKEN_OUTPUT_BUDGET_EXCEEDED' ||
         error.code === 'NETWORK_ERROR' ||
         error.code === 'RATE_LIMIT_ERROR' ||
         error.code === 'MODEL_NOT_FOUND' ||

@@ -10,6 +10,23 @@
     return value == null ? '' : String(value)
   }
 
+  function normalizeClaimPart(value) {
+    return asString(value)
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[，,]/g, '')
+  }
+
+  function claimIdentity(item) {
+    const row = item || {}
+    return [
+      normalizeClaimPart(row.field || row.label),
+      normalizeClaimPart(row.value),
+      normalizeClaimPart(row.sourceType),
+      normalizeClaimPart(row.sourceRef),
+    ].join('|')
+  }
+
   function asArray(value) {
     return Array.isArray(value) ? value : []
   }
@@ -82,7 +99,7 @@
         })
         .map(function (item) {
           const sourceType = asString(item.sourceType)
-          return Object.assign(
+          const ev = Object.assign(
             {
               field: asString(item.field || item.label),
               value: asString(item.value),
@@ -91,6 +108,8 @@
             },
             provenance(item, Object.assign({}, meta || {}, { sourceType: sourceType, sourceStage: 'evidence' })),
           )
+          ev.claimId = claimIdentity(ev)
+          return ev
         }),
       imageObservations: asArray(raw.imageObservations)
         .filter(function (item) {
@@ -172,9 +191,10 @@
           const key = asString(item.field || item.label).toLowerCase()
           const matched = prior[key] || prior[key + '|' + asString(item.value)]
           const guarded = protectFact(item, matched, repaired)
-          return Object.assign(
+          const fact = Object.assign(
             {
               label: asString(item.label || item.field),
+              field: asString(item.field || item.label),
               value: asString(item.value),
               status: guarded.status,
               source: asString(item.source || item.sourceRef),
@@ -186,6 +206,8 @@
               Object.assign({}, meta || {}, { sourceStage: 'diagnosis' }),
             ),
           )
+          fact.claimId = claimIdentity(fact)
+          return fact
         }),
       diagnosis: {
         strengths: asArray(diagnosis.strengths).map(asString),
@@ -292,13 +314,16 @@
     const rejected = []
     const byId = {}
     asArray(verification && verification.decisions).forEach(function (item) {
-      if (item && item.claimId) byId[String(item.claimId).toLowerCase()] = item
+      if (!item || !item.claimId) return
+      const raw = String(item.claimId)
+      byId[raw] = item
+      byId[raw.toLowerCase()] = item
     })
     const facts = asArray(diagnosis && diagnosis.facts)
       .map(function (fact) {
         if (!fact) return null
-        const id = asString(fact.claimId || fact.field || fact.label).toLowerCase()
-        const dec = byId[id]
+        const id = asString(fact.claimId) || claimIdentity(fact)
+        const dec = byId[id] || byId[id.toLowerCase()]
         if (!dec) return fact
         if (dec.decision === 'reject') {
           counts.rejected += 1
@@ -345,6 +370,8 @@
 
   ns.orchestrationSchemas = {
     PAGE_SOURCE: PAGE_SOURCE,
+    normalizeClaimPart: normalizeClaimPart,
+    claimIdentity: claimIdentity,
     normalizeEvidence: normalizeEvidence,
     normalizeDiagnosis: normalizeDiagnosis,
     normalizeContentStage: normalizeContentStage,

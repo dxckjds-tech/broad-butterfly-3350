@@ -20,19 +20,31 @@ const ok = schemas.normalizeVerification({
 })
 assert(ok.ok && ok.result.decisions[0].decision === 'confirm', 'valid verifier schema')
 
+const materialClaim = schemas.claimIdentity({
+  field: 'material',
+  value: 'Stainless Steel',
+  sourceType: 'vision',
+  sourceRef: 'img1',
+})
 const applied = schemas.applyVerifierDecisions(
   {
-    facts: [{ label: 'Material', field: 'material', value: 'Stainless Steel', status: 'OBSERVED', sourceType: 'vision', sourceRef: 'img1', sourceStage: 'evidence' }],
+    facts: [{ claimId: materialClaim, label: 'Material', field: 'material', value: 'Stainless Steel', status: 'OBSERVED', sourceType: 'vision', sourceRef: 'img1', sourceStage: 'evidence' }],
   },
-  { decisions: [{ claimId: 'material', decision: 'confirm', toStatus: 'VERIFIED', reasonCode: 'ok', explanation: 'x' }] },
+  { decisions: [{ claimId: materialClaim, decision: 'confirm', toStatus: 'VERIFIED', reasonCode: 'ok', explanation: 'x' }] },
 )
 assert(applied.diagnosis.facts[0].status !== 'VERIFIED', 'J confirm+vision still not VERIFIED: ' + applied.diagnosis.facts[0].status)
 assert(applied.diagnosis.facts[0].sourceType === 'vision', 'S provenance kept')
 assert(applied.diagnosis.facts[0].sourceRef === 'img1', 'S sourceRef kept')
 
+const rejectMaterialClaim = schemas.claimIdentity({
+  field: 'material',
+  value: 'Stainless Steel',
+  sourceType: 'vision',
+  sourceRef: '',
+})
 const rejected = schemas.applyVerifierDecisions(
-  { facts: [{ label: 'Material', field: 'material', value: 'Stainless Steel', status: 'OBSERVED', sourceType: 'vision' }] },
-  { decisions: [{ claimId: 'material', decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'no', explanation: 'x' }] },
+  { facts: [{ claimId: rejectMaterialClaim, label: 'Material', field: 'material', value: 'Stainless Steel', status: 'OBSERVED', sourceType: 'vision' }] },
+  { decisions: [{ claimId: rejectMaterialClaim, decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'no', explanation: 'x' }] },
 )
 assert(rejected.counts.rejected === 1 && rejected.diagnosis.facts.length === 0, 'K reject removes fact')
 
@@ -54,8 +66,8 @@ const N = await box.ASD.bg.orchestrator.runProductDiagnosis({
       return {
         result: {
           decisions: [
-            { claimId: 'material', decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'no', explanation: 'untrusted vision' },
-            { claimId: 'power', decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'conflict', explanation: '1200 vs 1500' },
+            { claimId: schemas.claimIdentity({ field: 'material', value: 'Stainless Steel', sourceType: 'vision', sourceRef: 'img' }), decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'no', explanation: 'untrusted vision' },
+            { claimId: schemas.claimIdentity({ field: 'power', value: '1500W', sourceType: 'vision', sourceRef: 'img' }), decision: 'reject', toStatus: 'UNKNOWN', reasonCode: 'conflict', explanation: '1200 vs 1500' },
           ],
         },
       }

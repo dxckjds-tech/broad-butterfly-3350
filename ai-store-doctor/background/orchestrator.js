@@ -20,11 +20,106 @@
     return (meta && meta.name) || id || ''
   }
 
-  function throwBudget() {
-    const error = new Error('ORCHESTRATION_BUDGET_EXCEEDED')
-    error.code = 'ORCHESTRATION_BUDGET_EXCEEDED'
-    error.budgetCode = 'BUDGET_EXCEEDED'
+  function throwBudget(code) {
+    const error = new Error(code || 'ORCHESTRATION_BUDGET_EXCEEDED')
+    error.code = code || 'ORCHESTRATION_BUDGET_EXCEEDED'
+    error.budgetCode = code || 'BUDGET_EXCEEDED'
     throw error
+  }
+
+  function isBudgetCode(error) {
+    const code = error && error.code
+    return (
+      code === 'ORCHESTRATION_BUDGET_EXCEEDED' ||
+      code === 'BUDGET_EXCEEDED' ||
+      code === 'COST_BUDGET_EXCEEDED' ||
+      code === 'TOKEN_BUDGET_EXCEEDED' ||
+      code === 'TOKEN_INPUT_BUDGET_EXCEEDED' ||
+      code === 'TOKEN_OUTPUT_BUDGET_EXCEEDED'
+    )
+  }
+
+  function laterStages(diagnosisStage, contentStage, evidenceStage) {
+    const out = []
+    if (diagnosisStage && diagnosisStage !== evidenceStage) out.push(diagnosisStage)
+    if (contentStage && contentStage !== diagnosisStage && contentStage !== evidenceStage) out.push(contentStage)
+    return out
+  }
+
+  function replanTriggerOf(budget, remainingStages, extras) {
+    const extra = extras || {}
+    if (budget && budget.costExceeded) return budget.exhaustedReason || 'COST_BUDGET_EXCEEDED'
+    if (budget && budget.tokenExceeded) return budget.exhaustedReason || 'TOKEN_BUDGET_EXCEEDED'
+    if (extra.fallbackUsed && !extra.alreadyReplannedFallback) return 'FALLBACK_USED'
+    if (budget && budget.remainingMs && budget.remainingMs() < 15000) return 'LOW_REMAINING_DURATION'
+    const rem = budget && budget.remainingCalls
+      ? budget.remainingCalls({ keepVerifier: extra.keepVerifier })
+      : budget
+        ? Math.max(0, budget.maxCalls - budget.usedCalls)
+        : 0
+    if ((remainingStages || []).length > rem) return 'REMAINING_CALLS'
+    return ''
+  }
+
+  function invokeReplan(budget, remainingStages, extras) {
+    const extra = extras || {}
+    const planner = ASD.bg.orchestrationPlanner
+    if (!planner || typeof planner.replanAfterFailure !== 'function') return null
+    const remainingCalls = budget && budget.remainingCalls
+      ? budget.remainingCalls({ keepVerifier: extra.keepVerifier })
+      : budget
+        ? Math.max(0, budget.maxCalls - budget.usedCalls)
+        : 0
+    const plan = planner.replanAfterFailure({
+      remainingCalls: remainingCalls,
+      remainingDuration: budget && budget.remainingMs ? budget.remainingMs() : 1,
+      remainingCost: budget && budget.remainingCostUsd ? budget.remainingCostUsd() : null,
+      remainingStages: remainingStages || [],
+      remainingInputTokens: budget && budget.remainingInputTokens ? budget.remainingInputTokens() : null,
+      remainingOutputTokens: budget && budget.remainingOutputTokens ? budget.remainingOutputTokens() : null,
+      costExceeded: !!(budget && budget.costExceeded),
+      tokenExceeded: !!(budget && budget.tokenExceeded),
+      exhaustedReason: (budget && budget.exhaustedReason) || '',
+      fallbackUsed: !!extra.fallbackUsed,
+      verificationRisk: extra.verificationRisk || {},
+    })
+    const row = {
+      trigger: extra.trigger || '',
+      beforeCalls: extra.beforeCalls != null ? extra.beforeCalls : remainingCalls,
+      remainingCalls: remainingCalls,
+      action: (plan && plan.action) || '',
+      reason: plan && Array.isArray(plan.reason) ? plan.reason.join(',') : String((plan && plan.reason) || ''),
+    }
+    if (extra.replans) extra.replans.push(row)
+    return plan
+  }
+
+  function stubDiagnosisFromEvidence(evidence) {
+    const rows = ((evidence && evidence.evidence) || []).map(function (item) {
+      return {
+        label: item.field || item.label,
+        field: item.field || item.label,
+        value: item.value,
+        status: item.status || 'OBSERVED',
+        sourceType: item.sourceType,
+        sourceRef: item.sourceRef,
+        sourceStage: item.sourceStage || 'evidence',
+        claimId: item.claimId,
+        note: '',
+        confidence: item.confidence || 0,
+      }
+    })
+    return {
+      summary: '',
+      identity: {
+        name: (evidence && evidence.identityCandidates && evidence.identityCandidates[0] && evidence.identityCandidates[0].name) || '',
+        confidence: (evidence && evidence.identityCandidates && evidence.identityCandidates[0] && evidence.identityCandidates[0].confidence) || 0,
+      },
+      facts: rows,
+      diagnosis: { strengths: [], issues: [], priorities: [] },
+      keywordStrategy: { primary: [], secondary: [], blocked: [], rationale: [] },
+      contentBrief: { titleGoals: [], detailGoals: [], faqGoals: [], geoGoals: [] },
+    }
   }
 
   function wrapUser(text, images) {
@@ -47,6 +142,8 @@
       identity: diagnosis.identity,
       facts: (diagnosis.facts || []).map(function (item) {
         return {
+          claimId: item.claimId,
+          field: item.field || item.label,
           label: item.label,
           value: item.value,
           status: item.status,
@@ -203,6 +300,8 @@
         maxCalls: opts.maxCalls,
         maxDurationMs: opts.maxDurationMs,
         maxEstimatedCostUsd: opts.maxEstimatedCostUsd,
+        maxInputTokens: opts.maxInputTokens,
+        maxOutputTokens: opts.maxOutputTokens,
       })
     }
     return {
@@ -212,15 +311,21 @@
       reserveVerifier: false,
       maxDurationMs: 40000,
       maxEstimatedCostUsd: 1,
+      maxInputTokens: 200000,
+      maxOutputTokens: 200000,
       inputTokens: 0,
       outputTokens: 0,
       estimatedCostUsd: 0,
       costKnown: true,
+      costExceeded: false,
+      tokenExceeded: false,
+      exhaustedReason: '',
       consumeCall: function consumeCall() {
         this.usedCalls += 1
         return this.usedCalls
       },
       canCall: function canCall() {
+        if (this.costExceeded || this.tokenExceeded) return false
         return this.usedCalls < this.maxCalls
       },
       remainingCalls: function remainingCalls() {
@@ -229,8 +334,29 @@
       remainingMs: function remainingMs() {
         return 40000
       },
+      remainingInputTokens: function remainingInputTokens() {
+        return Math.max(0, this.maxInputTokens - this.inputTokens)
+      },
+      remainingOutputTokens: function remainingOutputTokens() {
+        return Math.max(0, this.maxOutputTokens - this.outputTokens)
+      },
+      remainingCostUsd: function remainingCostUsd() {
+        return Math.max(0, this.maxEstimatedCostUsd - this.estimatedCostUsd)
+      },
+      requestMaxTokens: function requestMaxTokens(stageMaxTokens) {
+        const stage = Number(stageMaxTokens) > 0 ? Number(stageMaxTokens) : 4200
+        return Math.min(stage, this.remainingOutputTokens())
+      },
       stageTimeout: function stageTimeout() {
         return 20000
+      },
+      markCostExceeded: function markCostExceeded() {
+        this.costExceeded = true
+        if (!this.exhaustedReason) this.exhaustedReason = 'COST_BUDGET_EXCEEDED'
+      },
+      markTokenExceeded: function markTokenExceeded(kind) {
+        this.tokenExceeded = true
+        if (!this.exhaustedReason) this.exhaustedReason = kind || 'TOKEN_BUDGET_EXCEEDED'
       },
       addUsage: function addUsage() {},
       snapshot: function snapshot() {
@@ -269,10 +395,19 @@
       fallbackUsed: !!(extra.fallbackUsed || (stages || []).some(function (item) { return item && item.fallbackUsed })),
       budget: extra.budget || null,
       usage: extra.usage || null,
-      cost: extra.cost || null,
+      cost: extra.cost
+        ? Object.assign(
+            {
+              pricingVersion: extra.budget && extra.budget.pricingVersion,
+              sourceDate: extra.budget && extra.budget.sourceDate,
+            },
+            extra.cost,
+          )
+        : extra.cost || null,
       verification: extra.verification || null,
       completion: extra.completion || { status: 'complete', missingStages: [], reasons: [] },
       riskScore: extra.riskScore,
+      replans: extra.replans || [],
     }
     orch.userLines = userStatus(orch)
     return orch
@@ -308,13 +443,18 @@
     const task = taskOverride || stage.task
 
     while (true) {
-      if (budget.canCall && !budget.canCall()) throwBudget()
+      if (budget.requestMaxTokens) maxTokens = budget.requestMaxTokens(maxTokens)
+      if (maxTokens < 1 || (budget.remainingOutputTokens && budget.remainingOutputTokens() < 1)) {
+        if (budget.markTokenExceeded) budget.markTokenExceeded('TOKEN_OUTPUT_BUDGET_EXCEEDED')
+        throwBudget('TOKEN_OUTPUT_BUDGET_EXCEEDED')
+      }
+      if (budget.canCall && !budget.canCall()) throwBudget((budget && budget.exhaustedReason) || 'ORCHESTRATION_BUDGET_EXCEEDED')
       if (budget.usedCalls >= budget.maxCalls) throwBudget()
       try {
         if (budget.consumeCall) budget.consumeCall()
         else budget.usedCalls += 1
       } catch (error) {
-        throwBudget()
+        throwBudget((error && error.code) || (budget && budget.exhaustedReason) || 'ORCHESTRATION_BUDGET_EXCEEDED')
       }
       const started = Date.now()
       try {
@@ -329,13 +469,9 @@
         })
         const usage = normalizeUsage(out.usage, { messages: messages, content: out.result ? JSON.stringify(out.result) : '' })
         const cost = estimateCost(used, usage)
-        if (budget.addUsage) {
-          try {
-            budget.addUsage(usage, cost)
-          } catch (costErr) {
-            out.costBudgetExceeded = true
-          }
-        }
+        if (budget.addUsage) budget.addUsage(usage, cost)
+        if (budget.costExceeded) out.costBudgetExceeded = true
+        if (budget.tokenExceeded) out.tokenBudgetExceeded = true
         if (health && !out._healthRecorded) {
           health.recordSuccess(used.provider, used.model, Date.now() - started)
         }
@@ -395,7 +531,8 @@
           if (decision.reason === 'schema_repair') alreadyRepaired = true
           if (decision.reason === 'raise_max_output_tokens') {
             alreadyLengthRetry = true
-            maxTokens = Math.min(Math.max(maxTokens * 2, 6000), 8000)
+            const raised = Math.min(Math.max(maxTokens * 2, 6000), 8000)
+            maxTokens = budget.requestMaxTokens ? budget.requestMaxTokens(raised) : raised
           }
           continue
         }
@@ -437,12 +574,29 @@
       'product_diagnosis',
     )
     const snap = budget.snapshot ? budget.snapshot() : { usedCalls: budget.usedCalls }
+    const replans = []
+    if (traces.some(function (item) { return item && item.fallbackUsed })) {
+      invokeReplan(budget, [], {
+        trigger: 'FALLBACK_USED',
+        beforeCalls: budget.remainingCalls ? budget.remainingCalls() + 1 : budget.maxCalls,
+        keepVerifier: false,
+        fallbackUsed: true,
+        replans: replans,
+      })
+    }
     out.orchestration = summarize(plan, traces, Date.now() - started, snap.usedCalls || traces.length, {
       fallbackUsed: traces.some(function (item) { return item.fallbackUsed }),
       budget: snap,
       usage: { inputTokens: snap.inputTokens || 0, outputTokens: snap.outputTokens || 0 },
-      cost: { estimatedCostUsd: snap.costKnown ? snap.estimatedCostUsd : null, costKnown: snap.costKnown !== false, costEstimated: !!snap.costEstimated },
+      cost: {
+        estimatedCostUsd: snap.costKnown ? snap.estimatedCostUsd : null,
+        costKnown: snap.costKnown !== false,
+        costEstimated: !!snap.costEstimated,
+        pricingVersion: snap.pricingVersion || '',
+        sourceDate: snap.sourceDate || '',
+      },
       completion: { status: 'complete', missingStages: [], reasons: [] },
+      replans: replans,
     })
     out.visionUsed = visionUrls.length > 0
     out.payloadMode = built.mode
@@ -471,6 +625,7 @@
       reasons: (risk && risk.reasons) || [],
     }
     if (!risk || !risk.requiresVerification) return { meta: empty, diagnosis: diagnosis, rejected: [] }
+    if (opts && opts.skipVerifier) return { meta: empty, diagnosis: diagnosis, rejected: [] }
     if (!budget.canCall || !budget.canCall({ verifier: true })) return { meta: empty, diagnosis: diagnosis, rejected: [] }
     if (budget.usedCalls >= budget.maxCalls) return { meta: empty, diagnosis: diagnosis, rejected: [] }
     const picked = selectVerifier(cfg, prefs, avoid)
@@ -539,6 +694,9 @@
   async function runMulti(opts, cfg, built, plan, executeFn, visionPack, budget, prefs) {
     const started = Date.now()
     const traces = []
+    const replans = []
+    let skipVerifier = false
+    let alreadyReplannedFallback = false
     const schemas = ASD.orchestrationSchemas
     if (!schemas) {
       const error = new Error('ORCHESTRATION_SCHEMA_UNAVAILABLE')
@@ -607,8 +765,8 @@
       ? budget.remainingCalls({ keepVerifier: !!budget.reserveVerifier && !hadFailover })
       : Math.max(0, budget.maxCalls - budget.usedCalls)
     let diagnosis = null
-    const sameDiagContent = diagnosisStage && contentStage && diagnosisStage.provider === contentStage.provider && diagnosisStage.model === contentStage.model
-    const mustMergeRest =
+    let sameDiagContent = diagnosisStage && contentStage && diagnosisStage.provider === contentStage.provider && diagnosisStage.model === contentStage.model
+    let mustMergeRest =
       remainingAfterEvidence <= 1 ||
       (diagnosisStage && contentStage && diagnosisStage !== contentStage && remainingAfterEvidence < 2)
 
@@ -622,11 +780,53 @@
           estimatedCostUsd: snap.costKnown === false ? null : snap.estimatedCostUsd,
           costKnown: snap.costKnown !== false,
           costEstimated: !!snap.costEstimated,
+          pricingVersion: snap.pricingVersion || '',
+          sourceDate: snap.sourceDate || '',
         },
         verification: verification || null,
         completion: completion || { status: 'complete', missingStages: [], reasons: [] },
         riskScore: riskScore,
+        replans: replans,
       })
+    }
+
+    function applyReplan(rp) {
+      if (!rp) return
+      if (rp.skipVerifier) skipVerifier = true
+      if (rp.action === 'partial' || rp.action === 'stop') return rp
+      if (!rp.stages || !rp.stages.length) return rp
+      const nextDiag = rp.stages.find(function (item) { return (item.covers || [item.id]).indexOf('diagnosis') !== -1 })
+      const nextContent = rp.stages.find(function (item) { return (item.covers || [item.id]).indexOf('content') !== -1 })
+      if (nextDiag) diagnosisStage = nextDiag
+      if (nextContent) contentStage = nextContent
+      if (nextDiag && !nextContent) contentStage = nextDiag
+      if (nextContent && !nextDiag) diagnosisStage = nextContent
+      sameDiagContent = diagnosisStage && contentStage && diagnosisStage.provider === contentStage.provider && diagnosisStage.model === contentStage.model
+      mustMergeRest = rp.action === 'merged_to_fit_budget' || diagnosisStage === contentStage
+      return rp
+    }
+
+    function maybeReplanNow(remaining, triggerHint) {
+      const fallbackUsed = traces.some(function (item) { return item && item.fallbackUsed })
+      const keepVerifier = !!budget.reserveVerifier && !fallbackUsed
+      const trigger =
+        triggerHint ||
+        replanTriggerOf(budget, remaining, {
+          fallbackUsed: fallbackUsed,
+          alreadyReplannedFallback: alreadyReplannedFallback,
+          keepVerifier: keepVerifier,
+        })
+      if (!trigger) return null
+      const beforeCalls = budget.remainingCalls ? budget.remainingCalls({ keepVerifier: keepVerifier }) : Math.max(0, budget.maxCalls - budget.usedCalls)
+      const rp = invokeReplan(budget, remaining, {
+        trigger: trigger,
+        beforeCalls: beforeCalls,
+        keepVerifier: keepVerifier,
+        fallbackUsed: fallbackUsed,
+        replans: replans,
+      })
+      if (trigger === 'FALLBACK_USED') alreadyReplannedFallback = true
+      return applyReplan(rp)
     }
 
     async function finishFromDiagnosis(diag, contentRaw, completion) {
@@ -642,7 +842,7 @@
           })
         : { score: 0, level: 'low', reasons: [], requiresVerification: false, claimsToVerify: [] }
       const verified = await maybeVerify(
-        { executeFn: executeFn },
+        { executeFn: executeFn, skipVerifier: skipVerifier },
         cfg,
         prefs,
         budget,
@@ -695,7 +895,26 @@
       }
     }
 
+    const afterEvidence = maybeReplanNow(laterStages(diagnosisStage, contentStage, evidenceStage))
+    if (afterEvidence && (afterEvidence.action === 'partial' || afterEvidence.action === 'stop')) {
+      const partialDiag = stubDiagnosisFromEvidence(evidence)
+      return await finishFromDiagnosis(partialDiag, stubContentFromDiagnosis(partialDiag), {
+        status: 'partial',
+        missingStages: ['diagnosis', 'content'],
+        reasons: [afterEvidence.reason && afterEvidence.reason[0] ? afterEvidence.reason[0] : afterEvidence.action],
+      })
+    }
+
     if (sameDiagContent || mustMergeRest || (diagnosisStage && contentStage && diagnosisStage === contentStage)) {
+      if (!budget.canCall || !budget.canCall()) {
+        const blocked = maybeReplanNow(laterStages(diagnosisStage, contentStage, evidenceStage), budget.exhaustedReason || 'BUDGET_EXCEEDED')
+        const partialDiag = stubDiagnosisFromEvidence(evidence)
+        return await finishFromDiagnosis(partialDiag, stubContentFromDiagnosis(partialDiag), {
+          status: 'partial',
+          missingStages: ['diagnosis', 'content'],
+          reasons: [(blocked && blocked.reason && blocked.reason[0]) || budget.exhaustedReason || 'BUDGET_EXCEEDED'],
+        })
+      }
       const merged = diagnosisStage || contentStage
       const mergedOut = await callStage(
         merged,
@@ -742,20 +961,44 @@
       return finished
     }
 
-    const diagnosisOut = await callStage(
-      diagnosisStage,
-      [
-        { role: 'system', content: ASD.bg.diagnosisPrompt.systemPrompt() },
-        {
-          role: 'user',
-          content: wrapUser(JSON.stringify({ product: built.object || built.text, evidence: compactEvidence(evidence) }), []),
-        },
-      ],
-      executeFn,
-      budget,
-      traces,
-      'diagnosis_reasoning',
-    )
+    if (!budget.canCall || !budget.canCall()) {
+      const blocked = maybeReplanNow(laterStages(diagnosisStage, contentStage, evidenceStage), budget.exhaustedReason || 'BUDGET_EXCEEDED')
+      const partialDiag = stubDiagnosisFromEvidence(evidence)
+      return await finishFromDiagnosis(partialDiag, stubContentFromDiagnosis(partialDiag), {
+        status: 'partial',
+        missingStages: ['diagnosis', 'content'],
+        reasons: [(blocked && blocked.reason && blocked.reason[0]) || budget.exhaustedReason || 'BUDGET_EXCEEDED'],
+      })
+    }
+
+    let diagnosisOut
+    try {
+      diagnosisOut = await callStage(
+        diagnosisStage,
+        [
+          { role: 'system', content: ASD.bg.diagnosisPrompt.systemPrompt() },
+          {
+            role: 'user',
+            content: wrapUser(JSON.stringify({ product: built.object || built.text, evidence: compactEvidence(evidence) }), []),
+          },
+        ],
+        executeFn,
+        budget,
+        traces,
+        'diagnosis_reasoning',
+      )
+    } catch (error) {
+      if (isBudgetCode(error)) {
+        maybeReplanNow([contentStage].filter(Boolean), error.code)
+        const partialDiag = stubDiagnosisFromEvidence(evidence)
+        return await finishFromDiagnosis(partialDiag, stubContentFromDiagnosis(partialDiag), {
+          status: 'partial',
+          missingStages: ['diagnosis', 'content'],
+          reasons: [error.code],
+        })
+      }
+      throw error
+    }
     const diagnosisParsed = schemas.normalizeDiagnosis(diagnosisOut.result || diagnosisOut, evidence, {
       sourceModel: diagnosisStage.model,
       sourceProvider: diagnosisStage.provider,
@@ -766,6 +1009,15 @@
       throw error
     }
     diagnosis = diagnosisParsed.result
+
+    const afterDiagnosis = maybeReplanNow([contentStage].filter(function (item) { return item && item !== diagnosisStage }))
+    if (afterDiagnosis && (afterDiagnosis.action === 'partial' || afterDiagnosis.action === 'stop' || !budget.canCall || !budget.canCall())) {
+      return await finishFromDiagnosis(diagnosis, stubContentFromDiagnosis(diagnosis), {
+        status: 'partial',
+        missingStages: ['content'],
+        reasons: [(afterDiagnosis && afterDiagnosis.reason && afterDiagnosis.reason[0]) || budget.exhaustedReason || 'BUDGET_EXCEEDED'],
+      })
+    }
 
     let contentRaw = null
     try {
@@ -787,7 +1039,10 @@
       contentRaw = contentOut.result || contentOut
       return await finishFromDiagnosis(diagnosis, contentRaw, { status: 'complete', missingStages: [], reasons: [] })
     } catch (error) {
-      if (error.code === 'ORCHESTRATION_BUDGET_EXCEEDED' && !diagnosis) throw error
+      if (isBudgetCode(error) && !diagnosis) throw error
+      if (isBudgetCode(error)) {
+        maybeReplanNow([], error.code)
+      }
       return await finishFromDiagnosis(diagnosis, stubContentFromDiagnosis(diagnosis), {
         status: 'partial',
         missingStages: ['content'],
@@ -828,6 +1083,8 @@
         maxCalls: opts.preferences && opts.preferences.maxCalls,
         maxDurationMs: opts.preferences && opts.preferences.maxDurationMs,
         maxEstimatedCostUsd: opts.preferences && opts.preferences.maxEstimatedCostUsd,
+        maxInputTokens: opts.preferences && opts.preferences.maxInputTokens,
+        maxOutputTokens: opts.preferences && opts.preferences.maxOutputTokens,
       },
       plan,
     )

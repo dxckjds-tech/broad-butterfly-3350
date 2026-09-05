@@ -211,6 +211,17 @@
     const verificationRisk = ctx.verificationRisk || {}
     const reasons = []
 
+    if (ctx.costExceeded || ctx.tokenExceeded) {
+      return {
+        action: 'partial',
+        stages: [],
+        skipVerifier: true,
+        reason: [ctx.exhaustedReason || (ctx.costExceeded ? 'COST_BUDGET_EXCEEDED' : 'TOKEN_BUDGET_EXCEEDED')],
+      }
+    }
+    if (ctx.remainingOutputTokens != null && Number(ctx.remainingOutputTokens) <= 0) {
+      return { action: 'partial', stages: [], skipVerifier: true, reason: ['TOKEN_OUTPUT_BUDGET_EXCEEDED'] }
+    }
     if (remainingDuration <= 0) {
       return { action: remainingStages.length ? 'partial' : 'stop', stages: [], skipVerifier: true, reason: ['duration_budget'] }
     }
@@ -219,18 +230,21 @@
     }
 
     let stages = remainingStages
+    let action = stages.length ? 'continue' : 'partial'
     if (stages.length > remainingCalls) {
       stages = mergeToFit(stages, remainingCalls)
       reasons.push('merged_to_fit_budget')
+      action = 'merged_to_fit_budget'
     }
     if (remainingCost != null && Number(remainingCost) <= 0 && stages.length > 1) {
       stages = mergeToFit(stages, 1)
       reasons.push('cost_budget')
+      action = 'merged_to_fit_budget'
     }
 
     const wantVerifier = !!(verificationRisk.requiresVerification || verificationRisk.level === 'high')
     return {
-      action: stages.length ? 'continue' : 'partial',
+      action: stages.length ? action : 'partial',
       stages: stages,
       skipVerifier: !wantVerifier || remainingCalls <= stages.length,
       reason: reasons,

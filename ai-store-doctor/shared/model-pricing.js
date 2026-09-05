@@ -6,6 +6,7 @@
   const ASD = (global.ASD = global.ASD || {});
   const shared = (ASD.shared = ASD.shared || {});
 
+  // TODO: maintain pricing in a dedicated follow-up. Do not bump prices here.
   const PRICING_VERSION = "2026-03-registry-v1";
   const SOURCE_DATE = "2026-03-01";
 
