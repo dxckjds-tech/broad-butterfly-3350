@@ -80,6 +80,7 @@
       schemaRepaired: parsed.repaired || [],
       finishReason: data && data.choices && data.choices[0] ? data.choices[0].finish_reason || '' : '',
       responseDebug: responseDebug || null,
+      contentSource: (responseDebug && responseDebug.contentSource) || '',
       _healthRecorded: false,
     }
   }
@@ -108,15 +109,17 @@
   }
 
   function classifyHttp(status, message) {
+    if (ASD.responseNormalize && typeof ASD.responseNormalize.classifyHttp === 'function') {
+      return ASD.responseNormalize.classifyHttp(status, message)
+    }
     const adapter = openaiAdapter()
     if (adapter && typeof adapter.classifyHttp === 'function') return adapter.classifyHttp(status, message)
-    if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
-      return 'AUTH_ERROR'
-    }
-    if (status === 429 || /rate limit|too many requests/i.test(message || '')) return 'RATE_LIMIT_ERROR'
-    if (status === 404 && /model/i.test(message || '')) return 'MODEL_NOT_FOUND'
-    if (status >= 500) return 'PROVIDER_ERROR'
     return 'RESPONSE_ERROR'
+  }
+
+  function skipHealthFailure(error) {
+    const code = error && error.code
+    return code === 'PARAM_REJECTED' || code === 'UNSUPPORTED_CAPABILITY'
   }
 
   function capabilitiesOf(routed, opts) {
@@ -226,12 +229,16 @@
       error.code = classifyHttp(response.status, msg)
       throw error
     }
+    const normalizeExtras = {
+      httpStatus: response.status,
+      provider: opts.providerName,
+      model: opts.model,
+    }
+    if (ASD.responseNormalize && typeof ASD.responseNormalize.normalizeResponse === 'function') {
+      return ASD.responseNormalize.normalizeResponse(data, normalizeExtras)
+    }
     if (adapter && typeof adapter.normalizeResponse === 'function') {
-      return adapter.normalizeResponse(data, {
-        httpStatus: response.status,
-        provider: opts.providerName,
-        model: opts.model,
-      })
+      return adapter.normalizeResponse(data, normalizeExtras)
     }
     const message = (data && data.choices && data.choices[0] && data.choices[0].message) || {}
     return {
@@ -240,6 +247,7 @@
       finishReason: (data && data.choices && data.choices[0] && data.choices[0].finish_reason) || '',
       usage: data.usage || null,
       model: data.model || opts.model,
+      contentSource: 'MESSAGE_CONTENT',
     }
   }
 
@@ -270,6 +278,7 @@
 
   function recordHealth(routed, ok, startedAt, error) {
     if (!ASD.bg.modelHealth || !routed) return
+    if (!ok && skipHealthFailure(error)) return
     const latency = Date.now() - startedAt
     if (ok) ASD.bg.modelHealth.recordSuccess(routed.id || routed.providerName, routed.model, latency)
     else {
@@ -303,24 +312,31 @@
     let lastFinishReason = ''
     let lastCode = 'RESPONSE_ERROR'
     let lastDebug = null
+    let lastContentSource = ''
     const deadline = Date.now() + (isConnect ? 25000 : isK3 ? 125000 : 55000)
     const maxAttempts = isConnect ? 2 : 3
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const remaining = deadline - Date.now()
       if (remaining < 3000) break
-      const tokenBudget = isConnect ? (attempt === 0 ? 512 : 1024) : isK3 ? Math.max(opts.maxTokens, 6000) : opts.maxTokens
+      const lengthRetry = lastFinishReason === 'length'
+      const tokenBudget = isConnect
+        ? attempt === 0
+          ? 512
+          : 1024
+        : isK3
+          ? Math.max(opts.maxTokens, 6000) + (lengthRetry ? 800 : 0)
+          : opts.maxTokens + (lengthRetry ? Math.min(1200, Math.round(opts.maxTokens * 0.35)) : 0)
       const retryMessages =
         attempt === 0
           ? guardedMessages
-          : guardedMessages.concat([
-              {
-                role: 'user',
-                content:
-                  lastFinishReason === 'length'
-                    ? '上一次输出被截断。请重新输出完整 JSON，不要使用 Markdown 代码块。'
-                    : '上一次响应' + lastReason + '。请立即重新输出完整、非空、可解析的 JSON 对象，不要使用 Markdown 代码块。',
-              },
-            ])
+          : lengthRetry
+            ? guardedMessages
+            : guardedMessages.concat([
+                {
+                  role: 'user',
+                  content: '上一次响应' + lastReason + '。请立即重新输出完整、非空、可解析的 JSON 对象，不要使用 Markdown 代码块。',
+                },
+              ])
       if (!ASD.sanitize || typeof ASD.sanitize.sanitizePayload !== 'function') {
         throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
       }
@@ -362,29 +378,82 @@
           lastCode = 'CONNECTION_ERROR'
           continue
         }
-        error.code = error.code || 'CONNECTION_ERROR'
+        error.code = error.code || classifyHttp(error.status, error.message) || 'CONNECTION_ERROR'
+        if (error.code === 'PARAM_REJECTED' && ASD.capabilityLearning && typeof ASD.capabilityLearning.learnFromError === 'function') {
+          ASD.capabilityLearning.learnFromError(routed && (routed.id || routed.providerName), model, error)
+        }
         if (error.responseDebug) lastDebug = error.responseDebug
         throw error
       }
       clearTimeout(requestTimeout)
       const data = toLegacyData(normalized, model)
       lastFinishReason = normalized.finishReason || ''
-      lastDebug = normalized.debug || lastDebug
-      if (lastFinishReason === 'length') lastCode = 'LENGTH_ERROR'
-      const content = normalized.content || ''
+      lastDebug = Object.assign({}, normalized.debug || lastDebug || {}, {
+        contentSource: normalized.contentSource || (normalized.debug && normalized.debug.contentSource) || '',
+      })
+      lastContentSource = normalized.contentSource || lastContentSource
+      if (lastFinishReason === 'length') lastCode = 'OUTPUT_TRUNCATED'
+      if (normalized.errorClass === 'EMPTY_CHOICES') lastCode = 'EMPTY_CHOICES'
+      let content = normalized.content || ''
+      if (!content && lastFinishReason === 'length' && ASD.responseNormalize && typeof ASD.responseNormalize.repairTruncatedJson === 'function') {
+        const repaired = ASD.responseNormalize.repairTruncatedJson(normalized.reasoningContent || '')
+        if (repaired.ok) {
+          content = repaired.text
+          lastContentSource = 'TRUNCATION_REPAIR'
+        }
+      }
       if (!content) {
         lastReason = lastFinishReason === 'length' ? '输出被截断' : '为空'
-        lastCode = lastFinishReason === 'length' ? 'LENGTH_ERROR' : 'RESPONSE_ERROR'
+        lastCode =
+          lastFinishReason === 'length'
+            ? 'OUTPUT_TRUNCATED'
+            : normalized.errorClass === 'EMPTY_CHOICES'
+              ? 'EMPTY_CHOICES'
+              : 'EMPTY_FINAL_CONTENT'
+        continue
+      }
+      if (isConnect) {
+        const levels =
+          ASD.responseNormalize && typeof ASD.responseNormalize.connectionLevels === 'function'
+            ? ASD.responseNormalize.connectionLevels(normalized)
+            : { liveness: content ? 'ok' : 'fail', structured: 'limited' }
+        if (levels.liveness === 'ok') {
+          const parsedConnect = tryParseJson(content)
+          const structuredOk = !!(parsedConnect && parsedConnect.ok === true)
+          return {
+            result: {
+              ok: true,
+              message: structuredOk ? (parsedConnect.message || '连接成功') : 'API 已连通',
+              liveness: 'ok',
+              structured: structuredOk ? 'ok' : 'limited',
+            },
+            usage: data.usage || null,
+            model: data.model || model,
+            provider: providerName,
+            attempts: attempt + 1,
+            schemaRepaired: [],
+            finishReason: lastFinishReason,
+            responseDebug: lastDebug,
+            contentSource: lastContentSource,
+            connection: levels,
+            _healthRecorded: false,
+          }
+        }
+        lastReason = '无可识别内容'
+        lastCode = 'EMPTY_FINAL_CONTENT'
         continue
       }
       const parsed = tryParseJson(content)
       if (!parsed) {
         lastReason = '不是有效 JSON'
-        lastCode = 'RESPONSE_ERROR'
+        lastCode = lastFinishReason === 'length' ? 'OUTPUT_TRUNCATED' : 'RESPONSE_ERROR'
         continue
       }
       try {
-        return acceptParsed(opts.task, parsed, data, model, providerName, attempt, normalized.debug)
+        const accepted = acceptParsed(opts.task, parsed, data, model, providerName, attempt, lastDebug)
+        accepted.contentSource = lastContentSource
+        accepted.recovered = lastContentSource === 'REASONING_RECOVERY' || lastContentSource === 'THINKING_RECOVERY'
+        return accepted
       } catch (error) {
         if (error.schema) {
           lastReason = error.message
@@ -410,9 +479,10 @@
         '。' +
         (isK3 ? 'K3 已等待最多 125 秒，请检查账号额度或改用 K2/非思考模型' : '请重试或切换模型'),
     )
-    error.code = lastCode
+    error.code = lastCode === 'LENGTH_ERROR' ? 'OUTPUT_TRUNCATED' : lastCode
     error.finishReason = lastFinishReason
     error.responseDebug = lastDebug
+    error.contentSource = lastContentSource
     throw error
   }
 

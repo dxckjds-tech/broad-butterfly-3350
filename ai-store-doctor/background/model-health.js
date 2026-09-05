@@ -75,10 +75,13 @@
   }
 
   function recordFailure(provider, model, latencyMs, errorType, extras) {
+    const code = String(errorType || '')
+    if (code === 'PARAM_REJECTED' || code === 'UNSUPPORTED_CAPABILITY') {
+      return get(provider, model)
+    }
     const prev = get(provider, model)
     const failureCount = prev.failureCount + 1
     const consecutiveFailures = prev.consecutiveFailures + 1
-    const code = String(errorType || '')
     const extra = extras || {}
     let disabledUntil = prev.disabledUntil || 0
     let needsAttention = !!prev.needsAttention
