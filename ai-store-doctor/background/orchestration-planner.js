@@ -125,17 +125,74 @@
       return fail((evidence.code || diagnosis.code || content.code), evidence.reason || diagnosis.reason || content.reason)
     }
 
-    const stages = [stageRow('evidence', evidence), stageRow('diagnosis', diagnosis), stageRow('content', content)]
+    const rawStages = [stageRow('evidence', evidence), stageRow('diagnosis', diagnosis), stageRow('content', content)]
+    const stages = mergeAdjacent(rawStages)
+    if (stages.length > maxCalls()) {
+      return fail('ORCHESTRATION_BUDGET_EXCEEDED', ['规划调用数超过 ' + maxCalls()])
+    }
     const textFallback = !!(evidence.reason && evidence.reason.indexOf('未配置已确认支持视觉的模型，Stage 1 使用文本证据模式。') !== -1)
+    const merged = stages.some(function (item) { return item.mergedWith })
     return {
       ok: true,
       mode: 'multi',
       stages: stages,
       estimatedCalls: stages.length,
-      reason: ['三阶段独立路由'],
+      reason: merged ? ['相邻阶段选择同一模型，已合并调用'] : ['三阶段独立路由'],
       textFallback: textFallback,
-      mergeEnabled: false,
+      mergeEnabled: true,
     }
+  }
+
+  function cloneStage(stage) {
+    return Object.assign({}, stage, { covers: (stage.covers || [stage.id]).slice(), reason: (stage.reason || []).slice() })
+  }
+
+  function sameTarget(a, b) {
+    return !!(a && b && a.provider && a.model && a.provider === b.provider && a.model === b.model)
+  }
+
+  function canMergeEvidenceDiagnosis(stage) {
+    const caps = (stage && stage.capabilities) || {}
+    return caps.vision === true && caps.structuredOutput === true && caps.reasoning === true
+  }
+
+  function mergePair(left, right) {
+    const covers = (left.covers || [left.id]).concat(right.covers || [right.id])
+    left.covers = covers
+    left.mergedWith = (right.covers || [right.id]).join('+')
+    left.fallback = left.fallback || right.fallback
+    if (covers.indexOf('evidence') !== -1 && covers.indexOf('diagnosis') !== -1 && covers.indexOf('content') !== -1) {
+      left.id = 'evidence+diagnosis+content'
+      left.task = 'product_diagnosis'
+    } else if (covers.indexOf('diagnosis') !== -1 && covers.indexOf('content') !== -1) {
+      left.id = 'diagnosis+content'
+      left.task = 'diagnosis_and_content'
+    } else if (covers.indexOf('evidence') !== -1 && covers.indexOf('diagnosis') !== -1) {
+      left.id = 'evidence+diagnosis'
+      left.task = 'evidence_and_diagnosis'
+    }
+    return left
+  }
+
+  function mergeAdjacent(stages) {
+    if (!stages || !stages.length) return []
+    const out = [cloneStage(stages[0])]
+    for (let i = 1; i < stages.length; i += 1) {
+      const prev = out[out.length - 1]
+      const cur = stages[i]
+      if (!sameTarget(prev, cur)) {
+        out.push(cloneStage(cur))
+        continue
+      }
+      const prevHasEvidence = (prev.covers || []).indexOf('evidence') !== -1
+      const curHasDiagnosis = (cur.covers || [cur.id]).indexOf('diagnosis') !== -1
+      if (prevHasEvidence && curHasDiagnosis && !canMergeEvidenceDiagnosis(cur)) {
+        out.push(cloneStage(cur))
+        continue
+      }
+      mergePair(prev, cur)
+    }
+    return out
   }
 
   ns.bg.orchestrationPlanner = {
@@ -146,5 +203,7 @@
     build: build,
     singlePlan: singlePlan,
     canCoverAll: canCoverAll,
+    mergeAdjacent: mergeAdjacent,
+    canMergeEvidenceDiagnosis: canMergeEvidenceDiagnosis,
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

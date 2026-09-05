@@ -178,6 +178,12 @@
       throw error
     }
 
+    if (plan.stages.length === 1) {
+      const only = plan.stages[0]
+      const coversAll = (only.covers || []).indexOf('evidence') !== -1 && (only.covers || []).indexOf('content') !== -1
+      if (coversAll) return runSingle(opts, cfg, built, plan, executeFn, visionPack)
+    }
+
     const evidenceStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('evidence') !== -1 })
     const diagnosisStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('diagnosis') !== -1 })
     const contentStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('content') !== -1 })
