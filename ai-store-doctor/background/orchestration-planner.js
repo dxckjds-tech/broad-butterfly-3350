@@ -100,19 +100,19 @@
     if (orchMode === 'single') {
       const one = select('product_diagnosis', diagnosisCtx, prefs)
       if (!one.ok) return fail(one.code, one.reason)
-      return singlePlan(one, ['orchestrationMode=single，保持 v1.6.1 单次诊断'])
+      return attachCollaboration(singlePlan(one, ['orchestrationMode=single，保持 v1.6.1 单次诊断']), ctx, cfg, bundle)
     }
 
     if (orchMode === 'auto' && usable.length < 2) {
       const one = select('product_diagnosis', diagnosisCtx, prefs)
       if (!one.ok) return fail(one.code, one.reason)
-      return singlePlan(one, ['仅 1 个可用 Provider，自动使用 single'])
+      return attachCollaboration(singlePlan(one, ['仅 1 个可用 Provider，自动使用 single']), ctx, cfg, bundle)
     }
 
     if (orchMode === 'auto' && preference === 'economy') {
       const cheap = select('product_diagnosis', { settings: cfg, hasImages: false }, prefs)
       if (cheap.ok && canCoverAll(cheap.selected, hasImages)) {
-        return singlePlan(cheap, ['省钱模式：单一低成本模型满足全部能力，使用 single'])
+        return attachCollaboration(singlePlan(cheap, ['省钱模式：单一低成本模型满足全部能力，使用 single']), ctx, cfg, bundle)
       }
     }
 
@@ -148,7 +148,7 @@
     if (merged) reasons.push('相邻阶段选择同一模型，已合并调用')
     else reasons.push('三阶段独立路由')
     if (costPlan.costKnown && costCap != null && costPlan.estimatedCostUsd > costCap) reasons.push('cost_limit_replan')
-    return {
+    return attachCollaboration({
       ok: true,
       mode: 'multi',
       stages: stages,
@@ -158,7 +158,40 @@
       mergeEnabled: true,
       estimatedCostUsd: costPlan.estimatedCostUsd,
       costKnown: costPlan.costKnown,
+    }, ctx, cfg, bundle)
+  }
+
+  function hasFixedRoles(bundle) {
+    const rows = (bundle && bundle.roleAssignments) || {}
+    return Object.keys(rows).some(function (key) {
+      return rows[key] && rows[key].mode === 'fixed' && rows[key].provider
+    })
+  }
+
+  function attachCollaboration(plan, ctx, cfg, bundle) {
+    const collab = ASD.collaborationConfig ? ASD.collaborationConfig.normalize(bundle || {}) : { collaborationMode: 'auto' }
+    const mode = ctx.collaborationMode || collab.collaborationMode || 'auto'
+    if (ASD.bg.collaborationScheduler && (mode === 'custom' || mode === 'hybrid' || mode === 'single' || hasFixedRoles(collab))) {
+      const next = ASD.bg.collaborationScheduler.build(Object.assign({}, ctx, { settings: cfg, collaborationMode: mode }))
+      if (!next.ok) return next
+      next.stages = (next.stages || []).map(function (stage) {
+        const covers = stage.covers || []
+        if (covers.indexOf('keywords') !== -1 && covers.indexOf('diagnosis') === -1) {
+          stage.covers = covers.concat(['diagnosis'])
+          if (stage.id === 'keywords') stage.id = 'diagnosis'
+        }
+        return stage
+      })
+      if (next.stages.length === 1) next.mode = 'single'
+      return next
     }
+    if (ASD.bg.collaborationScheduler && typeof ASD.bg.collaborationScheduler.assignRoles === 'function') {
+      const assigned = ASD.bg.collaborationScheduler.assignRoles(Object.assign({}, ctx, { settings: cfg }))
+      plan.assignments = assigned.assignments
+      plan.collaborationMode = mode
+      plan.failurePolicy = assigned.failurePolicy
+    }
+    return plan
   }
 
   function stageCallCap(preference) {
@@ -318,6 +351,10 @@
     stageCallCap: stageCallCap,
     canMergeEvidenceDiagnosis: canMergeEvidenceDiagnosis,
     formatCollaboration: function formatCollaboration(plan) {
+      if (ASD.bg.collaborationScheduler && typeof ASD.bg.collaborationScheduler.formatPlan === 'function' && (plan && (plan.assignments || plan.collaborationMode))) {
+        const lines = ASD.bg.collaborationScheduler.formatPlan(plan)
+        if (lines && lines.length) return lines
+      }
       const label = { evidence: '证据', diagnosis: '诊断', content: '内容' }
       return ((plan && plan.stages) || []).map(function (stage) {
         const parts = (stage.covers || [stage.id]).map(function (id) {
