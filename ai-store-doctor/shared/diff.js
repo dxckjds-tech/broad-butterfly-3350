@@ -181,8 +181,9 @@
       pool.push(String(item))
     })
     ;((report && report.facts) || []).forEach(function (fact) {
-      if (fact && fact.value) pool.push(String(fact.value))
-      if (fact && fact.label) pool.push(String(fact.label))
+      if (!fact || fact.status !== 'VERIFIED') return
+      if (fact.value) pool.push(String(fact.value))
+      if (fact.label) pool.push(String(fact.label))
     })
     return pool
   }

@@ -71,6 +71,51 @@ assert(reasons.some(function (r) { return /Stainless/.test(r) }), 'reason materi
 const bad = diff.titleReasons('Valve', 'Titanium Magic Valve', { product: { name: 'Valve' } }, { facts: [] })
 assert(!bad.some(function (r) { return /Titanium/.test(r) }), 'must not invent Titanium')
 
+const inferredReasons = diff.titleReasons(
+  'DN50 Ball Valve',
+  'DN50 Stainless Steel Ball Valve',
+  { product: { material: null } },
+  { facts: [{ label: 'Material', value: 'Stainless Steel', status: 'INFERRED' }] },
+)
+assert(
+  !inferredReasons.some(function (r) {
+    return /增加Stainless|增加Steel/.test(r)
+  }),
+  'INFERRED fact must not form add reason: ' + JSON.stringify(inferredReasons),
+)
+assert(
+  !inferredReasons.some(function (r) {
+    return /Stainless|Steel/.test(r)
+  }),
+  'INFERRED fact must not appear in title reasons: ' + JSON.stringify(inferredReasons),
+)
+
+const verifiedReasons = diff.titleReasons(
+  'DN50 Ball Valve',
+  'DN50 Stainless Steel Ball Valve',
+  { product: { material: null } },
+  { facts: [{ label: 'Material', value: 'Stainless Steel', status: 'VERIFIED' }] },
+)
+assert(
+  verifiedReasons.some(function (r) {
+    return /增加Stainless|增加Steel/.test(r)
+  }),
+  'VERIFIED fact may form add reason: ' + JSON.stringify(verifiedReasons),
+)
+
+const pageFieldReasons = diff.titleReasons(
+  'DN50 Ball Valve',
+  'DN50 Stainless Steel Ball Valve',
+  { product: { material: 'Stainless Steel' } },
+  { facts: [] },
+)
+assert(
+  pageFieldReasons.some(function (r) {
+    return /增加Stainless|增加Steel/.test(r)
+  }),
+  'page material field is evidence: ' + JSON.stringify(pageFieldReasons),
+)
+
 if (errors.length) {
   console.error(JSON.stringify({ ok: false, errors }, null, 2))
   process.exit(1)

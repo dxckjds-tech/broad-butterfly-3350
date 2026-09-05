@@ -77,8 +77,10 @@ const first = await store.put({
   report: { summary: { identity: 'DN50 Ball Valve', confidence: 80 }, facts: [], keywords: {}, content: {} },
   product: {
     product: { name: 'Valve A', sku: 'SKU1' },
-    current: { title: 'Valve A', keywords: ['valve'], description: 'desc' },
+    current: { title: 'Valve A', keywords: ['valve'], description: 'contact alice@example.com' },
     fallbackText: 'SHOULD_NOT_SAVE',
+    visibleText: 'VISIBLE_TEXT_MUST_NOT_SAVE',
+    html: '<p>HTML_MUST_NOT_SAVE</p>',
     images: [{ src: 'data:image/png;base64,AAAA' }],
   },
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -89,6 +91,10 @@ assert(got && got.productName === 'Valve A', 'get record')
 assert(got.promptVersion && got.schemaVersion && got.scoreVersion && got.extensionVersion, 'version fields')
 assert(!JSON.stringify(got).includes('SHOULD_NOT_SAVE'), 'fallbackText saved')
 assert(!JSON.stringify(got).includes('data:image'), 'base64 image saved')
+assert(!JSON.stringify(got).includes('VISIBLE_TEXT_MUST_NOT_SAVE'), 'visibleText saved')
+assert(!JSON.stringify(got).includes('HTML_MUST_NOT_SAVE'), 'html saved')
+assert(!JSON.stringify(got).includes('alice@example.com'), 'PII email saved raw')
+assert(JSON.stringify(got).includes('[REDACTED_EMAIL]'), 'PII email not redacted')
 const listed = await store.list()
 assert(listed.length === 1 && listed[0].healthScore === 72, 'list one')
 
@@ -136,8 +142,146 @@ assert(
 )
 assert((await store.get(after[0].id)) != null, 'remaining item readable')
 
+function loadStoreWithoutSanitize() {
+  const chrome2 = mockChrome()
+  const setKeys = []
+  const origSet = chrome2.storage.local.set
+  chrome2.storage.local.set = async function (obj) {
+    Object.keys(obj).forEach(function (key) {
+      setKeys.push(key)
+    })
+    return origSet(obj)
+  }
+  const sandbox2 = { ASD: {}, console: console, chrome: chrome2, Date: Date, Math: Math }
+  sandbox2.globalThis = sandbox2
+  const ctx2 = vm.createContext(sandbox2)
+  ;['shared/constants.js', 'shared/storage-keys.js', 'shared/health-score.js', 'sidepanel/history-store.js'].forEach(
+    function (file) {
+      vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx2, { filename: file })
+    },
+  )
+  return { store: sandbox2.ASD.sidepanel.historyStore, chrome: chrome2, setKeys: setKeys }
+}
+
+const closed = loadStoreWithoutSanitize()
+let closedErr = ''
+try {
+  await closed.store.put({
+    productName: 'No Sanitize',
+    productIdentity: 'X',
+    url: 'https://sample.made-in-china.com/nosanitize',
+    healthScore: 10,
+    report: { summary: { identity: 'X' }, facts: [], keywords: {}, content: {} },
+    product: {
+      product: { name: 'X' },
+      current: { title: 'X', keywords: [], description: 'secret@example.com' },
+    },
+  })
+} catch (error) {
+  closedErr = error && error.message ? String(error.message) : String(error)
+}
+assert(closedErr === 'SECURITY_SANITIZER_UNAVAILABLE', 'sanitizer missing must throw, got ' + closedErr)
+assert(
+  !closed.setKeys.some(function (key) {
+    return /^hist:/.test(key) && key !== 'hist:idx'
+  }),
+  'sanitizer missing must not write hist:<id>, set keys=' + closed.setKeys.join(','),
+)
+assert(
+  !Object.keys(closed.chrome.mem).some(function (key) {
+    return /^hist:/.test(key) && key !== 'hist:idx'
+  }),
+  'sanitizer missing must not persist hist:<id>',
+)
+
+const notFnChrome = mockChrome()
+const notFnSetKeys = []
+const notFnOrigSet = notFnChrome.storage.local.set
+notFnChrome.storage.local.set = async function (obj) {
+  Object.keys(obj).forEach(function (key) {
+    notFnSetKeys.push(key)
+  })
+  return notFnOrigSet(obj)
+}
+const notFnSandbox = { ASD: { sanitize: { sanitizeCollected: true } }, console: console, chrome: notFnChrome, Date: Date, Math: Math }
+notFnSandbox.globalThis = notFnSandbox
+const notFnCtx = vm.createContext(notFnSandbox)
+;['shared/constants.js', 'shared/storage-keys.js', 'shared/health-score.js', 'sidepanel/history-store.js'].forEach(
+  function (file) {
+    vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), notFnCtx, { filename: file })
+  },
+)
+let notFnErr = ''
+try {
+  await notFnSandbox.ASD.sidepanel.historyStore.put({
+    productName: 'Not Fn',
+    report: { summary: { identity: 'Y' } },
+    product: { product: { name: 'Y' }, current: { title: 'Y', keywords: [], description: '' } },
+  })
+} catch (error) {
+  notFnErr = error && error.message ? String(error.message) : String(error)
+}
+assert(notFnErr === 'SECURITY_SANITIZER_UNAVAILABLE', 'sanitizeCollected not function must throw, got ' + notFnErr)
+assert(
+  !notFnSetKeys.some(function (key) {
+    return /^hist:/.test(key) && key !== 'hist:idx'
+  }),
+  'sanitizeCollected not function must not write hist:<id>',
+)
+
+const actionSandbox = { ASD: {}, console: console, chrome: mockChrome(), Date: Date, Math: Math }
+actionSandbox.globalThis = actionSandbox
+const actionCtx = vm.createContext(actionSandbox)
+vm.runInContext(fs.readFileSync(path.join(root, 'sidepanel/state.js'), 'utf8'), actionCtx, { filename: 'state.js' })
+vm.runInContext(fs.readFileSync(path.join(root, 'sidepanel/actions.js'), 'utf8'), actionCtx, { filename: 'actions.js' })
+actionSandbox.ASD.sidepanel.historyStore = {
+  put: async function () {
+    throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
+  },
+  list: async function () {
+    return []
+  },
+}
+let actionCrashed = false
+actionSandbox.ASD.sidepanel.app = {
+  render: function () {
+    return true
+  },
+}
+actionSandbox.ASD.sidepanel.state.update(
+  {
+    report: { summary: { identity: 'X', confidence: 1 } },
+    fields: { url: 'https://sample.made-in-china.com/x' },
+    product: { product: { name: 'X' } },
+    health: { total: 1, dimensions: [], scoreVersion: '1' },
+    meta: {},
+  },
+  'test',
+)
+let saved
+try {
+  saved = await actionSandbox.ASD.sidepanel.actions.saveHistory()
+} catch (_error) {
+  actionCrashed = true
+}
+assert(!actionCrashed, 'saveHistory must not throw when sanitizer missing')
+assert(saved == null, 'saveHistory must return null on sanitizer fail')
+assert(
+  actionSandbox.ASD.sidepanel.state.get().saveNotice === '保存失败：安全过滤模块不可用，请重新加载扩展后重试。',
+  'saveHistory notice: ' + actionSandbox.ASD.sidepanel.state.get().saveNotice,
+)
+
 if (errors.length) {
   console.error(JSON.stringify({ ok: false, errors, bytes: beforeBytes }, null, 2))
   process.exit(1)
 }
-console.log(JSON.stringify({ ok: true, bytes100: beforeBytes, evicted: 'Item 0', kept: extra.productName }))
+console.log(
+  JSON.stringify({
+    ok: true,
+    bytes100: beforeBytes,
+    evicted: 'Item 0',
+    kept: extra.productName,
+    sanitizerMissing: closedErr,
+    sanitizerMissingWrites: closed.setKeys,
+  }),
+)

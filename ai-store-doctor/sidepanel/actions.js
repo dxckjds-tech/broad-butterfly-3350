@@ -185,26 +185,43 @@
     const state = ns.sidepanel.state.get()
     if (!state.report || !ns.sidepanel.historyStore) return null
     const summary = state.report.summary || {}
-    const record = await ns.sidepanel.historyStore.put({
-      url: (state.fields && state.fields.url) || '',
-      productName:
-        (state.product && state.product.product && state.product.product.name) ||
-        summary.identity ||
-        '',
-      productIdentity: summary.identity || '',
-      healthScore: state.health ? state.health.total : 0,
-      healthDimensions: state.health ? state.health.dimensions : [],
-      confidence: summary.confidence || 0,
-      report: state.report,
-      product: state.product,
-      model: state.meta && state.meta.model,
-      provider: state.meta && state.meta.provider,
-      scoreVersion: state.health && state.health.scoreVersion,
-    })
-    ns.sidepanel.state.update({ saveNotice: '已保存到历史诊断' }, 'history:saved')
-    await refreshHistoryList()
-    ns.sidepanel.app.render()
-    return record
+    try {
+      const record = await ns.sidepanel.historyStore.put({
+        url: (state.fields && state.fields.url) || '',
+        productName:
+          (state.product && state.product.product && state.product.product.name) ||
+          summary.identity ||
+          '',
+        productIdentity: summary.identity || '',
+        healthScore: state.health ? state.health.total : 0,
+        healthDimensions: state.health ? state.health.dimensions : [],
+        confidence: summary.confidence || 0,
+        report: state.report,
+        product: state.product,
+        model: state.meta && state.meta.model,
+        provider: state.meta && state.meta.provider,
+        scoreVersion: state.health && state.health.scoreVersion,
+      })
+      ns.sidepanel.state.update({ saveNotice: '已保存到历史诊断' }, 'history:saved')
+      await refreshHistoryList()
+      ns.sidepanel.app.render()
+      return record
+    } catch (error) {
+      const code = error && error.message ? String(error.message) : String(error)
+      const notice =
+        code === 'SECURITY_SANITIZER_UNAVAILABLE'
+          ? '保存失败：安全过滤模块不可用，请重新加载扩展后重试。'
+          : '保存失败：' + code
+      ns.sidepanel.state.update({ saveNotice: notice }, 'history:save-fail')
+      if (ns.sidepanel.app && typeof ns.sidepanel.app.render === 'function') {
+        try {
+          ns.sidepanel.app.render()
+        } catch (_renderError) {
+          /* keep panel alive */
+        }
+      }
+      return null
+    }
   }
 
   async function viewHistory(id) {

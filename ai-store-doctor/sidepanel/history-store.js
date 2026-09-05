@@ -78,10 +78,10 @@
   }
 
   function sanitizeValue(value) {
-    if (ASD.sanitize && typeof ASD.sanitize.sanitizeCollected === 'function') {
-      return ASD.sanitize.sanitizeCollected(value)
+    if (!ASD.sanitize || typeof ASD.sanitize.sanitizeCollected !== 'function') {
+      throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
     }
-    return value
+    return ASD.sanitize.sanitizeCollected(value)
   }
 
   async function list() {
