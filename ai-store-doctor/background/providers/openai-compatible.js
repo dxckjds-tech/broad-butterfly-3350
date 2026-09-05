@@ -14,27 +14,86 @@
     return 'RESPONSE_ERROR'
   }
 
+  function contentTypeOf(rawContent) {
+    if (typeof rawContent === 'string') return 'string'
+    if (Array.isArray(rawContent)) return 'array'
+    if (rawContent == null) return 'empty'
+    return typeof rawContent
+  }
+
   function extractText(rawContent) {
     if (typeof rawContent === 'string') return rawContent.trim()
     if (!Array.isArray(rawContent)) return ''
     return rawContent
       .map(function (part) {
-        return (part && (part.text || part.content)) || ''
+        if (typeof part === 'string') return part
+        if (!part || typeof part !== 'object') return ''
+        const partType = String(part.type || '').toLowerCase()
+        if (partType === 'reasoning' || partType === 'thinking' || partType === 'thought') return ''
+        if (partType === 'text' || partType === 'output_text') return part.text || part.content || ''
+        return part.text || (typeof part.content === 'string' ? part.content : '')
       })
       .join('')
       .trim()
   }
 
-  function normalizeResponse(data) {
+  function extractFinalContent(data, message, choice) {
+    const fromMessage = extractText(message && message.content)
+    if (fromMessage) {
+      return { content: fromMessage, contentType: contentTypeOf(message.content), source: 'message.content' }
+    }
+    if (message && typeof message.output_text === 'string' && message.output_text.trim()) {
+      return { content: message.output_text.trim(), contentType: 'output_text', source: 'message.output_text' }
+    }
+    if (choice && typeof choice.text === 'string' && choice.text.trim()) {
+      return { content: choice.text.trim(), contentType: 'choice.text', source: 'choice.text' }
+    }
+    if (data && typeof data.output_text === 'string' && data.output_text.trim()) {
+      return { content: data.output_text.trim(), contentType: 'output_text', source: 'output_text' }
+    }
+    return { content: '', contentType: contentTypeOf(message && message.content), source: 'message.content' }
+  }
+
+  function objectKeys(value) {
+    if (!value || typeof value !== 'object') return []
+    return Object.keys(value).slice(0, 24)
+  }
+
+  function responseDebug(data, extras, extracted) {
+    const extra = extras || {}
     const choice = data && data.choices && data.choices[0]
     const message = (choice && choice.message) || {}
     return {
-      content: extractText(message.content),
-      reasoningContent: typeof message.reasoning_content === 'string' ? message.reasoning_content : '',
+      provider: extra.provider || extra.providerName || '',
+      model: (data && data.model) || extra.model || '',
+      httpStatus: extra.httpStatus != null ? extra.httpStatus : 200,
+      finishReason: (choice && choice.finish_reason) || '',
+      choicesCount: data && Array.isArray(data.choices) ? data.choices.length : 0,
+      contentType: extracted && extracted.contentType ? extracted.contentType : contentTypeOf(message.content),
+      contentLength: extracted && extracted.content ? extracted.content.length : 0,
+      hasReasoningContent: !!(message.reasoning_content || message.reasoning || message.thinking),
+      topLevelKeys: objectKeys(data),
+      messageKeys: objectKeys(message),
+    }
+  }
+
+  function normalizeResponse(data, extras) {
+    const choice = data && data.choices && data.choices[0]
+    const message = (choice && choice.message) || {}
+    const extracted = extractFinalContent(data, message, choice)
+    const reasoning =
+      typeof message.reasoning_content === 'string'
+        ? message.reasoning_content
+        : typeof message.reasoning === 'string'
+          ? message.reasoning
+          : ''
+    return {
+      content: extracted.content,
+      reasoningContent: reasoning,
       finishReason: (choice && choice.finish_reason) || '',
       usage: (data && data.usage) || null,
-      model: (data && data.model) || '',
-      raw: data,
+      model: (data && data.model) || (extras && extras.model) || '',
+      debug: responseDebug(data, extras, extracted),
     }
   }
 
@@ -116,9 +175,18 @@
         const sec = Number(retryAfter)
         error.retryAfterMs = Number.isFinite(sec) ? sec * 1000 : 15000
       }
+      error.responseDebug = responseDebug(data, {
+        httpStatus: response.status,
+        provider: opts.providerName,
+        model: opts.model,
+      })
       throw error
     }
-    return normalizeResponse(data)
+    return normalizeResponse(data, {
+      httpStatus: response.status,
+      provider: opts.providerName,
+      model: opts.model,
+    })
   }
 
   async function testConnection(opts) {
@@ -157,6 +225,9 @@
     testConnection: testConnection,
     listModels: listModels,
     normalizeResponse: normalizeResponse,
+    extractText: extractText,
+    extractFinalContent: extractFinalContent,
+    responseDebug: responseDebug,
     buildRequest: buildRequest,
     buildExtras: buildExtras,
     stripImageParts: stripImageParts,

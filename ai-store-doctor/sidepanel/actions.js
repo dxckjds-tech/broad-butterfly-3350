@@ -184,6 +184,7 @@
               orchestration: r.orchestration || null,
               collaboration: r.collaboration || [],
               payloadDebug: r.payloadDebug || (r.orchestration && r.orchestration.payload) || null,
+              responseDebug: r.responseDebug || null,
             },
           },
           'analyze:ok',
@@ -196,7 +197,7 @@
             : r.reason || '没有已配置且支持该任务能力的模型'
         }
         ns.sidepanel.state.update(
-          { error: reason, meta: { code: r?.code || 'AI_ERROR', payloadDebug: r?.payloadDebug || null } },
+          { error: reason, meta: { code: r?.code || 'AI_ERROR', payloadDebug: r?.payloadDebug || null, responseDebug: r?.responseDebug || null } },
           'analyze:fail',
         )
       }

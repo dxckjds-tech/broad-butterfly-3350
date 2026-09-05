@@ -68,6 +68,16 @@ const hiddenPw = extract('06-hidden-password.html', 'https://sample.made-in-chin
 assert(hiddenPw.product.product.name === 'LED Panel Light 60x60', '06 name')
 assert(!hiddenPw.loginRequired, '06 hidden password must not set loginRequired')
 
+const membercenter = extract(
+  '10-mic-membercenter-edit.html',
+  'https://membercenter.made-in-china.com/productmanage/product/edit?prodId=8823910',
+)
+assert(membercenter.product.product.name === 'Stainless Steel Ball Valve DN50 MIC Editor', '10 title')
+assert(/Ball Valves/.test(membercenter.product.product.category || ''), '10 category')
+assert(membercenter.product.debug.selectorHits.title, '10 title hit')
+assert(membercenter.product.debug.selectorHits.category, '10 category hit')
+assert(membercenter.window.ASD.productFields.qualityScore(membercenter.fields, membercenter.product) > 60, '10 score')
+
 const noRoot = extract('07-no-product-root.html', 'https://sample.made-in-china.com/help.html')
 assert(!noRoot.product.debug.productRootFound, '07 productRootFound must be false')
 assert(noRoot.product.debug.degraded, '07 degraded')

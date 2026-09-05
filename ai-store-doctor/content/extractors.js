@@ -154,15 +154,26 @@
       productLd.brand ||
       {}
 
-    const titleHit = ns.content.dom.firstMatchHit(root, map.title)
-    const titleEl = titleHit.el
-    hits.title = titleHit.selector
-    let name = clean(productLd.name || (titleEl && ns.content.dom.fieldValue(titleEl)))
+    const titleResolved =
+      ns.content.fieldMap && typeof ns.content.fieldMap.resolveValue === 'function'
+        ? ns.content.fieldMap.resolveValue(root, doc, 'title', { map: map })
+        : { value: '', source: null }
+    hits.title = titleResolved.source
+    let name = clean(titleResolved.value || productLd.name)
     if (listPage) name = null
+    const titleEl =
+      titleResolved.source && titleResolved.source.indexOf('json') !== 0 && titleResolved.source.indexOf('label:') !== 0
+        ? ns.content.dom.firstMatch(root, [titleResolved.source])
+        : null
 
     const product = bundle.product
     product.name = name || null
-    product.category = readMapped(root, map, 'category', hits) || null
+    const categoryResolved =
+      ns.content.fieldMap && typeof ns.content.fieldMap.resolveValue === 'function'
+        ? ns.content.fieldMap.resolveValue(root, doc, 'category', { map: map })
+        : { value: '', source: null }
+    hits.category = categoryResolved.source
+    product.category = categoryResolved.value || null
     product.model = readMapped(root, map, 'model') || clean(productLd.model) || null
     product.brand = readMapped(root, map, 'brand') || clean(typeof productLd.brand === 'string' ? productLd.brand : productLd.brand && productLd.brand.name) || null
     product.sku = readMapped(root, map, 'sku') || clean(productLd.sku || productLd.mpn) || null

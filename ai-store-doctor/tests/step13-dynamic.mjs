@@ -101,7 +101,11 @@ assert(case5Ms < 1500, 'case5 should finish quickly, took ' + case5Ms)
 assert(case5Out.product.debug.sampleCount <= 4, 'case5 extra samples: ' + case5Out.product.debug.sampleCount)
 assert(typeof case5Out.product.debug.readDurationMs === 'number', 'case5 readDurationMs')
 assert(typeof case5Out.product.debug.finalQualityScore === 'number', 'case5 finalQualityScore')
-assert(case5Out.product.debug.selectorHits && case5Out.product.debug.selectorHits.title === 'h1', 'case5 title hit: ' + JSON.stringify(case5Out.product.debug.selectorHits))
+assert(
+  case5Out.product.debug.selectorHits &&
+    (case5Out.product.debug.selectorHits.title === 'h1' || case5Out.product.debug.selectorHits.title === 'jsonld:name'),
+  'case5 title hit: ' + JSON.stringify(case5Out.product.debug.selectorHits),
+)
 assert(case5Out.product.debug.selectorHits.category === '.category-breadcrumb', 'case5 category hit')
 assert(
   case5Out.product.debug.selectorHits.productRoot === '.product-main' ||

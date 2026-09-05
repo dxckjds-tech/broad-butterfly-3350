@@ -56,7 +56,7 @@
     }
   }
 
-  function acceptParsed(task, raw, data, model, providerName, attempt) {
+  function acceptParsed(task, raw, data, model, providerName, attempt, responseDebug) {
     const parsed = validateTask(task, raw)
     if (!parsed.ok) {
       const error = new Error('SCHEMA_ERROR:' + (parsed.errors || []).join(';'))
@@ -79,6 +79,7 @@
       attempts: attempt + 1,
       schemaRepaired: parsed.repaired || [],
       finishReason: data && data.choices && data.choices[0] ? data.choices[0].finish_reason || '' : '',
+      responseDebug: responseDebug || null,
       _healthRecorded: false,
     }
   }
@@ -225,6 +226,13 @@
       error.code = classifyHttp(response.status, msg)
       throw error
     }
+    if (adapter && typeof adapter.normalizeResponse === 'function') {
+      return adapter.normalizeResponse(data, {
+        httpStatus: response.status,
+        provider: opts.providerName,
+        model: opts.model,
+      })
+    }
     const message = (data && data.choices && data.choices[0] && data.choices[0].message) || {}
     return {
       content: typeof message.content === 'string' ? message.content.trim() : '',
@@ -232,7 +240,6 @@
       finishReason: (data && data.choices && data.choices[0] && data.choices[0].finish_reason) || '',
       usage: data.usage || null,
       model: data.model || opts.model,
-      raw: data,
     }
   }
 
@@ -295,6 +302,7 @@
     let lastReason = '空内容'
     let lastFinishReason = ''
     let lastCode = 'RESPONSE_ERROR'
+    let lastDebug = null
     const deadline = Date.now() + (isConnect ? 25000 : isK3 ? 125000 : 55000)
     const maxAttempts = isConnect ? 2 : 3
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -355,27 +363,18 @@
           continue
         }
         error.code = error.code || 'CONNECTION_ERROR'
+        if (error.responseDebug) lastDebug = error.responseDebug
         throw error
       }
       clearTimeout(requestTimeout)
       const data = toLegacyData(normalized, model)
       lastFinishReason = normalized.finishReason || ''
+      lastDebug = normalized.debug || lastDebug
       if (lastFinishReason === 'length') lastCode = 'LENGTH_ERROR'
       const content = normalized.content || ''
       if (!content) {
-        const reasoning = String(normalized.reasoningContent || '').trim()
-        if (reasoning) {
-          const parsed = tryParseJson(reasoning)
-          if (parsed) {
-            try {
-              return acceptParsed(opts.task, parsed, data, model, providerName, attempt)
-            } catch (error) {
-              lastReason = error.schema ? error.message : lastReason
-              lastCode = error.schema ? 'SCHEMA_ERROR' : lastCode
-            }
-          }
-        }
         lastReason = lastFinishReason === 'length' ? '输出被截断' : '为空'
+        lastCode = lastFinishReason === 'length' ? 'LENGTH_ERROR' : 'RESPONSE_ERROR'
         continue
       }
       const parsed = tryParseJson(content)
@@ -385,7 +384,7 @@
         continue
       }
       try {
-        return acceptParsed(opts.task, parsed, data, model, providerName, attempt)
+        return acceptParsed(opts.task, parsed, data, model, providerName, attempt, normalized.debug)
       } catch (error) {
         if (error.schema) {
           lastReason = error.message
@@ -413,6 +412,7 @@
     )
     error.code = lastCode
     error.finishReason = lastFinishReason
+    error.responseDebug = lastDebug
     throw error
   }
 

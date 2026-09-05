@@ -61,6 +61,10 @@
             .join('') || '<p class="muted">无解释</p>'
         }</div>`
       : ''
+    const response = (meta && meta.responseDebug) || (d && d.response) || null
+    const responseCard = response
+      ? `<div class="card"><b>模型响应</b><p>provider：${esc(response.provider || '—')}</p><p>model：${esc(response.model || '—')}</p><p>httpStatus：${esc(response.httpStatus != null ? response.httpStatus : '—')}</p><p>finishReason：${esc(response.finishReason || '—')}</p><p>choicesCount：${esc(response.choicesCount != null ? response.choicesCount : '—')}</p><p>contentType：${esc(response.contentType || '—')}</p><p>contentLength：${esc(response.contentLength != null ? response.contentLength : '—')}</p><p>hasReasoningContent：${esc(!!response.hasReasoningContent)}</p><p>topLevelKeys：${esc((response.topLevelKeys || []).join(', ') || '—')}</p><p>messageKeys：${esc((response.messageKeys || []).join(', ') || '—')}</p></div>`
+      : ''
     const payload = (orch && orch.payload) || (d && d.payload) || (meta && meta.payloadDebug) || null
     const payloadCard = payload
       ? `<div class="card"><b>Payload 压缩</b><p>profile：${esc(payload.payloadProfile || '—')}</p><p>originalEstimatedTokens：${esc(payload.originalEstimatedTokens != null ? payload.originalEstimatedTokens : '—')}</p><p>finalEstimatedTokens：${esc(payload.finalEstimatedTokens != null ? payload.finalEstimatedTokens : '—')}</p><p>removedSections：${esc((payload.removedSections || []).join(', ') || '—')}</p><p>imageCount：${esc(payload.imageCountBefore != null ? payload.imageCountBefore : '—')} → ${esc(payload.imageCountAfter != null ? payload.imageCountAfter : '—')}</p></div>`
@@ -70,6 +74,7 @@
       : ''
     return (
       collectCompare +
+      responseCard +
       payloadCard +
       orchCard +
       verifyCard +

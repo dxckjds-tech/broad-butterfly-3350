@@ -176,6 +176,7 @@
             requestId: message.requestId || null,
             fieldsVersion: message.fieldsVersion || 0,
             payloadDebug: error.payloadDebug || null,
+            responseDebug: error.responseDebug || null,
           }
         }
       }
@@ -263,6 +264,7 @@
           requestId: message.requestId || null,
           fieldsVersion: message.fieldsVersion || 0,
           payloadDebug: error.payloadDebug || null,
+          responseDebug: error.responseDebug || null,
         }
       }
     }
