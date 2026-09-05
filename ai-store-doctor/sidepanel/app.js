@@ -103,6 +103,10 @@
         const healthNode = ns.sidepanel.render.health.mount(props)
         if (healthNode) c.insertBefore(healthNode, c.firstChild)
       }
+      if (props.tab === 0 && ns.sidepanel.render.compare) {
+        const compareNode = ns.sidepanel.render.compare.mount(props)
+        if (compareNode) c.appendChild(compareNode)
+      }
       if (raw.viewingHistory && ns.sidepanel.render.history) {
         const bar = ns.sidepanel.render.history.banner(raw.viewingHistory)
         if (bar) c.insertBefore(bar, c.firstChild)

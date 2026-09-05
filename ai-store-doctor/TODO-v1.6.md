@@ -28,7 +28,6 @@
 
 ## 不要在验收前开始
 
-- 健康评分、历史报告、当前内容 VS AI 建议
 - MutationObserver、Chrome Web Store 最终发布
 - CRM、询盘、SaaS
 - 修改 `SYSTEM_PROMPT` 既有事实约束

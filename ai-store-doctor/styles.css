@@ -75,3 +75,8 @@ pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;ba
 .badge-critical{background:var(--blocked-bg);color:var(--blocked);border:1px solid var(--blocked-border)}
 .hist-row{display:flex;flex-direction:column;gap:6px}
 .hist-banner{border-color:var(--teal-border);background:var(--teal-bg)}
+.compare-wrap{display:flex;flex-direction:column;gap:14px}
+.diff-add{background:var(--verified-bg);color:var(--verified)}
+.diff-del{background:var(--blocked-bg);color:var(--blocked);text-decoration:line-through}
+.diff-same{color:var(--text2)}
+.diff-tokens{line-height:1.7}
