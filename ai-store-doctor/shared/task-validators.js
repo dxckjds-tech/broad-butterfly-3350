@@ -42,6 +42,29 @@
     if (name === ns.taskTypes.RAW_JSON) return rawJson(raw)
     if (name === ns.taskTypes.MODEL_LIST) return rawJson(raw)
     if (name === ns.taskTypes.PRODUCT_DIAGNOSIS) return productDiagnosis(raw)
+    if (name === ns.taskTypes.EVIDENCE_ANALYSIS || name === 'evidence_analysis') {
+      if (!ns.orchestrationSchemas || typeof ns.orchestrationSchemas.normalizeEvidence !== 'function') {
+        return fail(['ORCHESTRATION_SCHEMA_UNAVAILABLE'])
+      }
+      return ns.orchestrationSchemas.normalizeEvidence(raw)
+    }
+    if (name === ns.taskTypes.DIAGNOSIS_REASONING || name === 'diagnosis_reasoning') {
+      if (!ns.orchestrationSchemas || typeof ns.orchestrationSchemas.normalizeDiagnosis !== 'function') {
+        return fail(['ORCHESTRATION_SCHEMA_UNAVAILABLE'])
+      }
+      return ns.orchestrationSchemas.normalizeDiagnosis(raw)
+    }
+    if (
+      name === ns.taskTypes.CONTENT_GENERATION ||
+      name === 'content_generation' ||
+      name === ns.taskTypes.DIAGNOSIS_AND_CONTENT ||
+      name === 'diagnosis_and_content'
+    ) {
+      if (!ns.orchestrationSchemas || typeof ns.orchestrationSchemas.normalizeContentStage !== 'function') {
+        return productDiagnosis(raw)
+      }
+      return ns.orchestrationSchemas.normalizeContentStage(raw)
+    }
     return productDiagnosis(raw)
   }
 
