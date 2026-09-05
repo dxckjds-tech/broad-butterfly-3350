@@ -18,6 +18,9 @@
     requestId: '',
     fieldsVersion: 0,
     health: null,
+    historyList: [],
+    viewingHistory: null,
+    saveNotice: '',
   }
 
   const listeners = []

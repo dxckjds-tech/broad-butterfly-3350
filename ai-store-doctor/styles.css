@@ -73,3 +73,5 @@ pre{white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;ba
 .badge-needs_improvement{background:var(--inferred-bg);color:var(--inferred);border:1px solid var(--inferred-border)}
 .badge-poor{background:#fff1e8;color:#b45309;border:1px solid #f3c9a5}
 .badge-critical{background:var(--blocked-bg);color:var(--blocked);border:1px solid var(--blocked-border)}
+.hist-row{display:flex;flex-direction:column;gap:6px}
+.hist-banner{border-color:var(--teal-border);background:var(--teal-bg)}

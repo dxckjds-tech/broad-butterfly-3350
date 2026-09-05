@@ -113,6 +113,14 @@ window.chrome = {
     },
   },
   storage: {
+    local: {
+      async get(keys) {
+        if (keys == null) throw new Error('get(null) forbidden')
+        return {}
+      },
+      async set() {},
+      async remove() {},
+    },
     sync: {
       get(_k, cb) {
         if (cb) cb({})

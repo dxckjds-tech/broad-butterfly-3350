@@ -23,7 +23,7 @@
   }
 
   function tabs(props) {
-    const x = ['概览', '商品真相', '关键词', '内容优化', '证据与调试']
+    const x = ['概览', '商品真相', '关键词', '内容优化', '历史', '证据与调试']
     document.getElementById('tabs').innerHTML = x
       .map(
         (n, i) =>
@@ -32,12 +32,59 @@
       .join('')
   }
 
+  function historyProps(state) {
+    const rec = state.viewingHistory
+    if (!rec) return state
+    const report = {
+      summary: rec.summary || {},
+      facts: rec.facts || [],
+      keywords: rec.keywords || {},
+      content: rec.content || {},
+      debug: {},
+    }
+    const health =
+      ASD.healthScore && rec.productSnapshot
+        ? ASD.healthScore.compute(rec.productSnapshot, report)
+        : {
+            total: rec.healthScore || 0,
+            level: 'UNKNOWN',
+            label: '',
+            dimensions: rec.healthDimensions || [],
+            topIssues: [],
+            topActions: [],
+          }
+    return Object.assign({}, state, {
+      report: report,
+      health: health,
+      product: rec.productSnapshot,
+      fields: {
+        title: rec.productSnapshot && rec.productSnapshot.current && rec.productSnapshot.current.title,
+        keywords: rec.productSnapshot && rec.productSnapshot.current && rec.productSnapshot.current.keywords,
+        description: rec.productSnapshot && rec.productSnapshot.current && rec.productSnapshot.current.description,
+        url: rec.url,
+      },
+      meta: { provider: rec.provider, model: rec.model },
+    })
+  }
+
+  function paintView(c, view, props) {
+    const out = typeof view === 'function' ? view(props) : null
+    if (out && out.nodeType) c.replaceChildren(out)
+    else c.innerHTML = out || ''
+  }
+
   function render() {
     captureManualDraft()
-    const props = ns.sidepanel.state.get()
+    const raw = ns.sidepanel.state.get()
+    const props = historyProps(raw)
     summary(props)
     tabs(props)
     const c = document.getElementById('content')
+    const historyTab = 4
+    if (raw.tab === historyTab && ns.sidepanel.render.history) {
+      paintView(c, ns.sidepanel.render.history.listView, raw)
+      return
+    }
     if (!props.report)
       c.innerHTML = props.fields
         ? '<div class="card">商品 URL 数据已读取。点击下方按钮调用所选 AI 完成诊断。</div>'
@@ -48,13 +95,17 @@
         ns.sidepanel.render.truth,
         ns.sidepanel.render.keywords,
         ns.sidepanel.render.content,
+        ns.sidepanel.render.history && ns.sidepanel.render.history.listView,
         ns.sidepanel.render.debug,
       ]
-      const html = views[props.tab](props)
-      c.innerHTML = html
+      paintView(c, views[props.tab], props)
       if (props.tab === 0 && ns.sidepanel.render.health) {
         const healthNode = ns.sidepanel.render.health.mount(props)
         if (healthNode) c.insertBefore(healthNode, c.firstChild)
+      }
+      if (raw.viewingHistory && ns.sidepanel.render.history) {
+        const bar = ns.sidepanel.render.history.banner(raw.viewingHistory)
+        if (bar) c.insertBefore(bar, c.firstChild)
       }
     }
   }
@@ -64,7 +115,12 @@
   document.getElementById('panel').addEventListener('click', async (e) => {
     const x = e.target.closest('[data-action]')
     if (!x) return
-    if (x.dataset.action === 'tab') ns.sidepanel.state.update({ tab: Number(x.dataset.i) }, 'tab')
+    if (x.dataset.action === 'tab') {
+      ns.sidepanel.state.update({ tab: Number(x.dataset.i) }, 'tab')
+      if (Number(x.dataset.i) === 4 && ns.sidepanel.actions.refreshHistoryList) {
+        await ns.sidepanel.actions.refreshHistoryList()
+      }
+    }
     else if (x.dataset.action === 'subtab') ns.sidepanel.state.update({ subtab: Number(x.dataset.i) }, 'subtab')
     else if (x.dataset.action === 'settings') {
       chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' })
@@ -113,6 +169,21 @@
     } else if (x.dataset.action === 'copy') {
       await navigator.clipboard.writeText(x.dataset.text)
       x.textContent = '已复制'
+      return
+    } else if (x.dataset.action === 'save-history') {
+      await ns.sidepanel.actions.saveHistory()
+      return
+    } else if (x.dataset.action === 'history-view') {
+      await ns.sidepanel.actions.viewHistory(x.dataset.id)
+      return
+    } else if (x.dataset.action === 'history-delete') {
+      await ns.sidepanel.actions.deleteHistory(x.dataset.id)
+      return
+    } else if (x.dataset.action === 'history-reanalyze') {
+      await ns.sidepanel.actions.reanalyzeHistory(x.dataset.id)
+      return
+    } else if (x.dataset.action === 'history-back') {
+      ns.sidepanel.actions.backFromHistory()
       return
     }
     render()

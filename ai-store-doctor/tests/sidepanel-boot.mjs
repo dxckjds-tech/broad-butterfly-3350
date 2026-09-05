@@ -19,6 +19,16 @@ const chrome = {
       return { ok: false, reason: 'UNKNOWN_MESSAGE' }
     },
   },
+  storage: {
+    local: {
+      async get(keys) {
+        if (keys == null) throw new Error('get(null) forbidden')
+        return {}
+      },
+      async set() {},
+      async remove() {},
+    },
+  },
 }
 
 const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
@@ -49,7 +59,7 @@ const content = dom.window.document.getElementById('content').textContent
 const tabs = [...dom.window.document.querySelectorAll('.tab-btn')].map((n) => n.textContent)
 if (!summary.includes('读取商品 URL')) throw new Error('empty summary mismatch: ' + summary)
 if (!content.includes('请粘贴商品 URL')) throw new Error('empty content mismatch: ' + content)
-if (tabs.join(',') !== '概览,商品真相,关键词,内容优化,证据与调试') throw new Error('tabs mismatch ' + tabs.join(','))
+if (tabs.join(',') !== '概览,商品真相,关键词,内容优化,历史,证据与调试') throw new Error('tabs mismatch ' + tabs.join(','))
 const settings = dom.window.document.getElementById('scenarioToggle')
 if (settings.textContent !== 'API 设置') throw new Error('settings label mismatch')
 const analyze = dom.window.document.querySelector('[data-action="analyze"]')

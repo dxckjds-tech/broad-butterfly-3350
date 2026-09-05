@@ -38,6 +38,8 @@
         product: product || null,
         report: null,
         health: null,
+        viewingHistory: null,
+        saveNotice: '',
         error: '',
         fieldsVersion: (current.fieldsVersion || 0) + 1,
       },
@@ -169,5 +171,88 @@
     }
   }
 
-  ns.sidepanel.actions = { readUrl, read, analyze, previewActiveUrl, setAnalyzeBusy, nextId, guard }
+  async function refreshHistoryList() {
+    if (!ns.sidepanel.historyStore) return []
+    const rows = await ns.sidepanel.historyStore.list()
+    rows.sort(function (a, b) {
+      return String(b.createdAt || '') < String(a.createdAt || '') ? -1 : String(b.createdAt || '') > String(a.createdAt || '') ? 1 : 0
+    })
+    ns.sidepanel.state.update({ historyList: rows }, 'history:list')
+    return rows
+  }
+
+  async function saveHistory() {
+    const state = ns.sidepanel.state.get()
+    if (!state.report || !ns.sidepanel.historyStore) return null
+    const summary = state.report.summary || {}
+    const record = await ns.sidepanel.historyStore.put({
+      url: (state.fields && state.fields.url) || '',
+      productName:
+        (state.product && state.product.product && state.product.product.name) ||
+        summary.identity ||
+        '',
+      productIdentity: summary.identity || '',
+      healthScore: state.health ? state.health.total : 0,
+      healthDimensions: state.health ? state.health.dimensions : [],
+      confidence: summary.confidence || 0,
+      report: state.report,
+      product: state.product,
+      model: state.meta && state.meta.model,
+      provider: state.meta && state.meta.provider,
+      scoreVersion: state.health && state.health.scoreVersion,
+    })
+    ns.sidepanel.state.update({ saveNotice: '已保存到历史诊断' }, 'history:saved')
+    await refreshHistoryList()
+    ns.sidepanel.app.render()
+    return record
+  }
+
+  async function viewHistory(id) {
+    const record = await ns.sidepanel.historyStore.get(id)
+    if (!record) return
+    ns.sidepanel.state.update({ viewingHistory: record, tab: 0, saveNotice: '' }, 'history:view')
+    ns.sidepanel.app.render()
+  }
+
+  function backFromHistory() {
+    ns.sidepanel.state.update({ viewingHistory: null }, 'history:back')
+    ns.sidepanel.app.render()
+  }
+
+  async function deleteHistory(id) {
+    await ns.sidepanel.historyStore.remove(id)
+    const state = ns.sidepanel.state.get()
+    if (state.viewingHistory && state.viewingHistory.id === id) {
+      ns.sidepanel.state.update({ viewingHistory: null }, 'history:deleted-open')
+    }
+    await refreshHistoryList()
+    ns.sidepanel.app.render()
+  }
+
+  async function reanalyzeHistory(id) {
+    const record = await ns.sidepanel.historyStore.get(id)
+    if (!record) return
+    ns.sidepanel.state.update({ viewingHistory: null, tab: 0, saveNotice: '' }, 'history:reanalyze')
+    if (record.url) {
+      document.getElementById('productUrl').value = record.url
+      await readUrl(record.url)
+      await analyze()
+    }
+  }
+
+  ns.sidepanel.actions = {
+    readUrl,
+    read,
+    analyze,
+    previewActiveUrl,
+    setAnalyzeBusy,
+    nextId,
+    guard,
+    saveHistory,
+    refreshHistoryList,
+    viewHistory,
+    backFromHistory,
+    deleteHistory,
+    reanalyzeHistory,
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

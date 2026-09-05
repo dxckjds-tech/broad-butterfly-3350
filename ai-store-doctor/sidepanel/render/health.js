@@ -63,6 +63,12 @@
             }),
           )
         : null,
+      el(
+        'div',
+        { class: 'card' },
+        el('button', { class: 'btn-outline', 'data-action': 'save-history', text: '保存诊断' }),
+        props.saveNotice ? el('p', { class: 'success', text: props.saveNotice }) : null,
+      ),
     )
   }
 
