@@ -126,9 +126,29 @@
 
   function extractOne(doc) {
     const bundle = ns.productFields.emptyBundle()
-    const site = ns.content.fieldMap.detectSite(location.hostname)
-    const map = ns.content.fieldMap.mapFor(site)
+    const hostname = (function () {
+      try {
+        return (doc && doc.defaultView && doc.defaultView.location && doc.defaultView.location.hostname) || location.hostname
+      } catch (e) {
+        return location.hostname
+      }
+    })()
+    const pathname = (function () {
+      try {
+        return (doc && doc.defaultView && doc.defaultView.location && doc.defaultView.location.pathname) || location.pathname
+      } catch (e2) {
+        return location.pathname
+      }
+    })()
+    const profileInfo =
+      ns.content.fieldMap && typeof ns.content.fieldMap.detectPageProfile === 'function'
+        ? ns.content.fieldMap.detectPageProfile(hostname, pathname)
+        : { id: ns.content.fieldMap.detectSite(hostname), family: ns.content.fieldMap.detectSite(hostname) }
+    const site = profileInfo.family || profileInfo.id
+    const profile = profileInfo.id || site
+    const map = ns.content.fieldMap.mapFor(profile)
     bundle.debug.site = site
+    bundle.debug.pageProfile = profile
 
     const hits = emptyHits()
     bundle.debug.selectorHits = hits
@@ -141,7 +161,7 @@
       return bundle
     }
 
-    const listPage = ns.content.dom.looksLikeProductList(root)
+    const listPage = ns.content.dom.looksLikeProductList(root, profile)
     const jsonLd = parseJsonLd(doc)
     const productLd =
       jsonLd.find(isProductType) ||
@@ -156,10 +176,10 @@
 
     const titleResolved =
       ns.content.fieldMap && typeof ns.content.fieldMap.resolveValue === 'function'
-        ? ns.content.fieldMap.resolveValue(root, doc, 'title', { map: map })
+        ? ns.content.fieldMap.resolveValue(root, doc, 'title', { map: map, profile: profile, site: profile })
         : { value: '', source: null }
     hits.title = titleResolved.source
-    let name = clean(titleResolved.value || productLd.name)
+    let name = clean(titleResolved.value || (profile === 'mic-membercenter-edit' ? '' : productLd.name))
     if (listPage) name = null
     const titleEl =
       titleResolved.source && titleResolved.source.indexOf('json') !== 0 && titleResolved.source.indexOf('label:') !== 0
@@ -170,10 +190,19 @@
     product.name = name || null
     const categoryResolved =
       ns.content.fieldMap && typeof ns.content.fieldMap.resolveValue === 'function'
-        ? ns.content.fieldMap.resolveValue(root, doc, 'category', { map: map })
+        ? ns.content.fieldMap.resolveValue(root, doc, 'category', { map: map, profile: profile, site: profile })
         : { value: '', source: null }
     hits.category = categoryResolved.source
     product.category = categoryResolved.value || null
+    if (categoryResolved.hit && (categoryResolved.hit.path || categoryResolved.hit.id)) {
+      product.categoryMeta = {
+        value: categoryResolved.hit.value || product.category,
+        path: categoryResolved.hit.path || categoryResolved.value || '',
+        id: categoryResolved.hit.id || '',
+        sourceType: categoryResolved.hit.sourceType || '',
+        confidence: categoryResolved.hit.confidence || 0,
+      }
+    }
     product.model = readMapped(root, map, 'model') || clean(productLd.model) || null
     product.brand = readMapped(root, map, 'brand') || clean(typeof productLd.brand === 'string' ? productLd.brand : productLd.brand && productLd.brand.name) || null
     product.sku = readMapped(root, map, 'sku') || clean(productLd.sku || productLd.mpn) || null
@@ -225,8 +254,9 @@
     bundle.current.description = product.description
 
     const filled = ns.productFields.countProductFields(product)
-    const budget = filled >= 8 ? 800 : filled >= 4 ? 2000 : 4000
+    const budget = filled >= 8 ? 400 : filled >= 4 ? 800 : 1200
     bundle.fallbackText = clean(root.textContent).slice(0, budget)
+    bundle.debug.fallbackProvenance = { bounded: true, maxChars: budget, confidence: 35, sourceType: 'fallback' }
     const rawImages = ns.content.dom.collectImageMeta(doc, root, titleEl)
     const productWords = unique(
       [product.name, product.brand, product.model]
@@ -249,6 +279,30 @@
         height: img.height,
       }
     })
+
+    const keywordResolved =
+      ns.content.fieldMap && typeof ns.content.fieldMap.resolveValue === 'function'
+        ? ns.content.fieldMap.resolveValue(root, doc, 'keywords', { map: map, profile: profile, site: profile })
+        : { value: '', source: null, hit: null }
+    if ((!product.keywords || !product.keywords.length) && keywordResolved.value) {
+      product.keywords = unique(
+        String(keywordResolved.value)
+          .split(/[,，;；\n]/)
+          .map(clean)
+          .filter(Boolean),
+      )
+      hits.keywords = keywordResolved.source
+    }
+
+    const provenance = {
+      productName: titleResolved.hit || { tier: titleResolved.stage, selector: titleResolved.source, confidence: titleResolved.value ? 80 : 0 },
+      category: categoryResolved.hit || { tier: categoryResolved.stage, selector: categoryResolved.source, confidence: categoryResolved.value ? 80 : 0 },
+      keywords: keywordResolved.hit || { tier: '', selector: hits.keywords, confidence: product.keywords.length ? 70 : 0 },
+    }
+    bundle.fieldProvenance = ns.fieldProvenance && typeof ns.fieldProvenance.summarize === 'function'
+      ? ns.fieldProvenance.summarize(provenance)
+      : provenance
+    bundle.debug.fieldProvenance = bundle.fieldProvenance
 
     bundle.debug.completeProduct = !listPage && !!(product.name && (product.keywords.length || product.specifications.length || product.sku || product.description))
     bundle.debug.degraded = listPage || !bundle.debug.completeProduct

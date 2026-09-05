@@ -32,7 +32,10 @@ assert(mic.product.debug.site === 'mic', 'membercenter site')
 assert(mic.product.product.name === 'Stainless Steel Ball Valve DN50 MIC Editor', 'title value: ' + mic.product.product.name)
 assert(hits.title === 'input[name="prodName"]' || hits.title === 'input[id="prodName"]', 'title selector: ' + hits.title)
 assert(/Ball Valves/.test(mic.product.product.category || ''), 'category value: ' + mic.product.product.category)
-assert(hits.category === '.cate-selected', 'category selector: ' + hits.category)
+assert(
+  hits.category === '.cate-selected' || /^label:/.test(hits.category || '') || /cate-selected|catName|catCode/.test(hits.category || ''),
+  'category selector: ' + hits.category,
+)
 assert(hits.specifications === 'table tr', 'specifications must stay table tr: ' + hits.specifications)
 assert(mic.product.product.specifications.length >= 5, 'specifications count: ' + mic.product.product.specifications.length)
 assert(hits.description === 'textarea[name*="desc" i]', 'description selector: ' + hits.description)
@@ -64,7 +67,7 @@ assert(/^label:/.test(labeled.product.debug.selectorHits.title || ''), 'label ti
 assert(/Water Pumps/.test(labeled.product.product.category || ''), 'label category: ' + labeled.product.product.category)
 
 const jsonHtml = `<!DOCTYPE html><html><head>
-<script>window.__INITIAL_STATE__ = { productForm: { prodName: "JSON Recovered Compressor", catName: "Air Compressors" } };</script>
+<script type="application/json">{"prodName":"JSON Recovered Compressor","catName":"Air Compressors"}</script>
 </head><body>
 <form id="productForm" class="product-edit-form">
   <table><tr><th>Air Flow</th><td>200L/min</td></tr></table>

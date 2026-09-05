@@ -128,7 +128,9 @@
     '[role="main"]',
     '#content',
     '.main-content',
-    'form',
+    'form:has(textarea)',
+    'form:has(table)',
+    'form:has(input[name*="prod" i])',
   ]
 
   function hostOf(doc) {
@@ -144,9 +146,32 @@
     }
   }
 
+  function pathOf(doc) {
+    try {
+      if (doc && doc.defaultView && doc.defaultView.location) return doc.defaultView.location.pathname
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      return location.pathname
+    } catch (e2) {
+      return ''
+    }
+  }
+
+  function pageProfileOf(doc) {
+    if (ns.content.fieldMap && typeof ns.content.fieldMap.detectPageProfile === 'function') {
+      return ns.content.fieldMap.detectPageProfile(hostOf(doc), pathOf(doc)).id
+    }
+    if (ns.content.fieldMap && typeof ns.content.fieldMap.detectSite === 'function') {
+      return ns.content.fieldMap.detectSite(hostOf(doc), pathOf(doc))
+    }
+    return 'generic'
+  }
+
   function rootSelectors(doc) {
     if (ns.content.fieldMap && typeof ns.content.fieldMap.rootsFor === 'function') {
-      return ns.content.fieldMap.rootsFor(ns.content.fieldMap.detectSite(hostOf(doc)))
+      return ns.content.fieldMap.rootsFor(pageProfileOf(doc))
     }
     return FALLBACK_ROOT_SELECTORS
   }
@@ -169,14 +194,16 @@
     return findProductRootHit(doc).el
   }
 
-  function looksLikeProductList(root) {
+  function looksLikeProductList(root, profile) {
     if (!root) return false
+    if (profile === 'mic-membercenter-edit') return false
     const heading = root.querySelector('h1,h2')
     if (heading && /列表|list|catalog|search results/i.test(heading.textContent || '')) return true
     const headers = Array.from(root.querySelectorAll('th')).map(function (th) {
       return clean(th.textContent)
     })
-    if (headers.indexOf('操作') !== -1 || headers.indexOf('状态') !== -1) return true
+    if (profile === 'mic-membercenter-list' && (headers.indexOf('操作') !== -1 || headers.indexOf('状态') !== -1)) return true
+    if (headers.indexOf('操作') !== -1 && headers.indexOf('产品名称') !== -1) return true
     if (root.querySelector('aside') && /草稿|已发布|全部商品/.test(root.textContent || '')) return true
     return false
   }

@@ -3,7 +3,9 @@
   const ns = (root.ASD = root.ASD || {})
   ns.content = ns.content || {}
 
-  const PRODUCT_ROOT = [
+  const PRODUCT_CONTROLS = 'form:has(textarea),form:has(table),form:has(input[name*="prod" i]),form:has(input[name*="product" i]),form:has(input[name*="subject" i]),form:has(input[name="prodName"])'
+
+  const PRODUCT_ROOT_SAFE = [
     '#productForm',
     '#prodEditForm',
     'form.product-edit-form',
@@ -23,7 +25,18 @@
     '[role="main"]',
     '#content',
     '.main-content',
-    'form',
+    PRODUCT_CONTROLS,
+  ]
+
+  const MEMBERCENTER_ROOT = [
+    '#productForm',
+    '#prodEditForm',
+    'form.product-edit-form',
+    'form[id*="product" i]',
+    'form[id*="prod" i]',
+    '.product-edit-form',
+    '[class*="product-edit" i]',
+    PRODUCT_CONTROLS,
   ]
 
   const TITLE_INPUTS = [
@@ -48,7 +61,8 @@
     'textarea[name*="title" i]',
   ]
 
-  const TITLE_FALLBACK = ['[class*="product-name" i]', '[class*="proName" i]', 'h1']
+  const TITLE_FALLBACK_FRONT = ['[class*="product-name" i]', '[class*="proName" i]', 'h1']
+  const TITLE_FALLBACK_NONE = []
 
   const CATEGORY_SELECTED = [
     '.cate-selected',
@@ -82,7 +96,7 @@
     'input[type="hidden"][name="catCode"]',
   ]
 
-  const CATEGORY_TEXT = [
+  const CATEGORY_TEXT_FRONT = [
     '.category-breadcrumb',
     '[class*="breadcrumb" i]',
     '#category-path',
@@ -91,16 +105,13 @@
     '[class*="cate-path" i]',
   ]
 
-  const TITLE_LABELS = [/产品名称/, /商品名称/, /商品标题/, /产品标题/, /product\s*name/i, /^title$/i]
-  const CATEGORY_LABELS = [/产品目录/, /商品分类/, /产品分类/, /已选分类/, /category/i, /catalogue/i]
-
   const TITLE_JSON_KEYS = ['prodName', 'productName', 'productNameEn', 'enName', 'comName', 'subject', 'goodsName', 'title']
   const CATEGORY_JSON_KEYS = ['catName', 'categoryName', 'prodCatName', 'cateName', 'selectedCategory']
-  const STATE_NAMES = ['__INITIAL_STATE__', '__PRELOADED_STATE__', 'pageData', 'productData', 'productForm']
+  const KEYWORD_JSON_KEYS = ['keywords', 'keyword', 'searchTerms']
 
   const GENERIC_FIELDS = {
-    title: TITLE_INPUTS.concat(TITLE_FALLBACK),
-    category: CATEGORY_SELECTED.concat(CATEGORY_CONTROLS).concat(CATEGORY_HIDDEN).concat(CATEGORY_TEXT),
+    title: TITLE_INPUTS.concat(TITLE_FALLBACK_FRONT),
+    category: CATEGORY_SELECTED.concat(CATEGORY_CONTROLS).concat(CATEGORY_HIDDEN).concat(CATEGORY_TEXT_FRONT),
     keywords: [
       '.keyword-tag',
       '[data-field="keywords"] .tag',
@@ -128,45 +139,78 @@
     companyProfile: ['[class*="company-profile" i]', '[class*="company-info" i]', '[class*="supplier-info" i]'],
   }
 
+  const MEMBERCENTER_FIELDS = Object.assign({}, GENERIC_FIELDS, {
+    title: TITLE_INPUTS.slice(),
+    category: CATEGORY_SELECTED.concat(CATEGORY_CONTROLS).concat(CATEGORY_HIDDEN),
+    keywords: [
+      'input[name*="keyword" i]',
+      'textarea[name*="keyword" i]',
+      '.keyword-tag',
+      '[data-field="keywords"] .tag',
+      '[data-field="keywords"] span',
+      '.sr-keyword',
+    ],
+  })
+
   function pack(fields, roots) {
     return Object.assign({ productRoot: roots.slice() }, fields)
   }
 
-  const GENERIC = pack(GENERIC_FIELDS, PRODUCT_ROOT)
-  const MIC = pack(
-    Object.assign({}, GENERIC_FIELDS, {
-      title: TITLE_INPUTS.concat(TITLE_FALLBACK),
-      category: CATEGORY_SELECTED.concat(CATEGORY_CONTROLS).concat(CATEGORY_HIDDEN).concat(CATEGORY_TEXT),
-      keywords: ['.keyword-tag', '[data-field="keywords"] .tag', '[data-field="keywords"] span', '.sr-keyword'].concat(
-        GENERIC_FIELDS.keywords,
-      ),
-    }),
-    PRODUCT_ROOT,
-  )
+  const GENERIC = pack(GENERIC_FIELDS, PRODUCT_ROOT_SAFE)
+  const MIC_DETAIL = pack(GENERIC_FIELDS, PRODUCT_ROOT_SAFE)
+  const MIC_EDIT = pack(MEMBERCENTER_FIELDS, MEMBERCENTER_ROOT)
+  const MIC_LIST = pack(GENERIC_FIELDS, ['main', '[role="main"]', '.product-list', '#content'])
   const VEMIC = pack(
     Object.assign({}, GENERIC_FIELDS, {
-      title: ['input[name="subject"]', '#productName', 'input[name*="productName" i]'].concat(TITLE_INPUTS).concat(TITLE_FALLBACK),
+      title: ['input[name="subject"]', '#productName', 'input[name*="productName" i]'].concat(TITLE_INPUTS).concat(TITLE_FALLBACK_FRONT),
       keywords: ['input[name="keywords"]', 'input[name*="keyword" i]'].concat(GENERIC_FIELDS.keywords),
     }),
-    PRODUCT_ROOT,
+    PRODUCT_ROOT_SAFE,
   )
 
   const SITES = {
-    'made-in-china.com': MIC,
+    'made-in-china.com': MIC_DETAIL,
     'vemic.com': VEMIC,
     generic: GENERIC,
   }
 
-  function detectSite(hostname) {
+  function familyOf(hostname) {
     const host = String(hostname || '').toLowerCase()
     if (host === 'vemic.com' || host.endsWith('.vemic.com')) return 'vemic'
     if (host === 'made-in-china.com' || host.endsWith('.made-in-china.com')) return 'mic'
     return 'generic'
   }
 
+  function detectPageProfile(hostname, pathname) {
+    const family = familyOf(hostname)
+    const path = String(pathname || '').toLowerCase()
+    if (family === 'vemic') return { id: 'vemic', family: 'vemic' }
+    if (family === 'mic') {
+      const member = /membercenter/.test(String(hostname || '').toLowerCase()) || /\/productmanage|\/vo\/|\/virtualoffice/.test(path)
+      if (member) {
+        if (/\/(list|manage|search)|productlist|prodlist/.test(path) && !/edit|update|modify/.test(path)) {
+          return { id: 'mic-membercenter-list', family: 'mic' }
+        }
+        return { id: 'mic-membercenter-edit', family: 'mic' }
+      }
+      if (/\/product\//.test(path) || /product-detail|prod-detail/.test(path)) return { id: 'mic-detail', family: 'mic' }
+      return { id: 'mic-detail', family: 'mic' }
+    }
+    return { id: 'generic', family: 'generic' }
+  }
+
+  function detectSite(hostname, pathname) {
+    if (arguments.length > 1 || (typeof hostname === 'string' && hostname.indexOf('/') !== -1)) {
+      return detectPageProfile(hostname, pathname).id
+    }
+    return familyOf(hostname)
+  }
+
   function sitePack(site) {
     if (site === 'vemic') return VEMIC
-    if (site === 'mic') return MIC
+    if (site === 'mic-membercenter-edit') return MIC_EDIT
+    if (site === 'mic-membercenter-list') return MIC_LIST
+    if (site === 'mic-detail' || site === 'mic') return MIC_DETAIL
     return GENERIC
   }
 
@@ -180,294 +224,79 @@
   }
 
   function rootsFor(site) {
-    return (sitePack(site).productRoot || PRODUCT_ROOT).slice()
+    return (sitePack(site).productRoot || PRODUCT_ROOT_SAFE).slice()
   }
 
-  function clean(value) {
-    if (ns.content.dom && typeof ns.content.dom.clean === 'function') return ns.content.dom.clean(value)
-    return String(value || '').replace(/\s+/g, ' ').trim()
+  function jsonKeysFor(field) {
+    if (field === 'title' || field === 'productName' || field === 'name') return TITLE_JSON_KEYS
+    if (field === 'category') return CATEGORY_JSON_KEYS
+    if (field === 'keywords') return KEYWORD_JSON_KEYS
+    return []
   }
 
-  function fieldValue(el) {
-    if (ns.content.dom && typeof ns.content.dom.fieldValue === 'function') return ns.content.dom.fieldValue(el)
-    if (!el) return ''
-    const tag = String(el.tagName || '').toUpperCase()
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return clean(el.value)
-    return clean(el.textContent)
-  }
-
-  function isWeakTitle(value) {
-    const text = clean(value)
-    if (!text || text.length < 2) return true
-    return /^(编辑|发布|添加)?(商品|产品|产品信息|商品信息)?$|^(编辑商品|发布产品|添加产品|product\s*edit|edit\s*product)$/i.test(text)
-  }
-
-  function isWeakCategory(value) {
-    const text = clean(value)
-    if (!text) return true
-    return /^(请选择|选择分类|选择目录|select|n\/?a|-)$/i.test(text)
-  }
-
-  function isWeak(field, value) {
-    return field === 'category' ? isWeakCategory(value) : field === 'title' ? isWeakTitle(value) : !clean(value)
-  }
-
-  function firstFilled(root, selectors) {
-    if (!root) return { el: null, selector: null, value: '' }
-    const list = selectors || []
-    for (let i = 0; i < list.length; i += 1) {
-      try {
-        const el = root.querySelector(list[i])
-        const value = fieldValue(el)
-        if (el && value) return { el: el, selector: list[i], value: value }
-      } catch (e) {
-        /* invalid selector */
-      }
-    }
-    return { el: null, selector: null, value: '' }
-  }
-
-  function controlFromLabel(root, label) {
-    if (!label) return null
-    if (label.control && root.contains(label.control)) return label.control
-    const htmlFor = label.getAttribute && label.getAttribute('for')
-    if (htmlFor) {
-      try {
-        const linked = root.querySelector('#' + CSS.escape(htmlFor))
-        if (linked) return linked
-      } catch (e) {
-        const fallback = root.querySelector('[id="' + htmlFor + '"]')
-        if (fallback) return fallback
-      }
-    }
-    const nested = label.querySelector && label.querySelector('input,textarea,select')
-    if (nested) return nested
-    let sib = label.nextElementSibling
-    while (sib) {
-      if (/^(INPUT|TEXTAREA|SELECT)$/i.test(sib.tagName)) return sib
-      const child = sib.querySelector && sib.querySelector('input,textarea,select')
-      if (child) return child
-      if (sib.matches && sib.matches('.cate-selected,.selected-category,[class*="selected-cate" i]')) return sib
-      sib = sib.nextElementSibling
-    }
-    const group = label.closest && label.closest('.form-item,.form-group,.field,tr,li,div')
-    if (group && group !== root) {
-      return (
-        group.querySelector('input,textarea,select,.cate-selected,.selected-category,[class*="selected-cate" i]') || null
-      )
-    }
-    return null
-  }
-
-  function findByLabel(root, patterns) {
-    if (!root) return { el: null, selector: null, value: '' }
-    const nodes = Array.from(root.querySelectorAll('label,.form-label,.field-label,th,dt,[class*="label" i]'))
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]
-      const nested = node.querySelector && node.querySelector('input,textarea,select')
-      const text = clean(String(node.textContent || '').replace(fieldValue(nested), ''))
-      if (!text || text.length > 48) continue
-      const matched = patterns.some(function (re) {
-        return re.test(text)
-      })
-      if (!matched) continue
-      const el = controlFromLabel(root, node)
-      const value = fieldValue(el)
-      if (el && value) return { el: el, selector: 'label:' + text, value: value }
-    }
-    return { el: null, selector: null, value: '' }
-  }
-
-  function parseBalancedObject(text, start) {
-    if (!text || text.charAt(start) !== '{') return null
-    let depth = 0
-    let inStr = false
-    let quote = ''
-    let escape = false
-    for (let i = start; i < text.length; i += 1) {
-      const ch = text.charAt(i)
-      if (inStr) {
-        if (escape) escape = false
-        else if (ch === '\\') escape = true
-        else if (ch === quote) inStr = false
-        continue
-      }
-      if (ch === '"' || ch === "'") {
-        inStr = true
-        quote = ch
-        continue
-      }
-      if (ch === '{') depth += 1
-      else if (ch === '}') {
-        depth -= 1
-        if (depth === 0) {
-          try {
-            return JSON.parse(text.slice(start, i + 1))
-          } catch (e) {
-            return null
-          }
-        }
-      }
-    }
-    return null
-  }
-
-  function walkKeys(obj, keys, depth) {
-    if (!obj || typeof obj !== 'object' || depth > 6) return { value: '', key: '' }
-    for (let i = 0; i < keys.length; i += 1) {
-      const key = keys[i]
-      if (typeof obj[key] === 'string' && obj[key].trim()) return { value: obj[key].trim(), key: key }
-      if (obj[key] && typeof obj[key] === 'object' && typeof obj[key].name === 'string' && obj[key].name.trim()) {
-        return { value: obj[key].name.trim(), key: key + '.name' }
-      }
-    }
-    const children = Array.isArray(obj) ? obj : Object.keys(obj).map(function (k) { return obj[k] })
-    for (let j = 0; j < children.length; j += 1) {
-      const found = walkKeys(children[j], keys, depth + 1)
-      if (found.value) return found
-    }
-    return { value: '', key: '' }
-  }
-
-  function collectStateBlobs(doc) {
-    const blobs = []
-    if (!doc) return blobs
-    const win = doc.defaultView
-    if (win) {
-      STATE_NAMES.forEach(function (name) {
-        if (win[name] && typeof win[name] === 'object') blobs.push(win[name])
-      })
-    }
-    Array.from(doc.querySelectorAll('script')).forEach(function (script) {
-      const text = String(script.textContent || '')
-      const type = String(script.type || '').toLowerCase()
-      if (type === 'application/json') {
-        try {
-          blobs.push(JSON.parse(text))
-        } catch (e) {
-          /* ignore */
-        }
-        return
-      }
-      if (type === 'application/ld+json') return
-      STATE_NAMES.forEach(function (name) {
-        const re = new RegExp('(?:window\\.)?' + name + '\\s*=\\s*\\{')
-        const match = re.exec(text)
-        if (!match) return
-        const obj = parseBalancedObject(text, match.index + match[0].length - 1)
-        if (obj) blobs.push(obj)
-      })
-    })
-    return blobs
-  }
-
-  function readJsonldName(doc) {
-    if (!doc) return { value: '', key: '' }
-    const nodes = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'))
-    for (let i = 0; i < nodes.length; i += 1) {
-      try {
-        const value = JSON.parse(nodes[i].textContent)
-        const items = Array.isArray(value) ? value : [value]
-        for (let j = 0; j < items.length; j += 1) {
-          const item = items[j]
-          const type = item && item['@type']
-          const isProduct = type === 'Product' || (Array.isArray(type) && type.indexOf('Product') !== -1)
-          if (isProduct && item.name) return { value: clean(item.name), key: 'name' }
-        }
-      } catch (e) {
-        /* ignore */
-      }
-    }
-    return { value: '', key: '' }
-  }
-
-  function readKeyFromText(text, keys) {
-    if (!text) return { value: '', key: '' }
-    for (let i = 0; i < keys.length; i += 1) {
-      const key = keys[i]
-      const re = new RegExp('(?:["\']' + key + '["\']|' + key + ')\\s*:\\s*["\']([^"\']+)["\']')
-      const match = re.exec(text)
-      if (match && match[1]) return { value: match[1], key: key }
-    }
-    return { value: '', key: '' }
-  }
-
-  function readState(doc, keys) {
-    const blobs = collectStateBlobs(doc)
-    for (let i = 0; i < blobs.length; i += 1) {
-      const found = walkKeys(blobs[i], keys, 0)
-      if (found.value) return found
-    }
-    if (!doc) return { value: '', key: '' }
-    const scripts = Array.from(doc.querySelectorAll('script'))
-    for (let j = 0; j < scripts.length; j += 1) {
-      const found = readKeyFromText(scripts[j].textContent, keys)
-      if (found.value) return found
-    }
-    return { value: '', key: '' }
+  function frontendSelectors(field, profile) {
+    if (profile === 'mic-membercenter-edit') return []
+    if (field === 'title') return TITLE_FALLBACK_FRONT
+    if (field === 'category') return CATEGORY_TEXT_FRONT
+    return []
   }
 
   function resolveValue(root, doc, field, options) {
     const opts = options || {}
-    const map = opts.map || {}
-    const selectors = map[field] || []
-    const labelPatterns = field === 'title' ? TITLE_LABELS : field === 'category' ? CATEGORY_LABELS : []
-    const jsonKeys = field === 'title' ? TITLE_JSON_KEYS : field === 'category' ? CATEGORY_JSON_KEYS : []
-    const inputCount = field === 'title' ? TITLE_INPUTS.length : CATEGORY_SELECTED.length + CATEGORY_CONTROLS.length + CATEGORY_HIDDEN.length
-    const primary = field === 'title' || field === 'category' ? selectors.slice(0, inputCount) : selectors
-    const fallback = field === 'title' || field === 'category' ? selectors.slice(inputCount) : []
-
-    const hitPrimary = firstFilled(root, primary)
-    if (hitPrimary.value && !isWeak(field, hitPrimary.value)) {
-      return { value: hitPrimary.value, source: hitPrimary.selector, stage: 'input' }
-    }
-
-    const hitLabel = findByLabel(root, labelPatterns)
-    if (hitLabel.value && !isWeak(field, hitLabel.value)) {
-      return { value: hitLabel.value, source: hitLabel.selector, stage: 'label' }
-    }
-
-    const state = readState(doc, jsonKeys)
-    if (state.value && !isWeak(field, state.value)) {
-      return { value: clean(state.value), source: 'json:' + state.key, stage: 'json' }
-    }
-
-    if (field === 'title') {
-      const ld = readJsonldName(doc)
-      if (ld.value && !isWeak(field, ld.value)) {
-        return { value: ld.value, source: 'jsonld:' + ld.key, stage: 'json' }
+    const profile = opts.profile || (opts.site && String(opts.site)) || 'generic'
+    if (ns.fieldResolution && typeof ns.fieldResolution.resolveField === 'function') {
+      const resolved = ns.fieldResolution.resolveField(root, doc, field, {
+        map: opts.map || {},
+        profile: profile,
+        jsonKeys: jsonKeysFor(field),
+        frontendSelectors: frontendSelectors(field, profile),
+      })
+      return {
+        value: resolved.value || '',
+        source: resolved.selector || null,
+        stage: resolved.strategy || resolved.tier || '',
+        hit: resolved,
       }
     }
-
-    const hitFallback = firstFilled(root, fallback.length ? fallback : primary)
-    if (hitFallback.value && !isWeak(field, hitFallback.value)) {
-      return { value: hitFallback.value, source: hitFallback.selector, stage: 'fallback' }
-    }
-    return { value: '', source: null, stage: '' }
+    const hit = (ns.fieldResolution && ns.fieldResolution.firstFilled
+      ? ns.fieldResolution.firstFilled
+      : function () {
+          return { value: '', selector: null }
+        })(root, (opts.map && opts.map[field]) || [])
+    return { value: hit.value || '', source: hit.selector, stage: 'fallback', hit: hit }
   }
 
   ns.content.fieldMap = {
     GENERIC: GENERIC,
-    MIC: MIC,
+    MIC: MIC_DETAIL,
+    MIC_EDIT: MIC_EDIT,
+    MIC_LIST: MIC_LIST,
     VEMIC: VEMIC,
     SITES: SITES,
     TITLE_INPUTS: TITLE_INPUTS,
-    TITLE_FALLBACK: TITLE_FALLBACK,
-    TITLE_LABELS: TITLE_LABELS,
+    TITLE_FALLBACK: TITLE_FALLBACK_FRONT,
+    TITLE_FALLBACK_NONE: TITLE_FALLBACK_NONE,
     TITLE_JSON_KEYS: TITLE_JSON_KEYS,
     CATEGORY_SELECTED: CATEGORY_SELECTED,
     CATEGORY_CONTROLS: CATEGORY_CONTROLS,
     CATEGORY_HIDDEN: CATEGORY_HIDDEN,
-    CATEGORY_TEXT: CATEGORY_TEXT,
-    CATEGORY_LABELS: CATEGORY_LABELS,
+    CATEGORY_TEXT: CATEGORY_TEXT_FRONT,
     CATEGORY_JSON_KEYS: CATEGORY_JSON_KEYS,
     detectSite: detectSite,
+    detectPageProfile: detectPageProfile,
+    familyOf: familyOf,
     mapFor: mapFor,
     rootsFor: rootsFor,
     resolveValue: resolveValue,
-    firstFilled: firstFilled,
-    findByLabel: findByLabel,
-    isWeakTitle: isWeakTitle,
-    isWeakCategory: isWeakCategory,
+    jsonKeysFor: jsonKeysFor,
+    firstFilled: function (root, selectors) {
+      return ns.fieldResolution ? ns.fieldResolution.firstFilled(root, selectors) : { el: null, selector: null, value: '' }
+    },
+    isWeakTitle: function (value) {
+      return ns.fieldResolution ? ns.fieldResolution.isWeakTitle(value) : !value
+    },
+    isWeakCategory: function (value) {
+      return ns.fieldResolution ? ns.fieldResolution.isWeakCategory(value) : !value
+    },
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

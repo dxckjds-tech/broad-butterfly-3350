@@ -52,6 +52,8 @@
         },
         qualityScore: 0,
         collectGaps: [],
+        pageProfile: 'generic',
+        fieldProvenance: {},
       },
     }
   }

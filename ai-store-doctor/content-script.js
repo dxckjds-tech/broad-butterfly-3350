@@ -71,11 +71,39 @@ function controlLabel(doc, control) {
   }
   return clean(control.name || control.id)
 }
+function scopedRoot(doc) {
+  if (typeof ASD !== 'undefined' && ASD.content && ASD.content.dom && typeof ASD.content.dom.findProductRoot === 'function') {
+    return ASD.content.dom.findProductRoot(doc)
+  }
+  return doc.querySelector('main,[role="main"],#content,.main-content,.product-main,#productForm,form.product-edit-form')
+}
+
 function extractOne(doc) {
-  const titleEl = first(doc, SELECTORS.title),
-    categoryEl = first(doc, SELECTORS.category),
-    keywordEls = all(doc, SELECTORS.keywords),
-    certEls = all(doc, SELECTORS.certifications)
+  const root = scopedRoot(doc)
+  if (!root) {
+    return {
+      title: '',
+      category: '',
+      keywords: [],
+      certifications: [],
+      specs: [],
+      formFields: [],
+      description: '',
+      sku: '',
+      brand: '',
+      companyName: '',
+      companyProfile: '',
+      visibleText: '',
+      images: [],
+      pageTitle: clean(doc.title),
+      bounded: true,
+      productRootFound: false,
+    }
+  }
+  const titleEl = first(root, SELECTORS.title),
+    categoryEl = first(root, SELECTORS.category),
+    keywordEls = all(root, SELECTORS.keywords),
+    certEls = all(root, SELECTORS.certifications)
   const jsonLd = Array.from(doc.querySelectorAll('script[type="application/ld+json"]')).flatMap((node) => {
     try {
       const value = JSON.parse(node.textContent)
@@ -93,7 +121,7 @@ function extractOne(doc) {
     productLd.manufacturer ||
     productLd.brand ||
     {}
-  const tableRows = Array.from(doc.querySelectorAll('table tr'))
+  const tableRows = Array.from(root.querySelectorAll('table tr'))
     .map((row) =>
       Array.from(row.querySelectorAll('th,td'))
         .map((cell) => clean(cell.textContent))
@@ -101,7 +129,7 @@ function extractOne(doc) {
     )
     .filter((cells) => cells.length >= 2 && cells.length <= 10)
     .map((cells) => cells.join('：'))
-  const definitions = Array.from(doc.querySelectorAll('dt'))
+  const definitions = Array.from(root.querySelectorAll('dt'))
     .map((dt) =>
       dt.nextElementSibling?.tagName === 'DD'
         ? `${clean(dt.textContent)}：${clean(dt.nextElementSibling.textContent)}`
@@ -111,7 +139,7 @@ function extractOne(doc) {
   const properties = Array.isArray(productLd.additionalProperty)
     ? productLd.additionalProperty.map((p) => `${clean(p.name || p.propertyID || '属性')}：${clean(p.value)}`)
     : []
-  const formFields = Array.from(doc.querySelectorAll('input:not([type="hidden"]):not([type="file"]),textarea,select'))
+  const formFields = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="file"]),textarea,select'))
     .map((control) => {
       const value = controlValue(control)
       const label = controlLabel(doc, control)
@@ -127,12 +155,12 @@ function extractOne(doc) {
         .map(clean),
     )
     .filter(Boolean)
-  const images = Array.from(doc.images)
+  const images = Array.from(root.querySelectorAll('img'))
     .map((img) => ({ src: img.currentSrc || img.src || '' }))
     .filter((img) => img.src)
     .slice(0, 30)
-  const main = doc.querySelector('main,[role="main"],#content,.main-content,.product-main,form') || doc.body
-  const companyHeading = Array.from(doc.querySelectorAll('h1,h2,h3,h4,[class*="title" i]')).find((el) =>
+  const main = root
+  const companyHeading = Array.from(root.querySelectorAll('h1,h2,h3,h4,[class*="title" i]')).find((el) =>
     /company profile|about us|公司简介|供应商信息/i.test(el.textContent),
   )
   const companyBlock =
@@ -153,9 +181,11 @@ function extractOne(doc) {
     brand: clean(typeof productLd.brand === 'string' ? productLd.brand : productLd.brand?.name),
     companyName,
     companyProfile: clean(organizationLd.description || companyBlock?.textContent).slice(0, 6000),
-    visibleText: clean(main?.textContent).slice(0, 30000),
+    visibleText: clean(main?.textContent).slice(0, 1200),
     images,
     pageTitle: clean(doc.title),
+    bounded: true,
+    productRootFound: true,
   }
 }
 function extractFields() {
