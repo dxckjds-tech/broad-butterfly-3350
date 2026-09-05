@@ -9,6 +9,7 @@ importScripts(
   '../shared/task-validators.js',
   '../shared/provider-registry.js',
   '../shared/provider-configs.js',
+  '../shared/model-capabilities.js',
   '../shared/image-score.js',
   './settings.js',
   './providers/openai-compatible.js',
