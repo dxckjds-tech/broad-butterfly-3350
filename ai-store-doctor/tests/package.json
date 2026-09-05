@@ -4,7 +4,7 @@
   "description": "Offline fixtures for v1.5.1 regression. Not packed into the Chrome extension.",
   "type": "module",
   "scripts": {
-    "regression": "node run-regression.mjs && node render-smoke.mjs && node check-architecture.mjs && node check-innerhtml.mjs && node dom-smoke.mjs && node settings-legacy-smoke.mjs && node sw-boot.mjs && node sidepanel-boot.mjs && node options-boot.mjs && node step4-collect.mjs && node step5-pii.mjs && node step6-payload.mjs && node step7-schema.mjs && node step8-images.mjs && node step8-image-security.mjs && node step9-concurrency.mjs && node step10-health-score.mjs && node step11-history.mjs",
+    "regression": "node run-regression.mjs && node render-smoke.mjs && node check-architecture.mjs && node check-innerhtml.mjs && node dom-smoke.mjs && node settings-legacy-smoke.mjs && node sw-boot.mjs && node sidepanel-boot.mjs && node options-boot.mjs && node step4-collect.mjs && node step5-pii.mjs && node step6-payload.mjs && node step7-schema.mjs && node step8-images.mjs && node step8-image-security.mjs && node step9-concurrency.mjs && node step10-health-score.mjs && node step11-history.mjs && node step12-diff.mjs",
     "baseline": "node run-regression.mjs --write",
     "render": "node render-smoke.mjs"
   },
