@@ -24,6 +24,7 @@ importScripts(
   './prompt-builder.js',
   './prompts/shared-fragments.js',
   './prompts/evidence-prompt.js',
+  './prompts/diagnosis-prompt.js',
   './payload-builder.js',
   './image-fetcher.js',
   './ai-client.js',
