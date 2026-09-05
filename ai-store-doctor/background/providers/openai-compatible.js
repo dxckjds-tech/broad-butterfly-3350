@@ -50,6 +50,13 @@
     })
   }
 
+  function resolveTemperature(opts) {
+    if (ASD.modelCapabilities && typeof ASD.modelCapabilities.resolveRequestTemperature === 'function') {
+      return ASD.modelCapabilities.resolveRequestTemperature(opts && opts.capabilities, opts && opts.temperature)
+    }
+    return { send: false }
+  }
+
   function buildExtras(opts) {
     const caps = opts.capabilities || {}
     const extras = {}
@@ -63,13 +70,13 @@
 
   function buildRequest(opts) {
     const caps = opts.capabilities || {}
-    const hints = caps.requestHints || {}
     const body = {
       model: opts.model,
       messages: caps.vision === true ? opts.messages : stripImageParts(opts.messages),
       max_tokens: opts.maxTokens,
-      temperature: opts.temperature != null ? opts.temperature : hints.temperature != null ? hints.temperature : 0.2,
     }
+    const temp = resolveTemperature(opts)
+    if (temp.send) body.temperature = temp.value
     if (opts.responseFormat && caps.structuredOutput === true) body.response_format = opts.responseFormat
     const extras = opts.extras || buildExtras(opts)
     Object.keys(extras).forEach(function (key) {

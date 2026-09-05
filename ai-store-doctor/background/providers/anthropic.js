@@ -78,6 +78,13 @@
     })
   }
 
+  function resolveTemperature(opts) {
+    if (ASD.modelCapabilities && typeof ASD.modelCapabilities.resolveRequestTemperature === 'function') {
+      return ASD.modelCapabilities.resolveRequestTemperature(opts && opts.capabilities, opts && opts.temperature)
+    }
+    return { send: false }
+  }
+
   function buildRequest(opts) {
     const allowVision = !!(opts.capabilities && opts.capabilities.vision === true)
     const converted = toAnthropicMessages(allowVision ? opts.messages : stripImageParts(opts.messages))
@@ -87,7 +94,8 @@
       messages: converted.messages,
     }
     if (converted.system) body.system = converted.system
-    if (opts.temperature != null) body.temperature = opts.temperature
+    const temp = resolveTemperature(opts)
+    if (temp.send) body.temperature = temp.value
     return body
   }
 

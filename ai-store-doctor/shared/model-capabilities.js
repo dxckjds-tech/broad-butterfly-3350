@@ -2,6 +2,10 @@
   'use strict'
   const ns = (root.ASD = root.ASD || {})
 
+  const TEMP_UNSUPPORTED = { supported: false }
+  const TEMP_ADJUSTABLE = { supported: true, min: 0, max: 2, default: 0.2 }
+  const TEMP_FIXED_1 = { supported: true, fixedValue: 1 }
+
   const SAFE_DEFAULTS = {
     text: true,
     vision: false,
@@ -9,6 +13,7 @@
     structuredOutput: false,
     longContext: false,
     translation: true,
+    temperature: TEMP_UNSUPPORTED,
   }
 
   const KNOWN = {
@@ -46,6 +51,7 @@
       structuredOutput: true,
       longContext: true,
       translation: true,
+      temperature: TEMP_FIXED_1,
       requestHints: { thinking: { type: 'disabled' }, temperature: 1 },
     },
     'kimi-k3': {
@@ -55,6 +61,7 @@
       structuredOutput: true,
       longContext: true,
       translation: true,
+      temperature: TEMP_FIXED_1,
       requestHints: { reasoning_effort: 'low', temperature: 1, longTimeout: true },
     },
     'gpt-4o': {
@@ -183,6 +190,7 @@
       if (obj[key] != null) out[key] = !!obj[key]
     })
     if (obj.requestHints && typeof obj.requestHints === 'object') out.requestHints = obj.requestHints
+    if (obj.temperature && typeof obj.temperature === 'object') out.temperature = obj.temperature
     return out
   }
 
@@ -200,18 +208,78 @@
     if (/(?:^|[-_.])(reason|r1|o1|o3)(?:[-_.]|$)/.test(name) || /kimi-k3(?:$|[-_.])/.test(name)) {
       guess.reasoning = true
     }
+    if (
+      /gpt-5(?:-|$)/.test(name) ||
+      /(?:^|[-_.])(o1|o3|o4)(?:[-_.]|$)/.test(name) ||
+      /kimi-k2(?:\.5)?(?:$|[-_.])/.test(name) ||
+      /kimi-k3(?:$|[-_.])/.test(name)
+    ) {
+      guess.temperature = TEMP_FIXED_1
+    }
     if (/128k|256k|long-context/.test(name)) guess.longContext = true
     return guess
+  }
+
+  function normalizeTemperaturePolicy(raw) {
+    if (!raw || typeof raw !== 'object') return null
+    if (raw.supported === false) return { supported: false }
+    if (raw.fixedValue != null && Number.isFinite(Number(raw.fixedValue))) {
+      return { supported: true, fixedValue: Number(raw.fixedValue) }
+    }
+    if (raw.supported === true || raw.min != null || raw.max != null || raw.default != null) {
+      return {
+        supported: true,
+        min: raw.min != null ? Number(raw.min) : 0,
+        max: raw.max != null ? Number(raw.max) : 2,
+        default: raw.default != null ? Number(raw.default) : 0.2,
+      }
+    }
+    return null
+  }
+
+  function pickTemperaturePolicy(known, heuristicGuess, trusted, userOverride) {
+    const sources = [userOverride, known, trusted, heuristicGuess]
+    for (let i = 0; i < sources.length; i += 1) {
+      const src = sources[i]
+      if (!src) continue
+      const direct = normalizeTemperaturePolicy(src.temperature)
+      if (direct) return direct
+      if (src.requestHints && typeof src.requestHints.temperature === 'number') {
+        return { supported: true, fixedValue: Number(src.requestHints.temperature) }
+      }
+    }
+    if (known) return Object.assign({}, TEMP_ADJUSTABLE)
+    return Object.assign({}, TEMP_UNSUPPORTED)
+  }
+
+  function resolveRequestTemperature(caps, userTemperature) {
+    const policy = (caps && caps.temperature) || pickTemperaturePolicy(null, null, null, caps) || TEMP_UNSUPPORTED
+    if (!policy || policy.supported === false) return { send: false, policy: policy || TEMP_UNSUPPORTED }
+    if (policy.fixedValue != null) return { send: true, value: Number(policy.fixedValue), policy: policy }
+    let value = userTemperature
+    if (value == null || value === '') value = policy.default != null ? policy.default : 0.2
+    value = Number(value)
+    if (!Number.isFinite(value)) value = policy.default != null ? Number(policy.default) : 0.2
+    if (policy.min != null) value = Math.max(Number(policy.min), value)
+    if (policy.max != null) value = Math.min(Number(policy.max), value)
+    return { send: true, value: value, policy: policy }
+  }
+
+  function applyTemperature(target, caps, userTemperature) {
+    const resolved = resolveRequestTemperature(caps, userTemperature)
+    if (resolved.send && target && typeof target === 'object') target.temperature = resolved.value
+    return resolved
   }
 
   // Final priority: user override > KNOWN table > trusted model metadata > heuristic > safe defaults.
   // Provider platform metadata must never be passed as trustedModelMeta.
   function resolve(providerId, modelId, userOverride, trustedModelMeta) {
     const known = KNOWN[modelId] || KNOWN[String(modelId || '').toLowerCase()]
+    const guessed = heuristic(modelId)
     const merged = Object.assign(
       {},
       SAFE_DEFAULTS,
-      heuristic(modelId),
+      guessed,
       pickDeclared(trustedModelMeta),
       pickDeclared(known),
       pickDeclared(userOverride),
@@ -221,6 +289,7 @@
     else if (known && known.requestHints) merged.requestHints = known.requestHints
     else if (trustedModelMeta && trustedModelMeta.requestHints) merged.requestHints = trustedModelMeta.requestHints
     else delete merged.requestHints
+    merged.temperature = pickTemperaturePolicy(known, guessed, trustedModelMeta, userOverride)
     return merged
   }
 
@@ -242,9 +311,16 @@
     SAFE_DEFAULTS: SAFE_DEFAULTS,
     KNOWN: KNOWN,
     DEFAULT_SCORES: DEFAULT_SCORES,
+    TEMP_UNSUPPORTED: TEMP_UNSUPPORTED,
+    TEMP_ADJUSTABLE: TEMP_ADJUSTABLE,
+    TEMP_FIXED_1: TEMP_FIXED_1,
     resolve: resolve,
     scoresFor: scoresFor,
     hasRequired: hasRequired,
     heuristic: heuristic,
+    normalizeTemperaturePolicy: normalizeTemperaturePolicy,
+    pickTemperaturePolicy: pickTemperaturePolicy,
+    resolveRequestTemperature: resolveRequestTemperature,
+    applyTemperature: applyTemperature,
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

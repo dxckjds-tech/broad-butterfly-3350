@@ -23,6 +23,7 @@
       capabilities: opts.capabilities || null,
       validationMode: opts.validationMode || opts.task,
       requestContext: opts.requestContext || null,
+      temperature: opts.temperature,
     }
   }
 
@@ -198,7 +199,9 @@
       model: opts.model,
       messages: opts.messages,
       max_tokens: opts.maxTokens,
-      temperature: opts.temperature != null ? opts.temperature : 0.2,
+    }
+    if (ASD.modelCapabilities && typeof ASD.modelCapabilities.applyTemperature === 'function') {
+      ASD.modelCapabilities.applyTemperature(body, opts.capabilities, opts.temperature)
     }
     if (opts.responseFormat && opts.capabilities && opts.capabilities.structuredOutput === true) {
       body.response_format = opts.responseFormat
@@ -315,6 +318,12 @@
       }
       const safeMessages = ASD.sanitize.sanitizePayload(retryMessages)
       const extras = buildExtras(cfg, routed, caps)
+      const userTemperature =
+        opts.temperature != null
+          ? opts.temperature
+          : routed && routed.config && routed.config.temperature != null
+            ? routed.config.temperature
+            : cfg && cfg.temperature
       const controller = new AbortController()
       const requestTimeout = setTimeout(
         function () {
@@ -330,7 +339,7 @@
           model: model,
           messages: safeMessages,
           maxTokens: tokenBudget,
-          temperature: caps.requestHints && caps.requestHints.temperature != null ? caps.requestHints.temperature : 0.2,
+          temperature: userTemperature,
           responseFormat: caps.structuredOutput === true && !isK3 && attempt < 2 ? { type: 'json_object' } : null,
           extras: extras,
           signal: controller.signal,

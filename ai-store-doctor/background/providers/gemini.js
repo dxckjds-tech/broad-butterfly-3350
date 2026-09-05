@@ -67,6 +67,13 @@
     })
   }
 
+  function resolveTemperature(opts) {
+    if (ASD.modelCapabilities && typeof ASD.modelCapabilities.resolveRequestTemperature === 'function') {
+      return ASD.modelCapabilities.resolveRequestTemperature(opts && opts.capabilities, opts && opts.temperature)
+    }
+    return { send: false }
+  }
+
   function buildRequest(opts) {
     const allowVision = !!(opts.capabilities && opts.capabilities.vision === true)
     const converted = toGeminiPayload(allowVision ? opts.messages : stripImageParts(opts.messages))
@@ -74,9 +81,10 @@
       contents: converted.contents,
       generationConfig: {
         maxOutputTokens: opts.maxTokens || 1024,
-        temperature: opts.temperature != null ? opts.temperature : 0.2,
       },
     }
+    const temp = resolveTemperature(opts)
+    if (temp.send) body.generationConfig.temperature = temp.value
     if (converted.system) body.systemInstruction = { parts: [{ text: converted.system }] }
     if (opts.capabilities && opts.capabilities.structuredOutput === true) {
       body.generationConfig.responseMimeType = 'application/json'
