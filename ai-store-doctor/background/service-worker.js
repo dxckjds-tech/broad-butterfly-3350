@@ -25,6 +25,8 @@ importScripts(
   './prompts/shared-fragments.js',
   './prompts/evidence-prompt.js',
   './prompts/diagnosis-prompt.js',
+  './prompts/content-prompt.js',
+  './orchestrator.js',
   './payload-builder.js',
   './image-fetcher.js',
   './ai-client.js',
