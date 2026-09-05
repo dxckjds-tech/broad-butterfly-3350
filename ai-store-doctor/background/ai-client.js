@@ -17,6 +17,8 @@
       messages: opts.messages || [],
       provider: opts.provider,
       model: opts.model,
+      apiKey: opts.apiKey,
+      baseUrl: opts.baseUrl,
       maxTokens: opts.maxTokens || maxTokens || 4200,
       capabilities: opts.capabilities || null,
       validationMode: opts.validationMode || opts.task,
@@ -30,6 +32,22 @@
     }
     if (task === 'product_diagnosis' && ASD.schema) return ASD.schema.normalizeAndValidate(raw)
     return { ok: true, result: raw, repaired: [] }
+  }
+
+  function toLegacyData(normalized, fallbackModel) {
+    return {
+      usage: normalized.usage || null,
+      model: normalized.model || fallbackModel,
+      choices: [
+        {
+          finish_reason: normalized.finishReason || '',
+          message: {
+            content: normalized.content || '',
+            reasoning_content: normalized.reasoningContent || '',
+          },
+        },
+      ],
+    }
   }
 
   function acceptParsed(task, raw, data, model, providerName, attempt) {
@@ -55,13 +73,90 @@
     }
   }
 
+  function openaiAdapter() {
+    return ASD.bg.providers && ASD.bg.providers.openaiCompatible
+  }
+
   function classifyHttp(status, message) {
+    const adapter = openaiAdapter()
+    if (adapter && typeof adapter.classifyHttp === 'function') return adapter.classifyHttp(status, message)
     if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
       return 'AUTH_ERROR'
     }
-    if (status === 429) return 'CONNECTION_ERROR'
-    if (status >= 500) return 'CONNECTION_ERROR'
+    if (status === 429 || status >= 500) return 'CONNECTION_ERROR'
     return 'RESPONSE_ERROR'
+  }
+
+  function buildExtras(cfg, isKimi, model, isK3) {
+    if (!isKimi) return { thinking: { type: cfg.deepseekThinking || 'disabled' } }
+    if (/kimi-k2\.5/i.test(model)) return { thinking: { type: 'disabled' } }
+    if (isK3) return { reasoning_effort: 'low' }
+    return {}
+  }
+
+  function tryParseJson(text) {
+    const cleaned = String(text || '')
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim()
+    if (!cleaned) return null
+    try {
+      return JSON.parse(cleaned)
+    } catch (error) {
+      const start = cleaned.indexOf('{')
+      const end = cleaned.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        try {
+          return JSON.parse(cleaned.slice(start, end + 1))
+        } catch (inner) {
+          return null
+        }
+      }
+      return null
+    }
+  }
+
+  async function sendViaAdapterOrFetch(opts) {
+    const adapter = openaiAdapter()
+    if (adapter && typeof adapter.sendRequest === 'function') {
+      return adapter.sendRequest(opts)
+    }
+    const url = String(opts.baseUrl || '').replace(/\/$/, '') + '/chat/completions'
+    const body = {
+      model: opts.model,
+      messages: opts.messages,
+      max_tokens: opts.maxTokens,
+      temperature: opts.temperature != null ? opts.temperature : 0.2,
+    }
+    if (opts.responseFormat) body.response_format = opts.responseFormat
+    const extras = opts.extras || {}
+    Object.keys(extras).forEach(function (key) {
+      if (extras[key] != null) body[key] = extras[key]
+    })
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + opts.apiKey },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    })
+    const data = await response.json().catch(function () {
+      return {}
+    })
+    if (!response.ok) {
+      const msg = (data && data.error && data.error.message) || (opts.providerName || 'API') + ' 请求失败（HTTP ' + response.status + ')'
+      const error = new Error(msg)
+      error.code = classifyHttp(response.status, msg)
+      throw error
+    }
+    const message = (data && data.choices && data.choices[0] && data.choices[0].message) || {}
+    return {
+      content: typeof message.content === 'string' ? message.content.trim() : '',
+      reasoningContent: typeof message.reasoning_content === 'string' ? message.reasoning_content : '',
+      finishReason: (data && data.choices && data.choices[0] && data.choices[0].finish_reason) || '',
+      usage: data.usage || null,
+      model: data.model || opts.model,
+      raw: data,
+    }
   }
 
   async function callAI(input, maxTokens) {
@@ -71,8 +166,7 @@
       ASD.bg.modelRouter && typeof ASD.bg.modelRouter.resolve === 'function' ? ASD.bg.modelRouter.resolve(cfg) : null
     const isKimi = opts.provider ? opts.provider === 'kimi' || opts.provider === 'moonshot' : !!(routed && routed.isKimi)
     const apiKey = opts.apiKey || (routed && routed.apiKey) || (isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey)
-    const providerName =
-      opts.providerName || (routed && routed.providerName) || (isKimi ? 'Kimi' : 'DeepSeek')
+    const providerName = opts.providerName || (routed && routed.providerName) || (isKimi ? 'Kimi' : 'DeepSeek')
     if (!apiKey) {
       const error = new Error('请先在设置页填写 ' + providerName + ' API Key')
       error.code = 'CONFIG_ERROR'
@@ -81,7 +175,6 @@
     const baseUrl = opts.baseUrl || (routed && routed.baseUrl) || (isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl)
     const model = opts.model || (routed && routed.model) || (isKimi ? cfg.kimiModel : cfg.deepseekModel)
     const isK3 = isKimi && /kimi-k3/i.test(model)
-    const url = baseUrl.replace(/\/$/, '') + '/chat/completions'
     const isConnect = opts.task === 'connection_test'
     let lastReason = '空内容'
     let lastFinishReason = ''
@@ -108,16 +201,7 @@
         throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
       }
       const safeMessages = ASD.sanitize.sanitizePayload(retryMessages)
-      const body = {
-        model: model,
-        messages: safeMessages,
-        max_tokens: tokenBudget,
-        temperature: isKimi ? 1 : 0.2,
-      }
-      if (!isK3 && attempt < 2) body.response_format = { type: 'json_object' }
-      if (!isKimi) body.thinking = { type: cfg.deepseekThinking }
-      else if (/kimi-k2\.5/i.test(model)) body.thinking = { type: 'disabled' }
-      else if (isK3) body.reasoning_effort = 'low'
+      const extras = buildExtras(cfg, isKimi, model, isK3)
       const controller = new AbortController()
       const requestTimeout = setTimeout(
         function () {
@@ -125,13 +209,19 @@
         },
         Math.min(isConnect ? 12000 : isK3 ? (attempt === 0 ? 90000 : 30000) : attempt === 0 ? 35000 : 15000, remaining),
       )
-      let response
+      let normalized
       try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-          body: JSON.stringify(body),
+        normalized = await sendViaAdapterOrFetch({
+          apiKey: apiKey,
+          baseUrl: baseUrl,
+          model: model,
+          messages: safeMessages,
+          maxTokens: tokenBudget,
+          temperature: isKimi ? 1 : 0.2,
+          responseFormat: !isK3 && attempt < 2 ? { type: 'json_object' } : null,
+          extras: extras,
           signal: controller.signal,
+          providerName: providerName,
         })
       } catch (error) {
         clearTimeout(requestTimeout)
@@ -144,39 +234,17 @@
         throw error
       }
       clearTimeout(requestTimeout)
-      const data = await response.json().catch(function () {
-        return {}
-      })
-      if (!response.ok) {
-        const msg = (data && data.error && data.error.message) || providerName + ' API 请求失败（HTTP ' + response.status + ')'
-        const code = classifyHttp(response.status, msg)
-        const error = new Error(msg)
-        error.code = code
-        throw error
-      }
-      const message = (data && data.choices && data.choices[0] && data.choices[0].message) || {}
-      lastFinishReason = (data && data.choices && data.choices[0] && data.choices[0].finish_reason) || ''
+      const data = toLegacyData(normalized, model)
+      lastFinishReason = normalized.finishReason || ''
       if (lastFinishReason === 'length') lastCode = 'LENGTH_ERROR'
-      const rawContent = message.content
-      const content = (
-        typeof rawContent === 'string'
-          ? rawContent
-          : Array.isArray(rawContent)
-            ? rawContent
-                .map(function (part) {
-                  return (part && (part.text || part.content)) || ''
-                })
-                .join('')
-            : ''
-      ).trim()
+      const content = normalized.content || ''
       if (!content) {
-        const reasoning = typeof message.reasoning_content === 'string' ? message.reasoning_content.trim() : ''
+        const reasoning = String(normalized.reasoningContent || '').trim()
         if (reasoning) {
-          const start = reasoning.indexOf('{')
-          const end = reasoning.lastIndexOf('}')
-          if (start >= 0 && end > start) {
+          const parsed = tryParseJson(reasoning)
+          if (parsed) {
             try {
-              return acceptParsed(opts.task, JSON.parse(reasoning.slice(start, end + 1)), data, model, providerName, attempt)
+              return acceptParsed(opts.task, parsed, data, model, providerName, attempt)
             } catch (error) {
               lastReason = error.schema ? error.message : lastReason
               lastCode = error.schema ? 'SCHEMA_ERROR' : lastCode
@@ -186,28 +254,19 @@
         lastReason = lastFinishReason === 'length' ? '输出被截断' : '为空'
         continue
       }
-      const cleaned = content
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim()
+      const parsed = tryParseJson(content)
+      if (!parsed) {
+        lastReason = '不是有效 JSON'
+        lastCode = 'RESPONSE_ERROR'
+        continue
+      }
       try {
-        return acceptParsed(opts.task, JSON.parse(cleaned), data, model, providerName, attempt)
+        return acceptParsed(opts.task, parsed, data, model, providerName, attempt)
       } catch (error) {
         if (error.schema) {
           lastReason = error.message
           lastCode = 'SCHEMA_ERROR'
           continue
-        }
-        const start = cleaned.indexOf('{')
-        const end = cleaned.lastIndexOf('}')
-        if (start >= 0 && end > start) {
-          try {
-            return acceptParsed(opts.task, JSON.parse(cleaned.slice(start, end + 1)), data, model, providerName, attempt)
-          } catch (inner) {
-            lastReason = inner.schema ? inner.message : '不是有效 JSON'
-            lastCode = inner.schema ? 'SCHEMA_ERROR' : 'RESPONSE_ERROR'
-            continue
-          }
         }
         lastReason = '不是有效 JSON'
         lastCode = 'RESPONSE_ERROR'
@@ -233,15 +292,24 @@
     throw error
   }
 
-  async function listAIModels() {
+  async function listAIModels(providerHint) {
     const cfg = await ASD.bg.settings.load()
     const routed = ASD.bg.modelRouter && ASD.bg.modelRouter.resolve ? ASD.bg.modelRouter.resolve(cfg) : null
-    const isKimi = routed ? routed.isKimi : cfg.provider === 'kimi'
-    const apiKey = routed ? routed.apiKey : isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey
-    const baseUrl = routed ? routed.baseUrl : isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl
-    const providerName = routed ? routed.providerName : isKimi ? 'Kimi' : 'DeepSeek'
+    const isKimi = providerHint
+      ? providerHint === 'kimi' || providerHint === 'moonshot'
+      : routed
+        ? routed.isKimi
+        : cfg.provider === 'kimi'
+    const apiKey = routed && !providerHint ? routed.apiKey : isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey
+    const baseUrl = routed && !providerHint ? routed.baseUrl : isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl
+    const providerName = routed && !providerHint ? routed.providerName : isKimi ? 'Kimi' : 'DeepSeek'
     if (!apiKey) throw new Error('请先填写 ' + providerName + ' API Key')
-    const response = await fetch(baseUrl.replace(/\/$/, '') + '/models', {
+    const adapter = openaiAdapter()
+    if (adapter && typeof adapter.listModels === 'function') {
+      const listed = await adapter.listModels({ apiKey: apiKey, baseUrl: baseUrl, providerName: providerName })
+      return { provider: providerName, models: listed.models }
+    }
+    const response = await fetch(String(baseUrl || '').replace(/\/$/, '') + '/models', {
       headers: { Authorization: 'Bearer ' + apiKey },
       cache: 'no-store',
     })

@@ -10,6 +10,7 @@ importScripts(
   '../shared/provider-registry.js',
   '../shared/image-score.js',
   './settings.js',
+  './providers/openai-compatible.js',
   './model-router.js',
   './prompt-builder.js',
   './payload-builder.js',
