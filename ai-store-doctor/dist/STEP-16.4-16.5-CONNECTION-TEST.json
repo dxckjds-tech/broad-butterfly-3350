@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "liveness": "ok",
+  "structured": "ok",
+  "message": "连接成功",
+  "contentSource": "MESSAGE_CONTENT",
+  "provider": "DeepSeek",
+  "model": "deepseek-v4-flash",
+  "code": null,
+  "hasRaw": false,
+  "hasKeyLeak": false
+}

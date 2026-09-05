@@ -1,0 +1,224 @@
+{
+  "ok": true,
+  "onlyDeepseekMode": "single",
+  "keys": {
+    "deepseek": true,
+    "openai": false,
+    "kimi": false
+  },
+  "cases": {
+    "mic-01": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 10477,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 10476,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1827,
+        "outputTokens": 2173
+      },
+      "cost": {
+        "pricingVersion": "2026-03-registry-v1",
+        "sourceDate": "2026-03-01",
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Canister Vacuum Cleaner 20L",
+      "facts": 12,
+      "health": 81,
+      "contentTitles": 2
+    },
+    "mic-05": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 11269,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 11269,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1679,
+        "outputTokens": 2239
+      },
+      "cost": {
+        "pricingVersion": "2026-03-registry-v1",
+        "sourceDate": "2026-03-01",
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Industrial Ball Valve DN50",
+      "facts": 11,
+      "health": 53,
+      "contentTitles": 3
+    },
+    "vemic-02": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 12233,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 12232,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1721,
+        "outputTokens": 2183
+      },
+      "cost": {
+        "pricingVersion": "2026-03-registry-v1",
+        "sourceDate": "2026-03-01",
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Steam Cleaner Portable Home Vacuum Cleaner with CE Certification",
+      "facts": 10,
+      "health": 60,
+      "contentTitles": 2
+    },
+    "dyn-04": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 2526,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 2526,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1344,
+        "outputTokens": 394
+      },
+      "cost": {
+        "pricingVersion": "2026-03-registry-v1",
+        "sourceDate": "2026-03-01",
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "UNKNOWN",
+      "facts": 0,
+      "health": 6,
+      "contentTitles": 0
+    }
+  },
+  "highRiskSample": {
+    "score": 100,
+    "level": "high",
+    "reasons": [
+      "low_identity_confidence",
+      "vision_only_critical_fact",
+      "fact_conflict",
+      "verified_without_trusted_source"
+    ],
+    "requiresVerification": true,
+    "claimsToVerify": [
+      {
+        "claimId": "power|1500w|vision|",
+        "field": "power",
+        "value": "1500W",
+        "status": "OBSERVED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "vision_only_critical"
+      },
+      {
+        "claimId": "power|1500w|vision|",
+        "field": "power",
+        "value": "1500W",
+        "status": "OBSERVED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "conflict"
+      },
+      {
+        "claimId": "power|1200w|spec_table|power",
+        "field": "power",
+        "value": "1200W",
+        "status": "VERIFIED",
+        "sourceType": "spec_table",
+        "sourceRef": "power",
+        "sourceStage": "page",
+        "reason": "conflict_page"
+      },
+      {
+        "claimId": "material|stainlesssteel|vision|",
+        "field": "material",
+        "value": "Stainless Steel",
+        "status": "VERIFIED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "untrusted_verified"
+      },
+      {
+        "claimId": "material|stainlesssteel|vision|",
+        "field": "material",
+        "value": "Stainless Steel",
+        "status": "VERIFIED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "vision_only_critical"
+      }
+    ]
+  },
+  "real": "REAL_MULTI_PROVIDER_PENDING",
+  "reason": "second provider key missing; auto stays single; cannot claim live multi-model orchestration"
+}
