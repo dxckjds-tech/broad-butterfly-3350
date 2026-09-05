@@ -10,6 +10,7 @@ export const CONTENT_SCRIPTS = [
   'content/dom-read.js',
   'content/field-map.js',
   'content/extractors.js',
+  'content/dynamic-collect.js',
   'content-script.js',
 ]
 

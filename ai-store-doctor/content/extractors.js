@@ -95,9 +95,22 @@
     }
   }
 
-  function readMapped(root, map, key) {
-    const el = ns.content.dom.firstMatch(root, map[key] || [])
-    return el ? ns.content.dom.fieldValue(el) : ''
+  function emptyHits() {
+    return {
+      title: null,
+      category: null,
+      keywords: null,
+      description: null,
+      specifications: null,
+      company: null,
+      productRoot: null,
+    }
+  }
+
+  function readMapped(root, map, key, hits) {
+    const hit = ns.content.dom.firstMatchHit(root, map[key] || [])
+    if (hits) hits[key] = hit.selector
+    return hit.el ? ns.content.dom.fieldValue(hit.el) : ''
   }
 
   function readMappedList(root, map, key) {
@@ -117,7 +130,11 @@
     const map = ns.content.fieldMap.mapFor(site)
     bundle.debug.site = site
 
-    const root = ns.content.dom.findProductRoot(doc)
+    const hits = emptyHits()
+    bundle.debug.selectorHits = hits
+    const rootHit = ns.content.dom.findProductRootHit(doc)
+    const root = rootHit.el
+    hits.productRoot = rootHit.selector
     bundle.debug.productRootFound = !!root
     if (!root) {
       bundle.debug.degraded = true
@@ -137,22 +154,25 @@
       productLd.brand ||
       {}
 
-    const titleEl = ns.content.dom.firstMatch(root, map.title)
+    const titleHit = ns.content.dom.firstMatchHit(root, map.title)
+    const titleEl = titleHit.el
+    hits.title = titleHit.selector
     let name = clean(productLd.name || (titleEl && ns.content.dom.fieldValue(titleEl)))
     if (listPage) name = null
 
     const product = bundle.product
     product.name = name || null
-    product.category = readMapped(root, map, 'category') || null
+    product.category = readMapped(root, map, 'category', hits) || null
     product.model = readMapped(root, map, 'model') || clean(productLd.model) || null
     product.brand = readMapped(root, map, 'brand') || clean(typeof productLd.brand === 'string' ? productLd.brand : productLd.brand && productLd.brand.name) || null
     product.sku = readMapped(root, map, 'sku') || clean(productLd.sku || productLd.mpn) || null
     product.keywords = listPage ? [] : readMappedList(root, map, 'keywords')
+    hits.keywords = ns.content.dom.firstMatchHit(root, map.keywords || []).selector
     product.price = readMapped(root, map, 'price') || null
     product.moq = readMapped(root, map, 'moq') || null
     const metaDesc = doc.querySelector('meta[name="description"]')
     product.description =
-      readMapped(root, map, 'description') || clean(productLd.description || (metaDesc && metaDesc.content)) || null
+      readMapped(root, map, 'description', hits) || clean(productLd.description || (metaDesc && metaDesc.content)) || null
     product.material = readMapped(root, map, 'material') || null
     product.size = readMapped(root, map, 'size') || null
     product.power = readMapped(root, map, 'power') || null
@@ -174,6 +194,7 @@
       if (pair) applySpecRow(product, pair.name, pair.value)
       else product.attributes.push({ name: 'note', value: row })
     })
+    hits.specifications = ns.content.dom.firstMatchHit(root, map.specifications || []).selector
 
     const companyHeading = Array.from(root.querySelectorAll('h1,h2,h3,h4,[class*="title" i]')).find(function (el) {
       return /company profile|about us|公司简介|供应商信息/i.test(el.textContent || '')
@@ -184,6 +205,9 @@
     bundle.company.name =
       readMapped(root, map, 'companyName') || clean(organizationLd.name) || null
     bundle.company.profile = clean((organizationLd && organizationLd.description) || (companyBlock && companyBlock.textContent)).slice(0, 4000) || null
+    hits.company =
+      ns.content.dom.firstMatchHit(root, map.companyName || []).selector ||
+      ns.content.dom.firstMatchHit(root, map.companyProfile || []).selector
 
     bundle.current.title = product.name
     bundle.current.keywords = product.keywords.slice()

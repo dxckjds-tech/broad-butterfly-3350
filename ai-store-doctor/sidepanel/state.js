@@ -21,6 +21,7 @@
     historyList: [],
     viewingHistory: null,
     saveNotice: '',
+    collectWarning: '',
   }
 
   const listeners = []

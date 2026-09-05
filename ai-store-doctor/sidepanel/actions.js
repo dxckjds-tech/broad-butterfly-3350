@@ -41,6 +41,10 @@
         viewingHistory: null,
         saveNotice: '',
         error: '',
+        collectWarning:
+          product && product.debug && product.debug.collectGaps && product.debug.collectGaps.length
+            ? '页面商品信息读取可能不完整，请检查页面是否加载完成或平台页面结构是否发生变化。'
+            : '',
         fieldsVersion: (current.fieldsVersion || 0) + 1,
       },
       'read:ok',
@@ -61,7 +65,7 @@
   async function readUrl(url) {
     ns.sidepanel.state.update({ error: '', report: null, loading: false }, 'readUrl:start')
     if (!url) {
-      ns.sidepanel.state.update({ fields: null, product: null, error: '请先粘贴完整商品 URL' }, 'readUrl:empty')
+      ns.sidepanel.state.update({ fields: null, product: null, error: '请先粘贴完整商品 URL', collectWarning: '' }, 'readUrl:empty')
       ns.sidepanel.app.render()
       return false
     }
@@ -72,7 +76,7 @@
       applySuccess(r.fields, r.product, r.url)
       return true
     }
-    ns.sidepanel.state.update({ fields: null, product: null, error: r?.reason || 'URL 读取失败' }, 'readUrl:fail')
+    ns.sidepanel.state.update({ fields: null, product: null, error: r?.reason || 'URL 读取失败', collectWarning: '' }, 'readUrl:fail')
     document.getElementById('dockUrl').textContent = r?.loginRequired
       ? '需要登录'
       : `URL 读取失败：${r?.reason || '未知错误'}`
@@ -91,7 +95,7 @@
       r?.reason === 'CONTENT_SCRIPT_UNAVAILABLE'
         ? '当前页脚本未就绪，请刷新商品页后重试，或粘贴 URL 读取'
         : r?.reason || active?.reason || '无法读取当前页'
-    ns.sidepanel.state.update({ error: reason, loading: false }, 'read:no-fields')
+    ns.sidepanel.state.update({ error: reason, loading: false, collectWarning: '' }, 'read:no-fields')
     ns.sidepanel.app.render()
     return false
   }

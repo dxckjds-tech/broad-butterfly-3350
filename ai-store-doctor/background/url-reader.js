@@ -41,8 +41,8 @@
       let bestScore = -1
       let stableRounds = 0
       let lastMessageError = ''
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (attempt) await new Promise((resolve) => setTimeout(resolve, 800))
         try {
           fieldsResponse = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MIC_FIELDS' })
           if (fieldsResponse?.loginRequired) {
@@ -51,18 +51,25 @@
           }
           if (fieldsResponse?.fields) {
             const fields = fieldsResponse.fields
+            const product = fieldsResponse.product
             const score =
-              (fields.title ? 20 : 0) +
-              (fields.category ? 10 : 0) +
-              Math.min(40, (fields.specs?.length || 0) * 2) +
-              Math.min(20, fields.formFields?.length || 0) +
-              Math.min(10, Math.floor((fields.visibleText?.length || 0) / 1000))
+              ASD.productFields && typeof ASD.productFields.qualityScore === 'function'
+                ? ASD.productFields.qualityScore(fields, product)
+                : (fields.title ? 20 : 0) +
+                  (fields.category ? 10 : 0) +
+                  Math.min(40, (fields.specs?.length || 0) * 2) +
+                  Math.min(20, fields.formFields?.length || 0) +
+                  Math.min(10, Math.floor((fields.visibleText?.length || 0) / 1000))
             if (score > bestScore) {
               bestScore = score
               bestResponse = fieldsResponse
               stableRounds = 0
             } else stableRounds += 1
-            if (bestScore >= 45 && stableRounds >= 3) break
+            const core =
+              ASD.productFields && typeof ASD.productFields.hasCoreFields === 'function'
+                ? ASD.productFields.hasCoreFields(fields, product)
+                : !!(fields.title && ((fields.specs && fields.specs.length) || fields.description))
+            if (core && (stableRounds >= 1 || (product && product.debug && product.debug.completeProduct))) break
           }
         } catch (error) {
           lastMessageError = error.message || String(error)

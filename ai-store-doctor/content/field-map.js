@@ -3,7 +3,24 @@
   const ns = (root.ASD = root.ASD || {})
   ns.content = ns.content || {}
 
-  const GENERIC = {
+  const PRODUCT_ROOT = [
+    '#productForm',
+    'form.product-main',
+    'form[id*="product" i]',
+    'form[class*="product" i]',
+    '.product-main',
+    '[class*="product-detail" i]',
+    '[class*="prod-detail" i]',
+    'article.main-content',
+    'main.product-main',
+    'main',
+    '[role="main"]',
+    '#content',
+    '.main-content',
+    'form',
+  ]
+
+  const GENERIC_FIELDS = {
     title: [
       'input[name="subject"]',
       'input[name*="productName" i]',
@@ -38,6 +55,7 @@
     voltage: ['input[name*="voltage" i]'],
     capacity: ['input[name*="capacity" i]'],
     description: ['textarea[name*="desc" i]', '[data-field="description"]'],
+    specifications: ['table tr', 'dt'],
     certifications: ['input[name*="certif" i]:checked', '[class*="certif" i] input:checked'],
     applications: ['select[name*="application" i]', 'input[name*="application" i]'],
     packaging: ['input[name*="packag" i]', 'textarea[name*="packag" i]'],
@@ -46,17 +64,33 @@
     companyProfile: ['[class*="company-profile" i]', '[class*="company-info" i]', '[class*="supplier-info" i]'],
   }
 
-  const MIC = Object.assign({}, GENERIC, {
-    title: ['h1', '[class*="product-name" i]', '[class*="proName" i]'].concat(GENERIC.title),
-    keywords: ['.keyword-tag', '[data-field="keywords"] .tag', '[data-field="keywords"] span', '.sr-keyword'].concat(
-      GENERIC.keywords,
-    ),
-  })
+  function pack(fields, roots) {
+    return Object.assign({ productRoot: roots.slice() }, fields)
+  }
 
-  const VEMIC = Object.assign({}, GENERIC, {
-    title: ['input[name="subject"]', '#productName', 'input[name*="productName" i]'].concat(GENERIC.title),
-    keywords: ['input[name="keywords"]', 'input[name*="keyword" i]'].concat(GENERIC.keywords),
-  })
+  const GENERIC = pack(GENERIC_FIELDS, PRODUCT_ROOT)
+  const MIC = pack(
+    Object.assign({}, GENERIC_FIELDS, {
+      title: ['h1', '[class*="product-name" i]', '[class*="proName" i]'].concat(GENERIC_FIELDS.title),
+      keywords: ['.keyword-tag', '[data-field="keywords"] .tag', '[data-field="keywords"] span', '.sr-keyword'].concat(
+        GENERIC_FIELDS.keywords,
+      ),
+    }),
+    PRODUCT_ROOT,
+  )
+  const VEMIC = pack(
+    Object.assign({}, GENERIC_FIELDS, {
+      title: ['input[name="subject"]', '#productName', 'input[name*="productName" i]'].concat(GENERIC_FIELDS.title),
+      keywords: ['input[name="keywords"]', 'input[name*="keyword" i]'].concat(GENERIC_FIELDS.keywords),
+    }),
+    PRODUCT_ROOT,
+  )
+
+  const SITES = {
+    'made-in-china.com': MIC,
+    'vemic.com': VEMIC,
+    generic: GENERIC,
+  }
 
   function detectSite(hostname) {
     const host = String(hostname || '').toLowerCase()
@@ -65,11 +99,32 @@
     return 'generic'
   }
 
-  function mapFor(site) {
+  function sitePack(site) {
     if (site === 'vemic') return VEMIC
     if (site === 'mic') return MIC
     return GENERIC
   }
 
-  ns.content.fieldMap = { GENERIC, MIC, VEMIC, detectSite, mapFor }
+  function mapFor(site) {
+    const source = sitePack(site)
+    const fields = {}
+    Object.keys(source).forEach(function (key) {
+      if (key !== 'productRoot') fields[key] = source[key]
+    })
+    return fields
+  }
+
+  function rootsFor(site) {
+    return (sitePack(site).productRoot || PRODUCT_ROOT).slice()
+  }
+
+  ns.content.fieldMap = {
+    GENERIC: GENERIC,
+    MIC: MIC,
+    VEMIC: VEMIC,
+    SITES: SITES,
+    detectSite: detectSite,
+    mapFor: mapFor,
+    rootsFor: rootsFor,
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

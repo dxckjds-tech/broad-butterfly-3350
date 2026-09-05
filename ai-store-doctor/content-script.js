@@ -189,6 +189,8 @@ function collectDualTrack() {
   if (product && ASD.productFields) {
     product.debug.oldFieldCount = ASD.productFields.countOldFields(fields)
     product.debug.newFieldCount = ASD.productFields.countNewFields(product)
+    product.debug.qualityScore = ASD.productFields.qualityScore(fields, product)
+    product.debug.collectGaps = ASD.productFields.collectGaps(fields, product)
   }
   if (ASD.sanitize) {
     const sanitized = ASD.sanitize.sanitizeCollected({ fields: fields, product: product })
@@ -200,13 +202,29 @@ function collectDualTrack() {
   return { fields, product, loginRequired }
 }
 
+if (ASD.content) ASD.content.collect = collectDualTrack
+
+function replyCollected(collected, sendResponse) {
+  sendResponse(
+    collected.loginRequired
+      ? { loginRequired: true, url: location.href }
+      : { fields: collected.fields, product: collected.product, url: location.href },
+  )
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === 'EXTRACT_MIC_FIELDS') {
-    const collected = collectDualTrack()
-    sendResponse(
-      collected.loginRequired
-        ? { loginRequired: true, url: location.href }
-        : { fields: collected.fields, product: collected.product, url: location.href },
-    )
-  }
+  if (message?.type !== 'EXTRACT_MIC_FIELDS') return
+  const wait = !(message && message.immediate === true)
+  const run =
+    wait && ASD.content && ASD.content.dynamic
+      ? ASD.content.dynamic.collectUntilStable()
+      : Promise.resolve(collectDualTrack())
+  run
+    .then(function (collected) {
+      replyCollected(collected, sendResponse)
+    })
+    .catch(function (error) {
+      sendResponse({ ok: false, reason: error && error.message ? error.message : String(error) })
+    })
+  return true
 })

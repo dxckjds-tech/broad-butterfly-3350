@@ -1,5 +1,6 @@
 importScripts(
   '../shared/constants.js',
+  '../shared/product-fields.js',
   '../shared/storage-keys.js',
   '../shared/pii-patterns.js',
   '../shared/sanitize.js',

@@ -114,7 +114,7 @@
     return false
   }
 
-  const ROOT_SELECTORS = [
+  const FALLBACK_ROOT_SELECTORS = [
     '#productForm',
     'form.product-main',
     'form[id*="product" i]',
@@ -131,12 +131,42 @@
     'form',
   ]
 
-  function findProductRoot(doc) {
-    for (let i = 0; i < ROOT_SELECTORS.length; i += 1) {
-      const el = doc.querySelector(ROOT_SELECTORS[i])
-      if (el && el !== doc.body && el !== doc.documentElement) return el
+  function hostOf(doc) {
+    try {
+      if (doc && doc.defaultView && doc.defaultView.location) return doc.defaultView.location.hostname
+    } catch (e) {
+      /* ignore */
     }
-    return null
+    try {
+      return location.hostname
+    } catch (e2) {
+      return ''
+    }
+  }
+
+  function rootSelectors(doc) {
+    if (ns.content.fieldMap && typeof ns.content.fieldMap.rootsFor === 'function') {
+      return ns.content.fieldMap.rootsFor(ns.content.fieldMap.detectSite(hostOf(doc)))
+    }
+    return FALLBACK_ROOT_SELECTORS
+  }
+
+  function findProductRootHit(doc) {
+    if (!doc) return { el: null, selector: null }
+    const selectors = rootSelectors(doc)
+    for (let i = 0; i < selectors.length; i += 1) {
+      try {
+        const el = doc.querySelector(selectors[i])
+        if (el && el !== doc.body && el !== doc.documentElement) return { el: el, selector: selectors[i] }
+      } catch (e) {
+        /* invalid selector */
+      }
+    }
+    return { el: null, selector: null }
+  }
+
+  function findProductRoot(doc) {
+    return findProductRootHit(doc).el
   }
 
   function looksLikeProductList(root) {
@@ -151,13 +181,22 @@
     return false
   }
 
-  function firstMatch(root, selectors) {
-    if (!root) return null
-    for (let i = 0; i < selectors.length; i += 1) {
-      const el = root.querySelector(selectors[i])
-      if (el) return el
+  function firstMatchHit(root, selectors) {
+    if (!root) return { el: null, selector: null }
+    const list = selectors || []
+    for (let i = 0; i < list.length; i += 1) {
+      try {
+        const el = root.querySelector(list[i])
+        if (el) return { el: el, selector: list[i] }
+      } catch (e) {
+        /* invalid selector */
+      }
     }
-    return null
+    return { el: null, selector: null }
+  }
+
+  function firstMatch(root, selectors) {
+    return firstMatchHit(root, selectors).el
   }
 
   function allMatch(root, selectors) {
@@ -222,8 +261,10 @@
     isVisible,
     detectLoginRequired,
     findProductRoot,
+    findProductRootHit,
     looksLikeProductList,
     firstMatch,
+    firstMatchHit,
     allMatch,
     collectImageMeta,
   }

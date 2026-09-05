@@ -15,7 +15,11 @@
       e.innerHTML = `<b>AI 正在分析… ${props.elapsed} 秒</b><div class="loader"></div><div class="muted">K3 推理可能需要 60–125 秒，其他模型通常 10–40 秒</div>`
     else if (props.error)
       e.innerHTML = `<div class="danger">${esc(props.error)}</div><button class="pill-btn" data-action="settings">打开 API 设置</button>`
-    else if (!props.report) e.innerHTML = '<b>读取商品 URL 后，点击“AI 分析商品”</b>'
+    else if (!props.report) {
+      e.innerHTML =
+        '<b>读取商品 URL 后，点击“AI 分析商品”</b>' +
+        (props.collectWarning ? `<div class="danger">${esc(props.collectWarning)}</div>` : '')
+    }
     else {
       const s = props.report.summary || {}
       e.innerHTML = `<div class="summary-line"><b>${esc(s.identity || '身份待确认')}</b><b class="teal">${esc(s.confidence || 0)}%</b></div><div>${badge(s.status)}</div><div class="muted">数据完整度 ${esc(s.dataCompleteness || 0)} · 内容就绪度 ${esc(s.contentReadiness || 0)}</div>`
@@ -87,7 +91,8 @@
     }
     if (!props.report)
       c.innerHTML = props.fields
-        ? '<div class="card">商品 URL 数据已读取。点击下方按钮调用所选 AI 完成诊断。</div>'
+        ? '<div class="card">商品 URL 数据已读取。点击下方按钮调用所选 AI 完成诊断。</div>' +
+          (props.collectWarning ? `<div class="card"><p class="danger">${esc(props.collectWarning)}</p></div>` : '')
         : '<div class="card">请粘贴商品 URL，或读取当前页 URL。</div>'
     else {
       const views = [
