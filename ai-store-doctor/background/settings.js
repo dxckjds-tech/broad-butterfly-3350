@@ -18,7 +18,12 @@
   async function load() {
     if (cache) return cache
     const saved = await chrome.storage.local.get(ASD.storageKeys.SETTINGS)
-    cache = { ...ASD.constants.DEFAULTS, ...applyLegacy(saved) }
+    const merged = { ...ASD.constants.DEFAULTS, ...applyLegacy(saved) }
+    if (ASD.providerConfigs && typeof ASD.providerConfigs.migrate === 'function') {
+      merged.providerConfigs = ASD.providerConfigs.migrate(merged)
+      Object.assign(merged, ASD.providerConfigs.syncLegacy(merged.providerConfigs, merged))
+    }
+    cache = merged
     return cache
   }
 

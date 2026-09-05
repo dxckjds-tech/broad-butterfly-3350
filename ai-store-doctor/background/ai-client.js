@@ -77,6 +77,25 @@
     return ASD.bg.providers && ASD.bg.providers.openaiCompatible
   }
 
+  function resolveRouted(opts, cfg) {
+    if (ASD.bg.providerManager && typeof ASD.bg.providerManager.resolveProvider === 'function') {
+      return ASD.bg.providerManager.resolveProvider(cfg, opts.provider || cfg.provider)
+    }
+    const routed =
+      ASD.bg.modelRouter && typeof ASD.bg.modelRouter.resolve === 'function' ? ASD.bg.modelRouter.resolve(cfg) : null
+    if (routed) return routed
+    const isKimi = opts.provider === 'kimi' || opts.provider === 'moonshot' || cfg.provider === 'kimi'
+    return {
+      isKimi: isKimi,
+      apiKey: isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey,
+      providerName: isKimi ? 'Kimi' : 'DeepSeek',
+      baseUrl: isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl,
+      model: isKimi ? cfg.kimiModel : cfg.deepseekModel,
+      isK3: isKimi && /kimi-k3/i.test(isKimi ? cfg.kimiModel : ''),
+      adapter: openaiAdapter(),
+    }
+  }
+
   function classifyHttp(status, message) {
     const adapter = openaiAdapter()
     if (adapter && typeof adapter.classifyHttp === 'function') return adapter.classifyHttp(status, message)
@@ -87,8 +106,16 @@
     return 'RESPONSE_ERROR'
   }
 
-  function buildExtras(cfg, isKimi, model, isK3) {
-    if (!isKimi) return { thinking: { type: cfg.deepseekThinking || 'disabled' } }
+  function buildExtras(cfg, routed, model, isK3) {
+    const style = routed && routed.meta ? routed.meta.apiStyle : 'openai-compatible'
+    if (style && style !== 'openai-compatible') return {}
+    if (routed && routed.id === 'deepseek') {
+      return { thinking: { type: (routed.config && routed.config.thinking) || cfg.deepseekThinking || 'disabled' } }
+    }
+    if (!(routed && (routed.isKimi || routed.id === 'moonshot'))) {
+      if (cfg.deepseekThinking) return { thinking: { type: cfg.deepseekThinking } }
+      return {}
+    }
     if (/kimi-k2\.5/i.test(model)) return { thinking: { type: 'disabled' } }
     if (isK3) return { reasoning_effort: 'low' }
     return {}
@@ -117,7 +144,7 @@
   }
 
   async function sendViaAdapterOrFetch(opts) {
-    const adapter = openaiAdapter()
+    const adapter = opts.adapter || openaiAdapter()
     if (adapter && typeof adapter.sendRequest === 'function') {
       return adapter.sendRequest(opts)
     }
@@ -162,19 +189,18 @@
   async function callAI(input, maxTokens) {
     const opts = normalizeCall(input, maxTokens)
     const cfg = await ASD.bg.settings.load()
-    const routed =
-      ASD.bg.modelRouter && typeof ASD.bg.modelRouter.resolve === 'function' ? ASD.bg.modelRouter.resolve(cfg) : null
-    const isKimi = opts.provider ? opts.provider === 'kimi' || opts.provider === 'moonshot' : !!(routed && routed.isKimi)
-    const apiKey = opts.apiKey || (routed && routed.apiKey) || (isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey)
-    const providerName = opts.providerName || (routed && routed.providerName) || (isKimi ? 'Kimi' : 'DeepSeek')
+    const routed = resolveRouted(opts, cfg)
+    const isKimi = !!(routed && routed.isKimi)
+    const apiKey = opts.apiKey || (routed && routed.apiKey)
+    const providerName = opts.providerName || (routed && routed.providerName) || 'AI'
     if (!apiKey) {
       const error = new Error('请先在设置页填写 ' + providerName + ' API Key')
       error.code = 'CONFIG_ERROR'
       throw error
     }
-    const baseUrl = opts.baseUrl || (routed && routed.baseUrl) || (isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl)
-    const model = opts.model || (routed && routed.model) || (isKimi ? cfg.kimiModel : cfg.deepseekModel)
-    const isK3 = isKimi && /kimi-k3/i.test(model)
+    const baseUrl = opts.baseUrl || (routed && routed.baseUrl)
+    const model = opts.model || (routed && routed.model)
+    const isK3 = !!(routed && routed.isK3)
     const isConnect = opts.task === 'connection_test'
     let lastReason = '空内容'
     let lastFinishReason = ''
@@ -201,7 +227,7 @@
         throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
       }
       const safeMessages = ASD.sanitize.sanitizePayload(retryMessages)
-      const extras = buildExtras(cfg, isKimi, model, isK3)
+      const extras = buildExtras(cfg, routed, model, isK3)
       const controller = new AbortController()
       const requestTimeout = setTimeout(
         function () {
@@ -222,6 +248,7 @@
           extras: extras,
           signal: controller.signal,
           providerName: providerName,
+          adapter: routed && routed.adapter,
         })
       } catch (error) {
         clearTimeout(requestTimeout)
@@ -294,17 +321,13 @@
 
   async function listAIModels(providerHint) {
     const cfg = await ASD.bg.settings.load()
-    const routed = ASD.bg.modelRouter && ASD.bg.modelRouter.resolve ? ASD.bg.modelRouter.resolve(cfg) : null
-    const isKimi = providerHint
-      ? providerHint === 'kimi' || providerHint === 'moonshot'
-      : routed
-        ? routed.isKimi
-        : cfg.provider === 'kimi'
-    const apiKey = routed && !providerHint ? routed.apiKey : isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey
-    const baseUrl = routed && !providerHint ? routed.baseUrl : isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl
-    const providerName = routed && !providerHint ? routed.providerName : isKimi ? 'Kimi' : 'DeepSeek'
+    const routed = resolveRouted({ provider: providerHint }, cfg)
+    const apiKey = routed.apiKey
+    const baseUrl = routed.baseUrl
+    const providerName = routed.providerName
     if (!apiKey) throw new Error('请先填写 ' + providerName + ' API Key')
-    const adapter = openaiAdapter()
+    if (routed.supportsModelList === false) throw new Error(providerName + ' 未启用模型列表，请手填 Model ID')
+    const adapter = routed.adapter || openaiAdapter()
     if (adapter && typeof adapter.listModels === 'function') {
       const listed = await adapter.listModels({ apiKey: apiKey, baseUrl: baseUrl, providerName: providerName })
       return { provider: providerName, models: listed.models }

@@ -42,11 +42,20 @@ const dom = new JSDOM('<!DOCTYPE html><html></html>', {
 })
 dom.window.chrome = chromeMock
 globalThis.chrome = chromeMock
-for (const file of ['shared/constants.js', 'shared/storage-keys.js', 'background/settings.js']) {
+for (const file of [
+  'shared/constants.js',
+  'shared/storage-keys.js',
+  'shared/provider-registry.js',
+  'shared/provider-configs.js',
+  'background/settings.js',
+]) {
   dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'))
 }
 const cfg = await dom.window.ASD.bg.settings.load()
 if (cfg.deepseekApiKey !== 'legacy-deepseek-key') throw new Error('legacy apiKey not mapped: ' + cfg.deepseekApiKey)
 if (cfg.deepseekModel !== 'deepseek-v4-flash') throw new Error('model default mismatch')
 if (cfg.provider !== 'deepseek') throw new Error('provider mismatch')
-console.log(JSON.stringify({ ok: true, deepseekApiKey: 'legacy-deepseek-key', provider: cfg.provider, model: cfg.deepseekModel }))
+if (!cfg.providerConfigs || cfg.providerConfigs.configs.deepseek.apiKey !== 'legacy-deepseek-key') {
+  throw new Error('legacy key not migrated into providerConfigs')
+}
+console.log(JSON.stringify({ ok: true, deepseekApiKey: 'legacy-deepseek-key', provider: cfg.provider, model: cfg.deepseekModel, migrated: true }))

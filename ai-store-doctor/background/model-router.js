@@ -4,7 +4,10 @@
   ns.bg = ns.bg || {}
 
   function resolve(cfg) {
-    const isKimi = cfg.provider === 'kimi'
+    if (ASD.bg.providerManager && typeof ASD.bg.providerManager.resolveProvider === 'function') {
+      return ASD.bg.providerManager.resolveProvider(cfg, cfg && cfg.provider)
+    }
+    const isKimi = cfg.provider === 'kimi' || cfg.provider === 'moonshot'
     const apiKey = isKimi ? cfg.kimiApiKey : cfg.deepseekApiKey
     const providerName = isKimi ? 'Kimi' : 'DeepSeek'
     const baseUrl = isKimi ? cfg.kimiBaseUrl : cfg.deepseekBaseUrl

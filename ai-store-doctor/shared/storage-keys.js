@@ -15,6 +15,7 @@
     'baseUrl',
     'model',
     'thinking',
+    'providerConfigs',
   ]
 
   ns.storageKeys = {

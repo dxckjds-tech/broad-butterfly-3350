@@ -37,6 +37,10 @@ const chrome = {
     onChanged: { addListener() {} },
   },
   runtime: { sendMessage: async () => ({ ok: false, reason: 'no live AI in smoke test' }) },
+  permissions: {
+    contains: async () => true,
+    request: async () => true,
+  },
 }
 
 const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
@@ -52,20 +56,24 @@ for (const src of scripts) {
     throw new Error('Failed loading ' + src + ': ' + error.message)
   }
 }
-await new Promise((r) => setTimeout(r, 20))
+await new Promise((r) => setTimeout(r, 40))
 const $ = (id) => dom.window.document.getElementById(id)
-if ($('provider').value !== 'kimi') throw new Error('provider not restored')
-if ($('kimiApiKey').value !== 'kimi-legacy') throw new Error('kimi key not restored')
-if ($('deepseekApiKey').value !== 'deepseek-legacy') throw new Error('legacy apiKey not mapped into DeepSeek field')
-if ($('kimiPanel').hidden) throw new Error('kimi panel should be visible')
-if (!$('deepseekPanel').hidden) throw new Error('deepseek panel should be hidden')
+if ($('provider').value !== 'moonshot') throw new Error('kimi provider not canonicalized to moonshot: ' + $('provider').value)
+if ($('apiKey').value !== 'kimi-legacy') throw new Error('kimi key not restored')
+$('provider').value = 'deepseek'
+$('provider').dispatchEvent(new dom.window.Event('change'))
+await new Promise((r) => setTimeout(r, 40))
+if ($('apiKey').value !== 'deepseek-legacy') throw new Error('legacy apiKey not mapped into DeepSeek field')
+if (!stored.providerConfigs || !stored.providerConfigs.configs.moonshot.apiKey) {
+  throw new Error('providerConfigs was not persisted')
+}
 console.log(
   JSON.stringify({
     ok: true,
     scripts,
-    provider: $('provider').value,
+    provider: 'moonshot',
     kimiKeyLoaded: true,
     legacyDeepseekKeyLoaded: true,
-    kimiVisible: !$('kimiPanel').hidden,
+    migrated: true,
   }),
 )

@@ -19,9 +19,16 @@ const hosts = [
   'https://*.vemic.com/*',
   'https://api.deepseek.com/*',
   'https://api.moonshot.cn/*',
+  'https://api.openai.com/*',
+  'https://api.anthropic.com/*',
+  'https://generativelanguage.googleapis.com/*',
+  'https://dashscope.aliyuncs.com/*',
 ]
 if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(hosts)) {
   errors.push('host_permissions changed')
+}
+if (!manifest.optional_host_permissions || manifest.optional_host_permissions.indexOf('https://*/*') === -1) {
+  errors.push('optional_host_permissions must allow custom HTTPS origins')
 }
 const csp = manifest.content_security_policy && manifest.content_security_policy.extension_pages
 if (!csp) errors.push('extension_pages CSP missing')

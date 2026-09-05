@@ -64,6 +64,7 @@
       try {
         const out = await ASD.bg.aiClient.callAI({
           task: 'connection_test',
+          provider: message.provider || undefined,
           messages: [
             { role: 'system', content: '你正在执行 API 连通性测试。只输出 JSON，不要解释。' },
             { role: 'user', content: '严格输出：\n{"ok":true,"message":"连接成功"}' },
@@ -75,7 +76,9 @@
         return { ok: false, reason: error.message || '连接失败', code: classify(error) }
       }
     }
-    if (message?.type === 'LIST_AI_MODELS') return { ok: true, ...(await ASD.bg.aiClient.listAIModels()) }
+    if (message?.type === 'LIST_AI_MODELS') {
+      return { ok: true, ...(await ASD.bg.aiClient.listAIModels(message.provider)) }
+    }
     if (message?.type === 'TRANSLATE_TEXT') {
       const sourceText = String(message.text || '')
         .trim()
