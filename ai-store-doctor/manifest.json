@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "AI 店铺医生",
+  "version": "1.6.2",
+  "description": "使用已配置的 AI Provider 诊断并优化 VEMIC / Made-in-China 商品",
+  "action": {
+    "default_title": "AI 店铺医生"
+  },
+  "options_page": "options.html",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": ["sidePanel", "storage", "activeTab"],
+  "host_permissions": [
+    "https://*.made-in-china.com/*",
+    "https://*.vemic.com/*",
+    "https://api.deepseek.com/*",
+    "https://api.moonshot.cn/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://dashscope.aliyuncs.com/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.made-in-china.com/*", "https://*.vemic.com/*"],
+      "js": [
+        "shared/constants.js",
+        "shared/product-fields.js",
+        "shared/pii-patterns.js",
+        "shared/sanitize.js",
+        "shared/image-score.js",
+        "content/dom-read.js",
+        "content/field-map.js",
+        "content/extractors.js",
+        "content/dynamic-collect.js",
+        "content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
