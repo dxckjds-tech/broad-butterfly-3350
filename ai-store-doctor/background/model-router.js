@@ -188,6 +188,8 @@
     const preference = prefs.costPreference || bundle.costPreference || 'balanced'
     const profile = ASD.taskProfiles ? ASD.taskProfiles.get(task) : { required: { text: true }, preferred: {} }
     const required = ASD.taskProfiles ? ASD.taskProfiles.requiredFor(task, ctx) : profile.required || {}
+    const canTextFallback =
+      !!ctx.hasImages && (task === 'product_diagnosis' || task === 'product_identity' || task === 'fact_extraction')
     let pool = []
 
     if (mode === 'fixed') {
@@ -233,6 +235,30 @@
     ranked.sort(function (a, b) {
       return b.score - a.score
     })
+    if (!ranked.length && canTextFallback && mode !== 'fixed') {
+      const textRequired = Object.assign({}, required)
+      delete textRequired.vision
+      pool.forEach(function (item) {
+        const blocked = rejectReason(item, textRequired, mode === 'advanced' ? 'auto' : mode)
+        if (blocked) return
+        const scored = finalScore(item, task, profile, textRequired, preference)
+        ranked.push({
+          provider: item.provider,
+          model: item.model,
+          capabilities: item.capabilities,
+          score: scored.total,
+          parts: scored.parts,
+          penalty: scored.penalty,
+          providerName: item.providerName,
+          reason: explain(item, task, { hasImages: false }, preference, profile).concat([
+            '未配置视觉模型，改为纯文本诊断',
+          ]),
+        })
+      })
+      ranked.sort(function (a, b) {
+        return b.score - a.score
+      })
+    }
     if (!ranked.length) {
       const result = fail(['没有已配置且支持该任务能力的模型'], { suggestAuto: mode === 'fixed' })
       ns.bg.modelRouter.lastResult = result

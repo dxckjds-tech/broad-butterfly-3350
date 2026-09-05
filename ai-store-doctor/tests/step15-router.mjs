@@ -164,6 +164,26 @@ const fixed = G.ASD.bg.modelRouter.selectModel(
 assert(fixed.ok === false && fixed.code === 'NO_COMPATIBLE_MODEL', 'G fixed no-vision fails')
 assert(fixed.suggestAuto === true, 'G suggest auto')
 
+const textOnly = load()
+const flashOnly = textOnly.ASD.bg.modelRouter.selectModel(
+  'product_diagnosis',
+  {
+    hasImages: true,
+    settings: settings({
+      deepseek: { model: 'deepseek-v4-flash' },
+      moonshot: { apiKey: '' },
+      openai: { apiKey: '' },
+    }),
+  },
+  { mode: 'auto' },
+)
+assert(flashOnly.ok && flashOnly.selected.provider === 'deepseek', 'DeepSeek-only pages with images still route to flash')
+assert(flashOnly.selected.capabilities.vision === false, 'flash remains non-vision')
+assert(
+  (flashOnly.reason || []).join('').indexOf('纯文本') !== -1,
+  'explain text-only fallback: ' + (flashOnly.reason || []).join(','),
+)
+
 const H = load()
 H.ASD.bg.modelHealth.recordFailure('deepseek', 'deepseek-v4-flash')
 H.ASD.bg.modelHealth.recordFailure('deepseek', 'deepseek-v4-flash')
@@ -209,6 +229,7 @@ console.log(
     E: disabled.code,
     F: none.code,
     G: fixed.suggestAuto,
+    flashTextFallback: flashOnly.selected.provider,
     healthDownrank: penalized.selected.provider,
     healthRecover: recovered.selected.provider,
   }),
