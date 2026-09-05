@@ -83,7 +83,67 @@
     $('orchAuto').checked = bundle.orchestrationMode !== 'single' && bundle.orchestrationMode !== 'multi'
     $('orchSingle').checked = bundle.orchestrationMode === 'single'
     $('orchMulti').checked = bundle.orchestrationMode === 'multi'
+    renderCollaboration()
     showRouting()
+  }
+
+  function collabMode() {
+    if ($('collabCustom').checked) return 'custom'
+    if ($('collabSingle').checked) return 'single'
+    if ($('collabHybrid').checked) return 'hybrid'
+    return 'auto'
+  }
+
+  function failPolicy() {
+    if ($('failAsk').checked) return 'ask'
+    if ($('failStop').checked) return 'stop'
+    return 'auto'
+  }
+
+  function readRole(prefix) {
+    const mode = $(prefix + 'Mode').value === 'fixed' ? 'fixed' : 'auto'
+    return {
+      mode: mode,
+      provider: mode === 'fixed' ? $(prefix + 'Provider').value : '',
+      model: mode === 'fixed' ? $(prefix + 'Model').value.trim() : '',
+    }
+  }
+
+  function writeRole(prefix, row) {
+    const src = row || { mode: 'auto' }
+    $(prefix + 'Mode').value = src.mode === 'fixed' ? 'fixed' : 'auto'
+    fillProviderSelect($(prefix + 'Provider'), true)
+    $(prefix + 'Provider').value = src.provider || ''
+    $(prefix + 'Model').value = src.model || ''
+  }
+
+  function showCollaboration() {
+    const mode = collabMode()
+    $('singleModelPrefs').hidden = mode !== 'single'
+    $('roleAssignPrefs').hidden = mode !== 'custom' && mode !== 'hybrid'
+  }
+
+  function renderCollaboration() {
+    const mode = bundle.collaborationMode || 'auto'
+    $('collabAuto').checked = mode !== 'custom' && mode !== 'single' && mode !== 'hybrid'
+    $('collabCustom').checked = mode === 'custom'
+    $('collabSingle').checked = mode === 'single'
+    $('collabHybrid').checked = mode === 'hybrid'
+    const policy = bundle.failurePolicy || (mode === 'custom' ? 'ask' : 'auto')
+    $('failAuto').checked = policy === 'auto'
+    $('failAsk').checked = policy === 'ask'
+    $('failStop').checked = policy === 'stop'
+    fillProviderSelect($('singleProvider'), false)
+    const single = bundle.singleModel || {}
+    $('singleProvider').value = ASD.providerRegistry.canonicalId(single.provider || currentId)
+    $('singleModel').value = single.model || ''
+    const roles = bundle.roleAssignments || {}
+    writeRole('roleEvidence', roles.evidence)
+    writeRole('roleReasoning', roles.reasoning)
+    writeRole('roleKeywords', roles.keywords)
+    writeRole('roleContent', roles.content)
+    writeRole('roleVerifier', roles.verifier)
+    showCollaboration()
   }
 
   function readRouting() {
@@ -94,6 +154,16 @@
       model: $('fixedModel').value.trim(),
     }
     bundle.orchestrationMode = $('orchMulti').checked ? 'multi' : $('orchSingle').checked ? 'single' : 'auto'
+    bundle.collaborationMode = collabMode()
+    bundle.failurePolicy = failPolicy()
+    bundle.singleModel = { provider: $('singleProvider').value, model: $('singleModel').value.trim() }
+    bundle.roleAssignments = {
+      evidence: readRole('roleEvidence'),
+      reasoning: readRole('roleReasoning'),
+      keywords: readRole('roleKeywords'),
+      content: readRole('roleContent'),
+      verifier: readRole('roleVerifier'),
+    }
     bundle.advanced = {
       product_diagnosis: { provider: $('advDiagnosisProvider').value, model: $('advDiagnosisModel').value.trim() },
       vision_analysis: { provider: $('advVisionProvider').value, model: $('advVisionModel').value.trim() },
@@ -268,9 +338,34 @@
     'orchAuto',
     'orchSingle',
     'orchMulti',
+    'collabAuto',
+    'collabCustom',
+    'collabSingle',
+    'collabHybrid',
+    'failAuto',
+    'failAsk',
+    'failStop',
+    'singleProvider',
+    'singleModel',
+    'roleEvidenceMode',
+    'roleEvidenceProvider',
+    'roleEvidenceModel',
+    'roleReasoningMode',
+    'roleReasoningProvider',
+    'roleReasoningModel',
+    'roleKeywordsMode',
+    'roleKeywordsProvider',
+    'roleKeywordsModel',
+    'roleContentMode',
+    'roleContentProvider',
+    'roleContentModel',
+    'roleVerifierMode',
+    'roleVerifierProvider',
+    'roleVerifierModel',
   ].forEach(function (id) {
     $(id).addEventListener('change', function () {
       showRouting()
+      showCollaboration()
       persist({ quiet: true }).catch(function (error) {
         $('status').textContent = error.message
       })
@@ -289,8 +384,16 @@
       await persist({ validate: true })
       $('status').textContent = '正在测试…'
       const result = await chrome.runtime.sendMessage({ type: 'TEST_AI', provider: currentId })
+      const live = result && (result.liveness || (result.ok ? 'ok' : 'fail'))
+      const structured = result && (result.structured || (result.result && result.result.structured) || (result.ok ? 'ok' : 'fail'))
       $('status').textContent = result && result.ok
-        ? (result.provider || currentId) + ' 连接成功 · ' + (result.model || '')
+        ? (result.provider || currentId) +
+          ' API连接：' +
+          (live === 'ok' ? '成功' : '失败') +
+          ' · 结构化输出：' +
+          (structured === 'ok' ? '成功' : structured === 'limited' ? '受限' : '失败') +
+          ' · ' +
+          (result.model || '')
         : '连接失败：' + ((result && result.reason) || '未知错误')
     } catch (error) {
       $('status').textContent = error.message

@@ -14,6 +14,9 @@
     const meta = props.meta || {}
     const orch = meta.orchestration || r.debug && r.debug.orchestration
     const lines = meta.collaboration || []
+    const exec = meta.collaborationMeta && meta.collaborationMeta.actualExecution && meta.collaborationMeta.actualExecution.lines
+      ? meta.collaborationMeta.actualExecution.lines
+      : []
     const userLines = (orch && orch.userLines) || []
     const statusLines = userLines.length
       ? userLines
@@ -36,12 +39,23 @@
     if (orch && orch.completion && orch.completion.status === 'partial' && statusLines.indexOf('诊断已完成，但部分内容建议生成失败。') === -1) {
       statusLines.push('诊断已完成，但部分内容建议生成失败。')
     }
+    const planLines = lines.length ? lines : []
     const orchCard =
-      orch || statusLines.length
+      orch || statusLines.length || planLines.length || exec.length
         ? `<div class="card"><div class="section-label">本次 AI 协同</div>${
+            planLines.length
+              ? '<p class="muted">协作计划</p>' + planLines.map(function (item) { return `<p>${esc(item)}</p>` }).join('')
+              : ''
+          }${
+            exec.length
+              ? '<p class="muted">实际调用</p>' + exec.map(function (item) { return `<p>${esc(item)}</p>` }).join('')
+              : ''
+          }${
             statusLines.length
               ? statusLines.map(function (item) { return `<p>${esc(item)}</p>` }).join('')
-              : `<p>${esc(orch && orch.mode === 'single' ? '单模型诊断' : 'AI协同完成')}</p>`
+              : planLines.length || exec.length
+                ? ''
+                : `<p>${esc(orch && orch.mode === 'single' ? '单模型诊断' : 'AI协同完成')}</p>`
           }</div>`
         : ''
     return orchCard + `<div class="card"><div class="section-label">AI 诊断</div>${

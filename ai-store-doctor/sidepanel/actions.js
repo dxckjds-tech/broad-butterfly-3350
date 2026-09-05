@@ -183,6 +183,7 @@
               route: r.route || null,
               orchestration: r.orchestration || null,
               collaboration: r.collaboration || [],
+              collaborationMeta: r.collaborationMeta || null,
               payloadDebug: r.payloadDebug || (r.orchestration && r.orchestration.payload) || null,
               responseDebug: r.responseDebug || null,
             },

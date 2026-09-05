@@ -88,9 +88,59 @@
     </div>
   </section>
 
+  <section id="collabSection" class="card">
+    <h2>AI 协作模式</h2>
+    <p class="muted">Role 固定，模型自由。可以一个模型承担全部角色，也可以任意组合已配置的模型。</p>
+    <label class="check-line"><input id="collabAuto" type="radio" name="collabMode" value="auto"> 智能自动</label>
+    <label class="check-line"><input id="collabCustom" type="radio" name="collabMode" value="custom"> 自由组合</label>
+    <label class="check-line"><input id="collabSingle" type="radio" name="collabMode" value="single"> 单模型</label>
+    <label class="check-line"><input id="collabHybrid" type="radio" name="collabMode" value="hybrid"> 混合模式</label>
+
+    <div id="singleModelPrefs" hidden>
+      <label>全部角色使用
+        <select id="singleProvider"></select>
+        <input id="singleModel" placeholder="Model ID">
+      </label>
+    </div>
+
+    <div id="roleAssignPrefs" hidden>
+      <p class="muted">固定项系统不会改写。自动项由 Router 选择。未测试模型可选，但会提示。</p>
+      <label>证据/视觉
+        <select id="roleEvidenceMode"><option value="auto">自动</option><option value="fixed">固定</option></select>
+        <select id="roleEvidenceProvider"></select>
+        <input id="roleEvidenceModel" placeholder="Model ID">
+      </label>
+      <label>推理诊断
+        <select id="roleReasoningMode"><option value="auto">自动</option><option value="fixed">固定</option></select>
+        <select id="roleReasoningProvider"></select>
+        <input id="roleReasoningModel" placeholder="Model ID">
+      </label>
+      <label>关键词
+        <select id="roleKeywordsMode"><option value="auto">自动</option><option value="fixed">固定</option></select>
+        <select id="roleKeywordsProvider"></select>
+        <input id="roleKeywordsModel" placeholder="Model ID">
+      </label>
+      <label>内容生成
+        <select id="roleContentMode"><option value="auto">自动</option><option value="fixed">固定</option></select>
+        <select id="roleContentProvider"></select>
+        <input id="roleContentModel" placeholder="Model ID">
+      </label>
+      <label>事实复核
+        <select id="roleVerifierMode"><option value="auto">自动</option><option value="fixed">固定</option></select>
+        <select id="roleVerifierProvider"></select>
+        <input id="roleVerifierModel" placeholder="Model ID">
+      </label>
+    </div>
+
+    <p class="muted">失败时</p>
+    <label class="check-line"><input id="failAuto" type="radio" name="failPolicy" value="auto"> 自动切备用</label>
+    <label class="check-line"><input id="failAsk" type="radio" name="failPolicy" value="ask"> 询问我</label>
+    <label class="check-line"><input id="failStop" type="radio" name="failPolicy" value="stop"> 停止</label>
+  </section>
+
   <section id="orchSection" class="card">
-    <h2>商品诊断协同</h2>
-    <p class="muted">一次诊断最多 3 次模型调用。自动模式在只有 1 个 Provider 时保持单模型。</p>
+    <h2>商品诊断协同（兼容）</h2>
+    <p class="muted">一次诊断最多 4 次模型调用。自动模式在只有 1 个 Provider 时保持单模型。</p>
     <label class="check-line"><input id="orchAuto" type="radio" name="orchMode" value="auto"> 自动（推荐）</label>
     <label class="check-line"><input id="orchSingle" type="radio" name="orchMode" value="single"> 单模型（兼容 v1.6.1）</label>
     <label class="check-line"><input id="orchMulti" type="radio" name="orchMode" value="multi"> 强制三阶段</label>
@@ -112,6 +162,7 @@
 <script src="shared/constants.js"></script>
 <script src="shared/storage-keys.js"></script>
 <script src="shared/provider-registry.js"></script>
+<script src="shared/collaboration-config.js"></script>
 <script src="shared/provider-configs.js"></script>
 <script src="options.js"></script>
 </body>

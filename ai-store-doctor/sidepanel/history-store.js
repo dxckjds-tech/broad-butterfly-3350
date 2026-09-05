@@ -203,6 +203,14 @@
       extensionVersion: input.extensionVersion || (ASD.constants && ASD.constants.EXTENSION_VERSION) || '',
       productSnapshot: snap,
       orchestration: slimOrchestration(input.orchestration),
+      collaboration: input.collaboration
+        ? {
+            mode: input.collaboration.mode || '',
+            assignments: input.collaboration.assignments || {},
+            actualExecution: input.collaboration.actualExecution || {},
+            mergedRoles: input.collaboration.mergedRoles || [],
+          }
+        : null,
     }
     const itemPatch = {}
     itemPatch[itemKey(id)] = record

@@ -31,7 +31,14 @@
         error.code === 'SECURITY_SANITIZER_UNAVAILABLE' ||
         error.code === 'PAYLOAD_BUDGET_EXCEEDED' ||
         error.code === 'API_KEY_MISSING' ||
-        error.code === 'COLLECTION_INCOMPLETE'
+        error.code === 'COLLECTION_INCOMPLETE' ||
+        error.code === 'PARAM_REJECTED' ||
+        error.code === 'EMPTY_FINAL_CONTENT' ||
+        error.code === 'EMPTY_CHOICES' ||
+        error.code === 'CONTENT_FILTERED' ||
+        error.code === 'QUOTA_ERROR' ||
+        error.code === 'OUTPUT_TRUNCATED' ||
+        error.code === 'ROLE_CAPABILITY_MISMATCH'
       ) {
         return error.code
       }
@@ -104,7 +111,13 @@
         if (out && ASD.bg.modelHealth && typeof ASD.bg.modelHealth.clearAttention === 'function') {
           ASD.bg.modelHealth.clearAttention(message.provider || (out.route && out.route.selected && out.route.selected.provider))
         }
-        return { ok: out.result && out.result.ok === true, ...out }
+        const levels = (out && out.connection) || (out && out.result) || {}
+        return {
+          ok: !!(out && out.result),
+          liveness: levels.liveness || (out && out.result ? 'ok' : 'fail'),
+          structured: levels.structured || (out && out.result && out.result.structured) || 'limited',
+          ...out,
+        }
       } catch (error) {
         return { ok: false, reason: error.message || '连接失败', code: classify(error) }
       }
@@ -165,7 +178,17 @@
             })
             out.requestId = message.requestId || null
             out.fieldsVersion = message.fieldsVersion || 0
-            out.collaboration = ASD.bg.orchestrationPlanner.formatCollaboration(out.plan || plan)
+            const usedPlan = out.plan || plan
+            out.collaboration = ASD.bg.orchestrationPlanner.formatCollaboration(usedPlan)
+            out.collaborationMeta = {
+              mode: usedPlan.collaborationMode || usedPlan.mode,
+              assignments: usedPlan.assignments || {},
+              actualExecution:
+                ASD.bg.collaborationScheduler && typeof ASD.bg.collaborationScheduler.formatExecution === 'function'
+                  ? ASD.bg.collaborationScheduler.formatExecution((out.orchestration && out.orchestration.stages) || [], usedPlan)
+                  : { lines: out.collaboration, mergedRoles: usedPlan.mergedRoles || [] },
+              mergedRoles: usedPlan.mergedRoles || [],
+            }
             return { ok: true, ...out }
           })
         } catch (error) {
