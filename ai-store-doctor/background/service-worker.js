@@ -11,6 +11,8 @@ importScripts(
   '../shared/image-score.js',
   './settings.js',
   './providers/openai-compatible.js',
+  './providers/anthropic.js',
+  './providers/gemini.js',
   './model-router.js',
   './prompt-builder.js',
   './payload-builder.js',
