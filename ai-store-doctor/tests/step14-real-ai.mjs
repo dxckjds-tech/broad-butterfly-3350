@@ -70,6 +70,7 @@ function loadAnalyze(settings) {
     'background/model-health.js',
     'background/model-router.js',
     'background/prompt-builder.js',
+    'shared/payload-compactor.js',
     'background/payload-builder.js',
     'background/image-fetcher.js',
     'background/ai-client.js',

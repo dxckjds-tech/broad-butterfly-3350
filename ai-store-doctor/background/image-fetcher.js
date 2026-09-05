@@ -51,8 +51,9 @@
     return Math.floor((b64.length * 3) / 4)
   }
 
-  async function fetchVisionImages(images) {
-    const ranked = ASD.imageScore ? ASD.imageScore.topN(images || [], 5) : (images || []).slice(0, 5)
+  async function fetchVisionImages(images, options) {
+    const limit = options && options.limit != null ? Math.max(0, Number(options.limit) || 0) : 5
+    const ranked = ASD.imageScore ? ASD.imageScore.topN(images || [], limit) : (images || []).slice(0, limit)
     const picked = []
     let total = 0
     for (let i = 0; i < ranked.length; i += 1) {

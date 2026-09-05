@@ -1060,7 +1060,8 @@
     const product = opts.productBundle || opts.product || null
     const visionSource = opts.images || (product && product.images) || fields.images || []
     const hasImages = visionSource.length > 0 || !!(opts.requestContext && opts.requestContext.hasImages)
-    const built = ASD.bg.payloadBuilder.buildAnalyzePayload(product, fields)
+    const built = ASD.bg.payloadBuilder.buildAnalyzePayload(product, fields, { images: visionSource })
+    const compactImages = built.images && built.images.length ? built.images : visionSource
     const bundle = cfg.providerConfigs || (ASD.providerConfigs ? ASD.providerConfigs.migrate(cfg) : {})
     const preference =
       (opts.preferences && opts.preferences.costPreference) || bundle.costPreference || 'balanced'
@@ -1094,7 +1095,9 @@
     })
     const visionPack =
       selectedVision && ASD.bg.imageFetcher && typeof ASD.bg.imageFetcher.fetchVisionImages === 'function'
-        ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
+        ? await ASD.bg.imageFetcher.fetchVisionImages(compactImages, {
+            limit: compactImages.length,
+          })
         : { urls: [], picked: [], ranked: [] }
     const prefs = { mode: bundle.activeMode || 'auto', costPreference: preference }
     const out =
@@ -1119,6 +1122,13 @@
         reasons: img.reasons || [],
       }
     })
+    if (built.payloadDebug) {
+      out.payloadProfile = built.profile
+      out.payloadDebug = built.payloadDebug
+      out.orchestration = out.orchestration || {}
+      out.orchestration.payload = built.payloadDebug
+      if (out.result && out.result.debug) out.result.debug.payload = built.payloadDebug
+    }
     return out
   }
 

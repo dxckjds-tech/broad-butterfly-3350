@@ -1,6 +1,7 @@
 importScripts(
   '../shared/constants.js',
   '../shared/error-codes.js',
+  '../shared/payload-compactor.js',
   '../shared/product-fields.js',
   '../shared/storage-keys.js',
   '../shared/pii-patterns.js',

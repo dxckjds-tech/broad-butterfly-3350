@@ -9,16 +9,57 @@
     if (input) ns.sidepanel.state.update({ manualIdentityDraft: input.value }, 'capture-manual')
   }
 
+  function errorCodeOf(props) {
+    return (props.meta && props.meta.code) || props.errorCode || ''
+  }
+
+  function errorCtas(code) {
+    if (code === 'AUTH_ERROR' || code === 'API_KEY_MISSING') {
+      return [{ action: 'settings', label: '打开 API 设置' }]
+    }
+    if (code === 'MODEL_NOT_FOUND') {
+      return [{ action: 'settings', label: '打开模型设置' }]
+    }
+    if (code === 'PAYLOAD_BUDGET_EXCEEDED') {
+      return [
+        { action: 'analyze', label: '重新压缩并分析' },
+        { action: 'settings', label: '切换模型' },
+      ]
+    }
+    if (code === 'COLLECTION_INCOMPLETE') {
+      return [{ action: 'reload-fields', label: '重新读取页面' }]
+    }
+    return [{ action: 'settings', label: '打开 API 设置' }]
+  }
+
+  function errorCtaHtml(code) {
+    return errorCtas(code)
+      .map(function (cta) {
+        return `<button class="pill-btn" data-action="${esc(cta.action)}">${esc(cta.label)}</button>`
+      })
+      .join('')
+  }
+
+  function collectWarningHtml(text) {
+    return String(text || '')
+      .split('\n')
+      .filter(Boolean)
+      .map(function (line) {
+        return `<p class="danger">${esc(line)}</p>`
+      })
+      .join('')
+  }
+
   function summary(props) {
     const e = document.getElementById('summary')
     if (props.loading)
       e.innerHTML = `<b>AI 正在分析… ${props.elapsed} 秒</b><div class="loader"></div><div class="muted">K3 推理可能需要 60–125 秒，其他模型通常 10–40 秒</div>`
     else if (props.error)
-      e.innerHTML = `<div class="danger">${esc(props.error)}</div><button class="pill-btn" data-action="settings">打开 API 设置</button>`
+      e.innerHTML = '<div class="danger">' + esc(props.error) + '</div>' + errorCtaHtml(errorCodeOf(props))
     else if (!props.report) {
       e.innerHTML =
         '<b>读取商品 URL 后，点击“AI 分析商品”</b>' +
-        (props.collectWarning ? `<div class="danger">${esc(props.collectWarning)}</div>` : '')
+        (props.collectWarning ? '<div class="danger">' + collectWarningHtml(props.collectWarning) + '</div>' : '')
     }
     else {
       const s = props.report.summary || {}
@@ -92,7 +133,7 @@
     if (!props.report)
       c.innerHTML = props.fields
         ? '<div class="card">商品 URL 数据已读取。点击下方按钮调用所选 AI 完成诊断。</div>' +
-          (props.collectWarning ? `<div class="card"><p class="danger">${esc(props.collectWarning)}</p></div>` : '')
+          (props.collectWarning ? '<div class="card">' + collectWarningHtml(props.collectWarning) + '</div>' : '')
         : '<div class="card">请粘贴商品 URL，或读取当前页 URL。</div>'
     else {
       const views = [
@@ -119,7 +160,7 @@
     }
   }
 
-  ns.sidepanel.app = { render, summary, tabs }
+  ns.sidepanel.app = { render, summary, tabs, errorCtas, errorCodeOf }
 
   document.getElementById('panel').addEventListener('click', async (e) => {
     const x = e.target.closest('[data-action]')
@@ -138,7 +179,7 @@
       await ns.sidepanel.actions.readUrl(document.getElementById('productUrl').value.trim())
       return
     } else if (x.dataset.action === 'reload-fields') {
-      await ns.sidepanel.actions.read()
+      await ns.sidepanel.actions.read({ forceResample: true })
       return
     } else if (x.dataset.action === 'analyze') {
       await ns.sidepanel.actions.analyze()

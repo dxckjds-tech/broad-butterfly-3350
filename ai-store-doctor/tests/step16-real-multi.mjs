@@ -84,6 +84,7 @@ function loadAnalyze(settings) {
     'background/prompts/verification-prompt.js',
     'background/verification-risk.js',
     'background/final-report-guard.js',
+    'shared/payload-compactor.js',
     'background/payload-builder.js',
     'background/image-fetcher.js',
     'background/ai-client.js',

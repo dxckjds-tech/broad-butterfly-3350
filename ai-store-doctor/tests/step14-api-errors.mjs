@@ -52,6 +52,7 @@ function loadClient(fetchImpl) {
     'shared/task-validators.js',
     'background/settings.js',
     'background/providers/openai-compatible.js',
+    'shared/payload-compactor.js',
     'background/payload-builder.js',
     'background/ai-client.js',
     'background/message-handler.js',

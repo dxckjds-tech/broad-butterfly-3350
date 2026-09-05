@@ -28,7 +28,10 @@
         error.code === 'PROVIDER_ERROR' ||
         error.code === 'VALIDATION_ERROR' ||
         error.code === 'EVIDENCE_CONFLICT' ||
-        error.code === 'SECURITY_SANITIZER_UNAVAILABLE'
+        error.code === 'SECURITY_SANITIZER_UNAVAILABLE' ||
+        error.code === 'PAYLOAD_BUDGET_EXCEEDED' ||
+        error.code === 'API_KEY_MISSING' ||
+        error.code === 'COLLECTION_INCOMPLETE'
       ) {
         return error.code
       }
@@ -36,8 +39,11 @@
     const msg = (error && error.message) || String(error || '')
     if (/API Key|设置页|HTTPS|CONFIG_ERROR/.test(msg)) return 'CONFIG_ERROR'
     if (/AUTH_ERROR|401|invalid api key|unauthorized/i.test(msg)) return 'AUTH_ERROR'
+    if (/API_KEY_MISSING/.test(msg)) return 'API_KEY_MISSING'
     if (/CONNECTION_ERROR|Failed to fetch|超时|network/i.test(msg)) return 'CONNECTION_ERROR'
     if (/LENGTH_ERROR|输出被截断|输出长度不足/.test(msg)) return 'LENGTH_ERROR'
+    if (/PAYLOAD_BUDGET_EXCEEDED|商品信息过长，已自动压缩/.test(msg)) return 'PAYLOAD_BUDGET_EXCEEDED'
+    if (/COLLECTION_INCOMPLETE/.test(msg)) return 'COLLECTION_INCOMPLETE'
     if (/SCHEMA_ERROR|PAYLOAD_|RESPONSE_ERROR/.test(msg)) return 'SCHEMA_ERROR'
     if (/商品 URL|NO_|无法取得|CONTENT_SCRIPT/.test(msg)) return 'FIELD_ERROR'
     return 'AI_ERROR'
@@ -48,7 +54,11 @@
   }
 
   async function handle(message, sender) {
-    if (message?.type === 'REQUEST_URL_FIELDS') return await ASD.bg.urlReader.readUrlInAuthenticatedTab(message.url)
+    if (message?.type === 'REQUEST_URL_FIELDS') {
+      return await ASD.bg.urlReader.readUrlInAuthenticatedTab(message.url, {
+        forceResample: !!(message && message.forceResample),
+      })
+    }
     if (message?.type === 'GET_ACTIVE_URL') {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       return tab?.url ? { ok: true, url: tab.url } : { ok: false, reason: '无法取得当前页面 URL' }
@@ -64,7 +74,10 @@
       }
       if (!ASD.constants.isSupportedHost(hostname)) return fail('当前页不是 VEMIC / Made-in-China')
       try {
-        const response = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MIC_FIELDS' })
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          type: 'EXTRACT_MIC_FIELDS',
+          forceResample: !!(message && message.forceResample),
+        })
         if (response?.loginRequired) return fail(response.reason || '需要登录')
         if (response?.fields)
           return { ok: true, fields: response.fields, product: response.product || null, url: tab.url }
@@ -162,6 +175,7 @@
             code: classify(error),
             requestId: message.requestId || null,
             fieldsVersion: message.fieldsVersion || 0,
+            payloadDebug: error.payloadDebug || null,
           }
         }
       }
@@ -190,12 +204,15 @@
       })
       try {
         return await ASD.bg.requests.run(key, async function () {
-          const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source)
+          const built = ASD.bg.payloadBuilder.buildAnalyzePayload(message.product, source, { images: visionSource })
           const nonce = ASD.bg.payloadBuilder.randomNonce()
           const wrapped = ASD.bg.payloadBuilder.wrapUntrusted(built.text, nonce)
           const visionCapable = !!(route.selected.capabilities && route.selected.capabilities.vision)
+          const compactImages = built.images && built.images.length ? built.images : visionSource
           const visionPack = visionCapable
-            ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
+            ? await ASD.bg.imageFetcher.fetchVisionImages(compactImages, {
+                limit: compactImages.length,
+              })
             : { urls: [], picked: [], ranked: [] }
           const visionUrls = visionPack.urls
           const pickedSources = new Set(
@@ -224,6 +241,8 @@
           out.visionUsed = imageBlocks.length > 0
           out.payloadMode = built.mode
           out.payloadTruncated = built.truncated
+          out.payloadProfile = built.profile
+          out.payloadDebug = built.payloadDebug || null
           out.requestId = message.requestId || null
           out.fieldsVersion = message.fieldsVersion || 0
           out.imageRank = (visionPack.ranked || []).map(function (img) {
@@ -243,6 +262,7 @@
           code: classify(error),
           requestId: message.requestId || null,
           fieldsVersion: message.fieldsVersion || 0,
+          payloadDebug: error.payloadDebug || null,
         }
       }
     }

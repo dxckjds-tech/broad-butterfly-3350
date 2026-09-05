@@ -32,6 +32,7 @@ export const ORCH_FILES = [
   'background/prompts/verification-prompt.js',
   'background/verification-risk.js',
   'background/final-report-guard.js',
+  'shared/payload-compactor.js',
   'background/payload-builder.js',
   'background/orchestrator.js',
   'shared/storage-keys.js',

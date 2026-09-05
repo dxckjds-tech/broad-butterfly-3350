@@ -157,6 +157,11 @@
     })
   }
 
+  function resetSession() {
+    ns.content.dynamic.extractCount = 0
+    ns.content.dynamic.observerTriggeredCount = 0
+  }
+
   ns.content.dynamic = {
     DEBOUNCE_MS: DEBOUNCE_MS,
     POLL_MS: POLL_MS,
@@ -165,5 +170,6 @@
     extractCount: 0,
     observerTriggeredCount: 0,
     collectUntilStable: collectUntilStable,
+    resetSession: resetSession,
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

@@ -216,6 +216,13 @@ function replyCollected(collected, sendResponse) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== 'EXTRACT_MIC_FIELDS') return
+  if (message && message.forceResample && ASD.content && ASD.content.dynamic) {
+    if (typeof ASD.content.dynamic.resetSession === 'function') ASD.content.dynamic.resetSession()
+    else {
+      ASD.content.dynamic.extractCount = 0
+      ASD.content.dynamic.observerTriggeredCount = 0
+    }
+  }
   const wait = !(message && message.immediate === true)
   const run =
     wait && ASD.content && ASD.content.dynamic

@@ -61,11 +61,16 @@
             .join('') || '<p class="muted">无解释</p>'
         }</div>`
       : ''
+    const payload = (orch && orch.payload) || (d && d.payload) || (meta && meta.payloadDebug) || null
+    const payloadCard = payload
+      ? `<div class="card"><b>Payload 压缩</b><p>profile：${esc(payload.payloadProfile || '—')}</p><p>originalEstimatedTokens：${esc(payload.originalEstimatedTokens != null ? payload.originalEstimatedTokens : '—')}</p><p>finalEstimatedTokens：${esc(payload.finalEstimatedTokens != null ? payload.finalEstimatedTokens : '—')}</p><p>removedSections：${esc((payload.removedSections || []).join(', ') || '—')}</p><p>imageCount：${esc(payload.imageCountBefore != null ? payload.imageCountBefore : '—')} → ${esc(payload.imageCountAfter != null ? payload.imageCountAfter : '—')}</p></div>`
+      : ''
     const collectCompare = dProduct
       ? `<div class="card"><b>采集双轨</b><p>旧结构字段：${esc(dProduct.oldFieldCount || 0)}</p><p>新结构字段：${esc(dProduct.newFieldCount || 0)}</p><p>productRoot：${dProduct.productRootFound ? '已找到' : '未找到'}</p><p>完整商品：${dProduct.completeProduct ? '是' : '否'}</p></div>`
       : ''
     return (
       collectCompare +
+      payloadCard +
       orchCard +
       verifyCard +
       routeCard +

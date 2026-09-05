@@ -3,7 +3,7 @@
   const ns = (root.ASD = root.ASD || {})
   ns.bg = ns.bg || {}
 
-  async function readUrlInAuthenticatedTab(targetUrl) {
+  async function readUrlInAuthenticatedTab(targetUrl, options) {
     let url
     try {
       url = new URL(targetUrl)
@@ -44,7 +44,10 @@
       for (let attempt = 0; attempt < 6; attempt += 1) {
         if (attempt) await new Promise((resolve) => setTimeout(resolve, 800))
         try {
-          fieldsResponse = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MIC_FIELDS' })
+          fieldsResponse = await chrome.tabs.sendMessage(tab.id, {
+            type: 'EXTRACT_MIC_FIELDS',
+            forceResample: !!(options && options.forceResample && attempt === 0),
+          })
           if (fieldsResponse?.loginRequired) {
             bestResponse = fieldsResponse
             break

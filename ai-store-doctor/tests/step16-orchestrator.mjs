@@ -42,6 +42,7 @@ function load(withSanitize) {
     'background/prompts/evidence-prompt.js',
     'background/prompts/diagnosis-prompt.js',
     'background/prompts/content-prompt.js',
+    'shared/payload-compactor.js',
     'background/payload-builder.js',
     'background/orchestrator.js',
     'shared/storage-keys.js',

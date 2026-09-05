@@ -110,38 +110,26 @@
     }
   }
 
-  function enforceBudget(obj) {
-    const next = cloneJson(obj)
-    const truncated = {}
-    let text = stringifyChecked(next)
-    if (text.length > MAX_PAYLOAD_CHARS && next.fallbackText) {
-      truncated.fallbackText = true
-      truncated.fallbackTextOriginal = next.fallbackText.length
-      next.fallbackText = next.fallbackText.slice(0, 400)
-      text = stringifyChecked(next)
+  function enforceBudget(obj, options) {
+    const compactor = ns.payloadCompactor || (root.ASD && root.ASD.payloadCompactor)
+    if (!compactor || typeof compactor.fitToBudget !== 'function') {
+      throw new Error('PAYLOAD_COMPACTOR_UNAVAILABLE')
     }
-    if (text.length > MAX_PAYLOAD_CHARS && next.product) {
-      const specs = next.product.specifications || []
-      if (specs.length > 24) {
-        truncated.specifications = { original: specs.length, sent: 24 }
-        next.product.specifications = specs.slice(0, 24)
-      }
-      const attrs = next.product.attributes || []
-      if (attrs.length > 12) {
-        truncated.attributes = { original: attrs.length, sent: 12 }
-        next.product.attributes = attrs.slice(0, 12)
-      }
-      text = stringifyChecked(next)
+    const fitted = compactor.fitToBudget(obj, {
+      maxChars: MAX_PAYLOAD_CHARS,
+      images: options && options.images,
+    })
+    if (fitted.overBudget) {
+      throw compactor.createBudgetError(fitted.debug)
     }
-    if (text.length > MAX_PAYLOAD_CHARS && next.company && next.company.profile) {
-      truncated.companyProfile = true
-      next.company.profile = String(next.company.profile).slice(0, 400)
-      text = stringifyChecked(next)
+    return {
+      object: fitted.object,
+      text: fitted.text,
+      truncated: fitted.profile !== 'FULL',
+      profile: fitted.profile,
+      images: fitted.images,
+      payloadDebug: fitted.debug,
     }
-    if (Object.keys(truncated).length) next._truncated = truncated
-    text = stringifyChecked(next)
-    if (text.length > MAX_PAYLOAD_CHARS) throw new Error('PAYLOAD_BUDGET_EXCEEDED')
-    return { object: next, text: text, truncated: truncated }
   }
 
   function randomNonce() {
@@ -157,13 +145,18 @@
     return `<UNTRUSTED_PAGE_DATA nonce="${nonce}">\n${payloadText}\n</UNTRUSTED_PAGE_DATA nonce="${nonce}">`
   }
 
-  function buildAnalyzePayload(product, fields) {
+  function buildAnalyzePayload(product, fields, options) {
+    const images =
+      (options && options.images) ||
+      (product && product.images) ||
+      (fields && fields.images) ||
+      []
     if (hasProductBundle(product)) {
-      return Object.assign({ mode: 'product' }, enforceBudget(productPayload(product, fields)))
+      return Object.assign({ mode: 'product' }, enforceBudget(productPayload(product, fields), { images: images }))
     }
     if (fields) {
       const compact = compactFields(fields)
-      return Object.assign({ mode: 'legacy' }, enforceBudget(compact))
+      return Object.assign({ mode: 'legacy' }, enforceBudget(compact, { images: images }))
     }
     throw new Error('NO_PRODUCT_OR_FIELDS')
   }

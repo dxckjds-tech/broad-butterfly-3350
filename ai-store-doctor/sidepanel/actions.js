@@ -30,6 +30,22 @@
     btn.style.opacity = busy ? '0.65' : ''
   }
 
+  function collectWarningText(product) {
+    const debug = product && product.debug
+    if (!debug || !debug.collectGaps || !debug.collectGaps.length) return ''
+    const hits = debug.selectorHits || {}
+    const score = debug.finalQualityScore != null ? debug.finalQualityScore : debug.qualityScore != null ? debug.qualityScore : 0
+    return [
+      '页面商品信息读取可能不完整，请检查页面是否加载完成或平台页面结构是否发生变化。',
+      'productRootFound=' + (debug.productRootFound ? 'true' : 'false'),
+      'finalQualityScore=' + score,
+      'selectorHits.title=' + (hits.title || 'null'),
+      'selectorHits.category=' + (hits.category || 'null'),
+      'selectorHits.specifications=' + (hits.specifications || 'null'),
+      'selectorHits.description=' + (hits.description || 'null'),
+    ].join('\n')
+  }
+
   function applySuccess(fields, product, url) {
     const current = ns.sidepanel.state.get()
     ns.sidepanel.state.update(
@@ -41,10 +57,7 @@
         viewingHistory: null,
         saveNotice: '',
         error: '',
-        collectWarning:
-          product && product.debug && product.debug.collectGaps && product.debug.collectGaps.length
-            ? '页面商品信息读取可能不完整，请检查页面是否加载完成或平台页面结构是否发生变化。'
-            : '',
+        collectWarning: collectWarningText(product),
         fieldsVersion: (current.fieldsVersion || 0) + 1,
       },
       'read:ok',
@@ -84,9 +97,21 @@
     return false
   }
 
-  async function read() {
+  async function read(opts) {
+    const forceResample = !!(opts && opts.forceResample)
+    if (forceResample) {
+      const current = ns.sidepanel.state.get()
+      ns.sidepanel.state.update(
+        {
+          fieldsVersion: (current.fieldsVersion || 0) + 1,
+          error: '',
+          report: null,
+        },
+        'read:force-resample',
+      )
+    }
     const active = await previewActiveUrl()
-    const r = await chrome.runtime.sendMessage({ type: 'REQUEST_MIC_FIELDS' })
+    const r = await chrome.runtime.sendMessage({ type: 'REQUEST_MIC_FIELDS', forceResample: forceResample })
     if (r?.ok) {
       applySuccess(r.fields, r.product, r.url || (active && active.url))
       return true
@@ -158,6 +183,7 @@
               route: r.route || null,
               orchestration: r.orchestration || null,
               collaboration: r.collaboration || [],
+              payloadDebug: r.payloadDebug || (r.orchestration && r.orchestration.payload) || null,
             },
           },
           'analyze:ok',
@@ -169,7 +195,10 @@
             ? (r.reason || '当前固定模型不支持该任务所需能力') + '。可改为智能自动，或取消。'
             : r.reason || '没有已配置且支持该任务能力的模型'
         }
-        ns.sidepanel.state.update({ error: reason, meta: { code: r?.code || 'AI_ERROR' } }, 'analyze:fail')
+        ns.sidepanel.state.update(
+          { error: reason, meta: { code: r?.code || 'AI_ERROR', payloadDebug: r?.payloadDebug || null } },
+          'analyze:fail',
+        )
       }
     } catch (error) {
       const now = ns.sidepanel.state.get()
@@ -274,6 +303,7 @@
   }
 
   ns.sidepanel.actions = {
+    collectWarningText,
     readUrl,
     read,
     analyze,
