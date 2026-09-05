@@ -98,6 +98,11 @@
       preferred: { vision: true, reasoning: true },
       weights: { jsonReliability: 0.35, reasoning: 0.3, vision: 0.2, reliability: 0.15 },
     },
+    fact_verification: {
+      required: { structuredOutput: true, text: true },
+      preferred: { reasoning: true, factAdherence: true, jsonReliability: true, reliability: true },
+      weights: { reasoning: 0.3, jsonReliability: 0.3, reliability: 0.25, factAdherence: 0.15 },
+    },
   }
 
   function get(task) {

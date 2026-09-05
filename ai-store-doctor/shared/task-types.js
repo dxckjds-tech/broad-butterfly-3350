@@ -22,5 +22,6 @@
     CONTENT_GENERATION: 'content_generation',
     DIAGNOSIS_AND_CONTENT: 'diagnosis_and_content',
     EVIDENCE_AND_DIAGNOSIS: 'evidence_and_diagnosis',
+    FACT_VERIFICATION: 'fact_verification',
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

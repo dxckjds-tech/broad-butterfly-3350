@@ -48,6 +48,12 @@
       }
       return ns.orchestrationSchemas.normalizeEvidence(raw)
     }
+    if (name === ns.taskTypes.FACT_VERIFICATION || name === 'fact_verification') {
+      if (!ns.orchestrationSchemas || typeof ns.orchestrationSchemas.normalizeVerification !== 'function') {
+        return fail(['ORCHESTRATION_SCHEMA_UNAVAILABLE'])
+      }
+      return ns.orchestrationSchemas.normalizeVerification(raw)
+    }
     if (name === ns.taskTypes.DIAGNOSIS_REASONING || name === 'diagnosis_reasoning') {
       if (!ns.orchestrationSchemas || typeof ns.orchestrationSchemas.normalizeDiagnosis !== 'function') {
         return fail(['ORCHESTRATION_SCHEMA_UNAVAILABLE'])

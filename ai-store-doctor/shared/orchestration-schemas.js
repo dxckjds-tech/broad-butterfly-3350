@@ -2,7 +2,7 @@
   'use strict'
   const ns = (root.ASD = root.ASD || {})
 
-  const PAGE_SOURCE = { product_field: true, spec_table: true, json_ld: true, page_label: true }
+  const PAGE_SOURCE = { product_field: true, spec_table: true, json_ld: true, page_label: true, explicit_page_field: true }
   const EVIDENCE_STATUS = { VERIFIED: true, OBSERVED: true, UNKNOWN: true }
   const FACT_STATUS = { VERIFIED: true, OBSERVED: true, INFERRED: true, UNKNOWN: true }
 
@@ -258,6 +258,75 @@
     return validated
   }
 
+  const VERIFY_DECISION = { confirm: true, downgrade: true, reject: true }
+  const VERIFY_STATUS = { VERIFIED: true, OBSERVED: true, INFERRED: true, UNKNOWN: true }
+
+  function normalizeVerification(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail(['VERIFICATION_NOT_OBJECT'])
+    if (Object.prototype.hasOwnProperty.call(raw, 'newFacts') || Object.prototype.hasOwnProperty.call(raw, 'suggestedFacts')) {
+      return fail(['VERIFIER_CANNOT_ADD_FACTS'])
+    }
+    const decisions = asArray(raw.decisions)
+    if (!decisions.length) return fail(['VERIFICATION_NO_DECISIONS'])
+    const normalized = []
+    for (let i = 0; i < decisions.length; i += 1) {
+      const item = decisions[i]
+      if (!item || typeof item !== 'object') return fail(['INVALID_DECISION'])
+      const decision = asString(item.decision).toLowerCase()
+      if (!VERIFY_DECISION[decision]) return fail(['INVALID_DECISION:' + decision])
+      let toStatus = item.toStatus == null || item.toStatus === '' ? null : asString(item.toStatus).toUpperCase()
+      if (toStatus && !VERIFY_STATUS[toStatus]) toStatus = null
+      normalized.push({
+        claimId: asString(item.claimId),
+        decision: decision,
+        toStatus: toStatus,
+        reasonCode: asString(item.reasonCode),
+        explanation: asString(item.explanation),
+      })
+    }
+    return { ok: true, fatal: false, errors: [], repaired: [], result: { decisions: normalized } }
+  }
+
+  function applyVerifierDecisions(diagnosis, verification) {
+    const counts = { confirmed: 0, downgraded: 0, rejected: 0 }
+    const rejected = []
+    const byId = {}
+    asArray(verification && verification.decisions).forEach(function (item) {
+      if (item && item.claimId) byId[String(item.claimId).toLowerCase()] = item
+    })
+    const facts = asArray(diagnosis && diagnosis.facts)
+      .map(function (fact) {
+        if (!fact) return null
+        const id = asString(fact.claimId || fact.field || fact.label).toLowerCase()
+        const dec = byId[id]
+        if (!dec) return fact
+        if (dec.decision === 'reject') {
+          counts.rejected += 1
+          rejected.push({ claimId: id, label: fact.label, field: fact.field || fact.label, value: fact.value, sourceType: fact.sourceType, sourceRef: fact.sourceRef, sourceStage: fact.sourceStage })
+          return null
+        }
+        const next = Object.assign({}, fact)
+        if (dec.decision === 'downgrade') {
+          counts.downgraded += 1
+          let to = dec.toStatus || 'OBSERVED'
+          if (to === 'VERIFIED' && !isPageSource(next.sourceType)) to = 'OBSERVED'
+          next.status = to
+        } else if (dec.decision === 'confirm') {
+          counts.confirmed += 1
+          let to = dec.toStatus || next.status
+          if (to === 'VERIFIED' && !isPageSource(next.sourceType)) to = next.sourceType === 'vision' ? 'OBSERVED' : 'OBSERVED'
+          next.status = to
+        }
+        return next
+      })
+      .filter(Boolean)
+    return {
+      diagnosis: Object.assign({}, diagnosis, { facts: facts }),
+      rejected: rejected,
+      counts: counts,
+    }
+  }
+
   function finalizeOrchestrationReport(diagnosis, content, extras) {
     const contentNorm = normalizeContentStage(content && content.content ? content : { content: content, keywords: content && content.keywords, summary: content && content.summary }, diagnosis)
     if (!contentNorm.ok) return contentNorm
@@ -279,6 +348,8 @@
     normalizeEvidence: normalizeEvidence,
     normalizeDiagnosis: normalizeDiagnosis,
     normalizeContentStage: normalizeContentStage,
+    normalizeVerification: normalizeVerification,
+    applyVerifierDecisions: applyVerifierDecisions,
     finalizeOrchestrationReport: finalizeOrchestrationReport,
     isPageSource: isPageSource,
     protectFact: protectFact,
