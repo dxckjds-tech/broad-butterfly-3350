@@ -71,3 +71,9 @@ API Key 保存在当前浏览器的 `chrome.storage.local`。
 - 用户可删除历史报告
 - 用户可以移除 API Key
 - 采集不完整时会提示，但不阻断用户继续分析
+
+## 可选主机权限
+
+`optional_host_permissions` 中的 `https://*/*` **不是**扩展默认可以访问任意网站。
+
+该条目只用于：用户在设置页主动填写 Custom OpenAI-Compatible Base URL，并在浏览器权限提示中明确授权之后，扩展才能访问**该 Custom AI API Origin**。未配置、未授权的源不会被调用。官方 Provider 使用 `host_permissions` 中列出的固定 API 主机。

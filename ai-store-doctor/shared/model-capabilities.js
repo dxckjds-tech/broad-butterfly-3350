@@ -6,7 +6,7 @@
     text: true,
     vision: false,
     reasoning: false,
-    structuredOutput: true,
+    structuredOutput: false,
     longContext: false,
     translation: true,
   }
@@ -19,6 +19,7 @@
       structuredOutput: true,
       longContext: false,
       translation: true,
+      requestHints: { thinkingFromConfig: true },
     },
     'deepseek-v4-pro': {
       text: true,
@@ -27,6 +28,7 @@
       structuredOutput: true,
       longContext: true,
       translation: true,
+      requestHints: { thinkingFromConfig: true },
     },
     'deepseek-v4-flash-vision-exp': {
       text: true,
@@ -35,6 +37,7 @@
       structuredOutput: true,
       longContext: false,
       translation: true,
+      requestHints: { thinkingFromConfig: true },
     },
     'kimi-k2.5': {
       text: true,
@@ -43,6 +46,7 @@
       structuredOutput: true,
       longContext: true,
       translation: true,
+      requestHints: { thinking: { type: 'disabled' }, temperature: 1 },
     },
     'kimi-k3': {
       text: true,
@@ -51,6 +55,7 @@
       structuredOutput: true,
       longContext: true,
       translation: true,
+      requestHints: { reasoning_effort: 'low', temperature: 1, longTimeout: true },
     },
     'gpt-4o': {
       text: true,
@@ -171,36 +176,51 @@
     },
   }
 
+  function pickDeclared(obj) {
+    const out = {}
+    if (!obj || typeof obj !== 'object') return out
+    ;['text', 'vision', 'reasoning', 'structuredOutput', 'longContext', 'translation'].forEach(function (key) {
+      if (obj[key] != null) out[key] = !!obj[key]
+    })
+    if (obj.requestHints && typeof obj.requestHints === 'object') out.requestHints = obj.requestHints
+    return out
+  }
+
   function heuristic(model) {
     const name = String(model || '').toLowerCase()
     const guess = {}
-    if (/vision|vl|gpt-4o|gpt-4\.1|claude|gemini|kimi-k2\.5|kimi-k3/.test(name)) guess.vision = true
-    if (/reason|r1|k3|pro|sonnet|opus/.test(name)) guess.reasoning = true
-    if (/128k|256k|long|pro/.test(name)) guess.longContext = true
+    if (
+      /(?:^|[-_.])(vision|vl)(?:[-_.]|$)/.test(name) ||
+      /gpt-4o(?:-|$)|gpt-4\.1|kimi-k2\.5|kimi-k3(?:$|[-_.])|gemini-1\.5|gemini-2\.0|claude-3|claude-sonnet|claude-opus|qwen-vl/.test(
+        name,
+      )
+    ) {
+      guess.vision = true
+    }
+    if (/(?:^|[-_.])(reason|r1|o1|o3)(?:[-_.]|$)/.test(name) || /kimi-k3(?:$|[-_.])/.test(name)) {
+      guess.reasoning = true
+    }
+    if (/128k|256k|long-context/.test(name)) guess.longContext = true
     return guess
   }
 
-  function resolve(providerId, modelId, userOverride, providerCaps) {
-    const canon = ns.providerRegistry ? ns.providerRegistry.canonicalId(providerId) : providerId
-    const meta = ns.providerRegistry ? ns.providerRegistry.get(canon) : null
+  // Final priority: user override > KNOWN table > trusted model metadata > heuristic > safe defaults.
+  // Provider platform metadata must never be passed as trustedModelMeta.
+  function resolve(providerId, modelId, userOverride, trustedModelMeta) {
     const known = KNOWN[modelId] || KNOWN[String(modelId || '').toLowerCase()]
     const merged = Object.assign(
       {},
       SAFE_DEFAULTS,
-      (meta && meta.capabilities) || {},
-      providerCaps || {},
       heuristic(modelId),
-      known || {},
-      userOverride || {},
+      pickDeclared(trustedModelMeta),
+      pickDeclared(known),
+      pickDeclared(userOverride),
     )
-    if (!known && !userOverride) {
-      if (merged.vision == null) merged.vision = false
-      if (merged.reasoning == null) merged.reasoning = false
-    }
     merged.text = merged.text !== false
-    if (!known && !userOverride && !providerCaps) {
-      if (!/vision|vl|gpt-4o|claude|gemini|kimi-k2\.5|kimi-k3/i.test(String(modelId || ''))) merged.vision = false
-    }
+    if (userOverride && userOverride.requestHints) merged.requestHints = userOverride.requestHints
+    else if (known && known.requestHints) merged.requestHints = known.requestHints
+    else if (trustedModelMeta && trustedModelMeta.requestHints) merged.requestHints = trustedModelMeta.requestHints
+    else delete merged.requestHints
     return merged
   }
 

@@ -180,7 +180,7 @@ const flashOnly = textOnly.ASD.bg.modelRouter.selectModel(
 assert(flashOnly.ok && flashOnly.selected.provider === 'deepseek', 'DeepSeek-only pages with images still route to flash')
 assert(flashOnly.selected.capabilities.vision === false, 'flash remains non-vision')
 assert(
-  (flashOnly.reason || []).join('').indexOf('纯文本') !== -1,
+  (flashOnly.reason || []).indexOf('未配置已确认支持视觉的模型，改为纯文本诊断') !== -1,
   'explain text-only fallback: ' + (flashOnly.reason || []).join(','),
 )
 

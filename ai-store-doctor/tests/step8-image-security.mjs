@@ -172,6 +172,9 @@ function loadAiClient(withSanitize) {
     }
   }
   const ctx = vm.createContext(sandboxAi)
+  ;['shared/result-schema.js', 'shared/task-types.js', 'shared/task-validators.js'].forEach(function (file) {
+    vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx, { filename: file })
+  })
   vm.runInContext(fs.readFileSync(path.join(root, 'background/ai-client.js'), 'utf8'), ctx, { filename: 'ai-client.js' })
   return { sandbox: sandboxAi, fetchCalls: fetchCalls }
 }

@@ -29,10 +29,13 @@
     const apiKey = slot.apiKey || (canon === 'moonshot' ? source.kimiApiKey : canon === 'deepseek' ? source.deepseekApiKey || source.apiKey : '')
     const baseUrl = slot.baseUrl || (meta && meta.defaultBaseUrl) || ''
     const model = slot.model || (meta && meta.defaultModel) || ''
+    const capabilities = ASD.modelCapabilities
+      ? ASD.modelCapabilities.resolve(canon, model, slot.capabilitiesOverride, slot.modelMetadata || null)
+      : { text: true, vision: false, reasoning: false, structuredOutput: false, longContext: false }
     return {
       id: canon,
       isKimi: canon === 'moonshot',
-      isK3: canon === 'moonshot' && /kimi-k3/i.test(model),
+      isK3: !!(capabilities.requestHints && capabilities.requestHints.longTimeout),
       apiKey: apiKey,
       providerName: slot.displayName || (meta && meta.name) || canon,
       baseUrl: baseUrl,
@@ -40,6 +43,7 @@
       adapter: adapterFor(canon),
       meta: meta,
       config: slot,
+      capabilities: capabilities,
       supportsModelList: supportsModelList(meta, slot),
     }
   }

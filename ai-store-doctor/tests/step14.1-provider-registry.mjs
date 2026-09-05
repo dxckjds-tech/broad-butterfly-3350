@@ -23,7 +23,8 @@ const ids = reg.list().map(function (item) {
   assert(ids.indexOf(id) !== -1, 'missing provider ' + id)
   const item = reg.get(id)
   assert(item && item.adapter && item.apiStyle && item.name, id + ' metadata incomplete')
-  assert(item.capabilities && item.capabilities.text === true, id + ' must declare text capability')
+  assert(item.platformCapabilities && typeof item.platformCapabilities === 'object', id + ' platform metadata')
+  assert(item.capabilities == null, id + ' must not inherit model capabilities from provider')
 })
 
 assert(reg.canonicalId('kimi') === 'moonshot', 'kimi alias → moonshot')

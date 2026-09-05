@@ -26,12 +26,17 @@
     }
   }
 
-  function validateTask(task, raw) {
-    if (ASD.taskValidators && typeof ASD.taskValidators.validateByTask === 'function') {
-      return ASD.taskValidators.validateByTask(task, raw)
+  function requireTaskValidator() {
+    if (!ASD.taskValidators || typeof ASD.taskValidators.validateByTask !== 'function') {
+      const error = new Error('TASK_VALIDATOR_UNAVAILABLE')
+      error.code = 'TASK_VALIDATOR_UNAVAILABLE'
+      throw error
     }
-    if (task === 'product_diagnosis' && ASD.schema) return ASD.schema.normalizeAndValidate(raw)
-    return { ok: true, result: raw, repaired: [] }
+  }
+
+  function validateTask(task, raw) {
+    requireTaskValidator()
+    return ASD.taskValidators.validateByTask(task, raw)
   }
 
   function toLegacyData(normalized, fallbackModel) {
@@ -106,19 +111,53 @@
     return 'RESPONSE_ERROR'
   }
 
-  function buildExtras(cfg, routed, model, isK3) {
-    const style = routed && routed.meta ? routed.meta.apiStyle : 'openai-compatible'
-    if (style && style !== 'openai-compatible') return {}
-    if (routed && routed.id === 'deepseek') {
-      return { thinking: { type: (routed.config && routed.config.thinking) || cfg.deepseekThinking || 'disabled' } }
+  function capabilitiesOf(routed, opts) {
+    if (opts && opts.capabilities) return opts.capabilities
+    if (routed && routed.capabilities) return routed.capabilities
+    if (ASD.modelCapabilities && routed) {
+      return ASD.modelCapabilities.resolve(
+        routed.id,
+        routed.model || (opts && opts.model),
+        routed.config && routed.config.capabilitiesOverride,
+        routed.config && routed.config.modelMetadata,
+      )
     }
-    if (!(routed && (routed.isKimi || routed.id === 'moonshot'))) {
-      if (cfg.deepseekThinking) return { thinking: { type: cfg.deepseekThinking } }
-      return {}
+    return { text: true, vision: false, reasoning: false, structuredOutput: false, longContext: false }
+  }
+
+  function buildExtras(cfg, routed, caps) {
+    const adapter = routed && routed.adapter
+    if (adapter && typeof adapter.buildExtras === 'function') {
+      return adapter.buildExtras({
+        capabilities: caps,
+        model: routed.model,
+        thinking: (routed.config && routed.config.thinking) || (cfg && cfg.deepseekThinking) || '',
+      })
     }
-    if (/kimi-k2\.5/i.test(model)) return { thinking: { type: 'disabled' } }
-    if (isK3) return { reasoning_effort: 'low' }
     return {}
+  }
+
+  function stripImageParts(messages) {
+    return (messages || []).map(function (item) {
+      if (!item || !Array.isArray(item.content)) return item
+      const kept = item.content.filter(function (part) {
+        return !part || part.type !== 'image_url'
+      })
+      if (!kept.length) return { role: item.role, content: '' }
+      if (kept.length === 1 && kept[0].type === 'text') return { role: item.role, content: kept[0].text || '' }
+      return { role: item.role, content: kept }
+    })
+  }
+
+  function applyVisionGuard(messages, caps, task) {
+    if (!messagesHaveImages(messages)) return messages
+    if (caps && caps.vision === true) return messages
+    if (task === 'vision_analysis') {
+      const error = new Error('当前模型不支持该任务所需的视觉能力')
+      error.code = 'UNSUPPORTED_CAPABILITY'
+      throw error
+    }
+    return stripImageParts(messages)
   }
 
   function tryParseJson(text) {
@@ -155,7 +194,9 @@
       max_tokens: opts.maxTokens,
       temperature: opts.temperature != null ? opts.temperature : 0.2,
     }
-    if (opts.responseFormat) body.response_format = opts.responseFormat
+    if (opts.responseFormat && opts.capabilities && opts.capabilities.structuredOutput === true) {
+      body.response_format = opts.responseFormat
+    }
     const extras = opts.extras || {}
     Object.keys(extras).forEach(function (key) {
       if (extras[key] != null) body[key] = extras[key]
@@ -219,7 +260,9 @@
   }
 
   async function executeOnRouted(opts, cfg, routed) {
-    const isKimi = !!(routed && routed.isKimi)
+    requireTaskValidator()
+    const caps = capabilitiesOf(routed, opts)
+    if (routed) routed.capabilities = caps
     const apiKey = opts.apiKey || (routed && routed.apiKey)
     const providerName = opts.providerName || (routed && routed.providerName) || 'AI'
     if (!apiKey) {
@@ -229,7 +272,8 @@
     }
     const baseUrl = opts.baseUrl || (routed && routed.baseUrl)
     const model = opts.model || (routed && routed.model)
-    const isK3 = !!(routed && routed.isK3)
+    const isK3 = !!(caps.requestHints && caps.requestHints.longTimeout)
+    const guardedMessages = applyVisionGuard(opts.messages, caps, opts.task)
     const isConnect = opts.task === 'connection_test'
     let lastReason = '空内容'
     let lastFinishReason = ''
@@ -242,8 +286,8 @@
       const tokenBudget = isConnect ? (attempt === 0 ? 512 : 1024) : isK3 ? Math.max(opts.maxTokens, 6000) : opts.maxTokens
       const retryMessages =
         attempt === 0
-          ? opts.messages
-          : opts.messages.concat([
+          ? guardedMessages
+          : guardedMessages.concat([
               {
                 role: 'user',
                 content:
@@ -256,7 +300,7 @@
         throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
       }
       const safeMessages = ASD.sanitize.sanitizePayload(retryMessages)
-      const extras = buildExtras(cfg, routed, model, isK3)
+      const extras = buildExtras(cfg, routed, caps)
       const controller = new AbortController()
       const requestTimeout = setTimeout(
         function () {
@@ -272,12 +316,13 @@
           model: model,
           messages: safeMessages,
           maxTokens: tokenBudget,
-          temperature: isKimi ? 1 : 0.2,
-          responseFormat: !isK3 && attempt < 2 ? { type: 'json_object' } : null,
+          temperature: caps.requestHints && caps.requestHints.temperature != null ? caps.requestHints.temperature : 0.2,
+          responseFormat: caps.structuredOutput === true && !isK3 && attempt < 2 ? { type: 'json_object' } : null,
           extras: extras,
           signal: controller.signal,
           providerName: providerName,
           adapter: routed && routed.adapter,
+          capabilities: caps,
         })
       } catch (error) {
         clearTimeout(requestTimeout)
@@ -349,6 +394,7 @@
   }
 
   async function callAI(input, maxTokens) {
+    requireTaskValidator()
     const opts = normalizeCall(input, maxTokens)
     const cfg = await ASD.bg.settings.load()
     const selection = pickSelection(opts, cfg)
@@ -363,6 +409,12 @@
         ? resolveRouted({ provider: selection.selected.provider, model: selection.selected.model }, cfg)
         : resolveRouted(opts, cfg)
     if (primary && selection && selection.selected && selection.selected.model) primary.model = selection.selected.model
+    if (primary && selection && selection.selected && selection.selected.capabilities) {
+      primary.capabilities = selection.selected.capabilities
+    } else if (primary && !primary.capabilities) {
+      primary.capabilities = capabilitiesOf(primary, opts)
+    }
+    if (opts.capabilities) primary.capabilities = opts.capabilities
     const startedAt = Date.now()
     try {
       const out = await executeOnRouted(opts, cfg, primary)
@@ -375,6 +427,7 @@
       if (backup && error.code === 'CONNECTION_ERROR') {
         const second = resolveRouted({ provider: backup.provider, model: backup.model }, cfg)
         if (backup.model) second.model = backup.model
+        if (backup.capabilities) second.capabilities = backup.capabilities
         const retryAt = Date.now()
         try {
           const out = await executeOnRouted(opts, cfg, second)

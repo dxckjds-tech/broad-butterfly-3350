@@ -2,15 +2,13 @@
   'use strict'
   const ns = (root.ASD = root.ASD || {})
 
-  function caps(extra) {
+  function platform(extra) {
     return Object.assign(
       {
-        text: true,
-        vision: false,
-        reasoning: false,
-        structuredOutput: true,
-        longContext: false,
-        translation: true,
+        mayOfferVision: false,
+        mayOfferReasoning: false,
+        mayOfferLongContext: false,
+        mayOfferStructuredOutput: false,
       },
       extra || {},
     )
@@ -25,7 +23,7 @@
       defaultBaseUrl: 'https://api.deepseek.com',
       defaultModel: 'deepseek-v4-flash',
       supportsModelList: true,
-      capabilities: caps({ reasoning: true }),
+      platformCapabilities: platform({ mayOfferReasoning: true, mayOfferStructuredOutput: true }),
       adapter: 'openai-compatible',
       host: 'api.deepseek.com',
     },
@@ -37,7 +35,12 @@
       defaultBaseUrl: 'https://api.moonshot.cn/v1',
       defaultModel: 'kimi-k2.5',
       supportsModelList: true,
-      capabilities: caps({ vision: true, reasoning: true, longContext: true }),
+      platformCapabilities: platform({
+        mayOfferVision: true,
+        mayOfferReasoning: true,
+        mayOfferLongContext: true,
+        mayOfferStructuredOutput: true,
+      }),
       adapter: 'openai-compatible',
       host: 'api.moonshot.cn',
     },
@@ -49,7 +52,12 @@
       defaultBaseUrl: 'https://api.openai.com/v1',
       defaultModel: 'gpt-4o-mini',
       supportsModelList: true,
-      capabilities: caps({ vision: true, reasoning: true, longContext: true }),
+      platformCapabilities: platform({
+        mayOfferVision: true,
+        mayOfferReasoning: true,
+        mayOfferLongContext: true,
+        mayOfferStructuredOutput: true,
+      }),
       adapter: 'openai-compatible',
       host: 'api.openai.com',
     },
@@ -61,7 +69,11 @@
       defaultBaseUrl: 'https://api.anthropic.com',
       defaultModel: 'claude-sonnet-4-20250514',
       supportsModelList: true,
-      capabilities: caps({ vision: true, reasoning: true, longContext: true }),
+      platformCapabilities: platform({
+        mayOfferVision: true,
+        mayOfferReasoning: true,
+        mayOfferLongContext: true,
+      }),
       adapter: 'anthropic',
       host: 'api.anthropic.com',
     },
@@ -73,7 +85,12 @@
       defaultBaseUrl: 'https://generativelanguage.googleapis.com',
       defaultModel: 'gemini-2.0-flash',
       supportsModelList: true,
-      capabilities: caps({ vision: true, reasoning: true, longContext: true }),
+      platformCapabilities: platform({
+        mayOfferVision: true,
+        mayOfferReasoning: true,
+        mayOfferLongContext: true,
+        mayOfferStructuredOutput: true,
+      }),
       adapter: 'gemini',
       host: 'generativelanguage.googleapis.com',
     },
@@ -85,7 +102,12 @@
       defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       defaultModel: 'qwen-plus',
       supportsModelList: true,
-      capabilities: caps({ vision: true, reasoning: true, longContext: true }),
+      platformCapabilities: platform({
+        mayOfferVision: true,
+        mayOfferReasoning: true,
+        mayOfferLongContext: true,
+        mayOfferStructuredOutput: true,
+      }),
       adapter: 'openai-compatible',
       host: 'dashscope.aliyuncs.com',
     },
@@ -97,7 +119,7 @@
       defaultBaseUrl: '',
       defaultModel: '',
       supportsModelList: false,
-      capabilities: caps(),
+      platformCapabilities: platform(),
       adapter: 'openai-compatible',
       host: '',
       userDeclaredCapabilities: true,

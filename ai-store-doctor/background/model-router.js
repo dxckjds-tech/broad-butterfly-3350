@@ -42,9 +42,12 @@
     const slot = routed.config || {}
     const model = modelOverride || routed.model
     const override = slot.capabilitiesOverride
-    const caps = ASD.modelCapabilities
-      ? ASD.modelCapabilities.resolve(id, model, override, routed.meta && routed.meta.capabilities)
-      : { text: true }
+    const caps =
+      routed.capabilities && (!modelOverride || modelOverride === routed.model)
+        ? routed.capabilities
+        : ASD.modelCapabilities
+          ? ASD.modelCapabilities.resolve(id, model, override, slot.modelMetadata || null)
+          : { text: true, vision: false, reasoning: false, structuredOutput: false, longContext: false }
     const scores = ASD.modelCapabilities ? ASD.modelCapabilities.scoresFor(id, model) : { quality: { writing: 70 }, reliability: 70, speed: 70, cost: 70 }
     const health = ASD.bg.modelHealth ? ASD.bg.modelHealth.get(id, model) : { consecutiveFailures: 0, successCount: 0, failureCount: 0, avgLatencyMs: 0 }
     return {
@@ -216,33 +219,13 @@
       pool = collectAuto(cfg, bundle)
     }
 
-    const ranked = []
-    pool.forEach(function (item) {
-      const blocked = rejectReason(item, required, mode === 'advanced' ? 'auto' : mode)
-      if (blocked) return
-      const scored = finalScore(item, task, profile, required, preference)
-      ranked.push({
-        provider: item.provider,
-        model: item.model,
-        capabilities: item.capabilities,
-        score: scored.total,
-        parts: scored.parts,
-        penalty: scored.penalty,
-        providerName: item.providerName,
-        reason: explain(item, task, ctx, preference, profile),
-      })
-    })
-    ranked.sort(function (a, b) {
-      return b.score - a.score
-    })
-    if (!ranked.length && canTextFallback && mode !== 'fixed') {
-      const textRequired = Object.assign({}, required)
-      delete textRequired.vision
+    function rankWith(req, extraReasons) {
+      const rows = []
       pool.forEach(function (item) {
-        const blocked = rejectReason(item, textRequired, mode === 'advanced' ? 'auto' : mode)
+        const blocked = rejectReason(item, req, mode === 'advanced' ? 'auto' : mode)
         if (blocked) return
-        const scored = finalScore(item, task, profile, textRequired, preference)
-        ranked.push({
+        const scored = finalScore(item, task, profile, req, preference)
+        rows.push({
           provider: item.provider,
           model: item.model,
           capabilities: item.capabilities,
@@ -250,14 +233,32 @@
           parts: scored.parts,
           penalty: scored.penalty,
           providerName: item.providerName,
-          reason: explain(item, task, { hasImages: false }, preference, profile).concat([
-            '未配置视觉模型，改为纯文本诊断',
-          ]),
+          reason: explain(item, task, extraReasons && extraReasons.textFallback ? { hasImages: false } : ctx, preference, profile).concat(
+            extraReasons && extraReasons.textFallback ? ['未配置已确认支持视觉的模型，改为纯文本诊断'] : [],
+          ),
         })
       })
-      ranked.sort(function (a, b) {
+      rows.sort(function (a, b) {
         return b.score - a.score
       })
+      return rows
+    }
+
+    let ranked = rankWith(required, null)
+    if (!ranked.length && canTextFallback && mode !== 'fixed') {
+      const textRequired = Object.assign({}, required)
+      delete textRequired.vision
+      ranked = rankWith(textRequired, { textFallback: true })
+    }
+    if (
+      !ranked.length &&
+      mode !== 'fixed' &&
+      (task === 'product_diagnosis' || task === 'product_identity' || task === 'fact_extraction')
+    ) {
+      const loose = Object.assign({}, required)
+      delete loose.vision
+      delete loose.structuredOutput
+      ranked = rankWith(loose, canTextFallback ? { textFallback: true } : null)
     }
     if (!ranked.length) {
       const result = fail(['没有已配置且支持该任务能力的模型'], { suggestAuto: mode === 'fixed' })

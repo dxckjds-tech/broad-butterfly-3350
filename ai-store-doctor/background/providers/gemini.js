@@ -53,17 +53,32 @@
     return { system: system, contents: contents }
   }
 
+  function stripImageParts(messages) {
+    return (messages || []).map(function (item) {
+      if (!item || !Array.isArray(item.content)) return item
+      const kept = item.content.filter(function (part) {
+        return !part || part.type !== 'image_url'
+      })
+      if (!kept.length) return { role: item.role, content: '' }
+      if (kept.length === 1 && kept[0].type === 'text') return { role: item.role, content: kept[0].text || '' }
+      return { role: item.role, content: kept }
+    })
+  }
+
   function buildRequest(opts) {
-    const converted = toGeminiPayload(opts.messages)
+    const allowVision = !!(opts.capabilities && opts.capabilities.vision === true)
+    const converted = toGeminiPayload(allowVision ? opts.messages : stripImageParts(opts.messages))
     const body = {
       contents: converted.contents,
       generationConfig: {
         maxOutputTokens: opts.maxTokens || 1024,
         temperature: opts.temperature != null ? opts.temperature : 0.2,
-        responseMimeType: 'application/json',
       },
     }
     if (converted.system) body.systemInstruction = { parts: [{ text: converted.system }] }
+    if (opts.capabilities && opts.capabilities.structuredOutput === true) {
+      body.generationConfig.responseMimeType = 'application/json'
+    }
     return body
   }
 

@@ -64,8 +64,21 @@
     return { system: system, messages: out }
   }
 
+  function stripImageParts(messages) {
+    return (messages || []).map(function (item) {
+      if (!item || !Array.isArray(item.content)) return item
+      const kept = item.content.filter(function (part) {
+        return !part || part.type !== 'image_url'
+      })
+      if (!kept.length) return { role: item.role, content: '' }
+      if (kept.length === 1 && kept[0].type === 'text') return { role: item.role, content: kept[0].text || '' }
+      return { role: item.role, content: kept }
+    })
+  }
+
   function buildRequest(opts) {
-    const converted = toAnthropicMessages(opts.messages)
+    const allowVision = !!(opts.capabilities && opts.capabilities.vision === true)
+    const converted = toAnthropicMessages(allowVision ? opts.messages : stripImageParts(opts.messages))
     const body = {
       model: opts.model,
       max_tokens: opts.maxTokens || 1024,

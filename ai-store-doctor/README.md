@@ -60,7 +60,9 @@ API Key 保存在 `chrome.storage.local`。切换提供商不会清空另一套 
 ## 权限
 
 `permissions`：`sidePanel`、`storage`、`activeTab`  
-`host_permissions`：`*.made-in-china.com`、`*.vemic.com`、`api.deepseek.com`、`api.moonshot.cn`
+`host_permissions`：`*.made-in-china.com`、`*.vemic.com`，以及官方 AI API 主机（`api.deepseek.com`、`api.moonshot.cn`、`api.openai.com`、`api.anthropic.com`、`generativelanguage.googleapis.com`、`dashscope.aliyuncs.com`）。
+
+`optional_host_permissions`：`https://*/*` 只用于用户主动配置并授权的 Custom AI API Origin。扩展不会因此默认访问任意网站，也不会在未授权时调用任意 HTTPS 源。
 
 没有 `tabs`、`scripting`、`cookies`、`webRequest`、`<all_urls>`。
 

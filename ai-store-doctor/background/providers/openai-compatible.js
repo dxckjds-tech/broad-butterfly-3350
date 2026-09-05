@@ -36,15 +36,40 @@
     }
   }
 
+  function stripImageParts(messages) {
+    return (messages || []).map(function (item) {
+      if (!item || !Array.isArray(item.content)) return item
+      const kept = item.content.filter(function (part) {
+        return !part || part.type !== 'image_url'
+      })
+      if (!kept.length) return { role: item.role, content: '' }
+      if (kept.length === 1 && kept[0].type === 'text') return { role: item.role, content: kept[0].text || '' }
+      return { role: item.role, content: kept }
+    })
+  }
+
+  function buildExtras(opts) {
+    const caps = opts.capabilities || {}
+    const extras = {}
+    if (!caps.reasoning) return extras
+    const hints = caps.requestHints || {}
+    if (hints.thinking) extras.thinking = hints.thinking
+    if (hints.reasoning_effort) extras.reasoning_effort = hints.reasoning_effort
+    if (hints.thinkingFromConfig && opts.thinking) extras.thinking = { type: opts.thinking }
+    return extras
+  }
+
   function buildRequest(opts) {
+    const caps = opts.capabilities || {}
+    const hints = caps.requestHints || {}
     const body = {
       model: opts.model,
-      messages: opts.messages,
+      messages: caps.vision === true ? opts.messages : stripImageParts(opts.messages),
       max_tokens: opts.maxTokens,
-      temperature: opts.temperature != null ? opts.temperature : 0.2,
+      temperature: opts.temperature != null ? opts.temperature : hints.temperature != null ? hints.temperature : 0.2,
     }
-    if (opts.responseFormat) body.response_format = opts.responseFormat
-    const extras = opts.extras || {}
+    if (opts.responseFormat && caps.structuredOutput === true) body.response_format = opts.responseFormat
+    const extras = opts.extras || buildExtras(opts)
     Object.keys(extras).forEach(function (key) {
       if (extras[key] != null) body[key] = extras[key]
     })
@@ -116,6 +141,8 @@
     listModels: listModels,
     normalizeResponse: normalizeResponse,
     buildRequest: buildRequest,
+    buildExtras: buildExtras,
+    stripImageParts: stripImageParts,
     parseError: parseError,
     classifyHttp: classifyHttp,
   }

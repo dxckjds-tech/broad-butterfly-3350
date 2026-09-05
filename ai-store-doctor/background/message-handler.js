@@ -12,7 +12,9 @@
         error.code === 'RESPONSE_ERROR' ||
         error.code === 'SCHEMA_ERROR' ||
         error.code === 'CONFIG_ERROR' ||
-        error.code === 'NO_COMPATIBLE_MODEL'
+        error.code === 'NO_COMPATIBLE_MODEL' ||
+        error.code === 'TASK_VALIDATOR_UNAVAILABLE' ||
+        error.code === 'UNSUPPORTED_CAPABILITY'
       ) {
         return error.code
       }
