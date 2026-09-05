@@ -17,6 +17,7 @@
     inflight: false,
     requestId: '',
     fieldsVersion: 0,
+    health: null,
   }
 
   const listeners = []

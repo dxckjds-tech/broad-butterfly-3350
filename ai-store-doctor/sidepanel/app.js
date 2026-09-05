@@ -50,7 +50,12 @@
         ns.sidepanel.render.content,
         ns.sidepanel.render.debug,
       ]
-      c.innerHTML = views[props.tab](props)
+      const html = views[props.tab](props)
+      c.innerHTML = html
+      if (props.tab === 0 && ns.sidepanel.render.health) {
+        const healthNode = ns.sidepanel.render.health.mount(props)
+        if (healthNode) c.insertBefore(healthNode, c.firstChild)
+      }
     }
   }
 

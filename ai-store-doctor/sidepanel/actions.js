@@ -37,6 +37,7 @@
         fields: fields,
         product: product || null,
         report: null,
+        health: null,
         error: '',
         fieldsVersion: (current.fieldsVersion || 0) + 1,
       },
@@ -132,9 +133,14 @@
       const now = ns.sidepanel.state.get()
       if (now.requestId !== requestId || now.fieldsVersion !== fieldsVersion) return
       if (r?.ok) {
+        const health =
+          ASD.healthScore && typeof ASD.healthScore.compute === 'function'
+            ? ASD.healthScore.compute(state.product, r.result)
+            : null
         ns.sidepanel.state.update(
           {
             report: r.result,
+            health: health,
             meta: {
               provider: r.provider,
               model: r.model,
