@@ -4,7 +4,20 @@
   ns.bg = ns.bg || {}
 
   const CRITICAL = /^(material|model|certification|certifications|power|voltage|capacity|材质|型号|认证|功率|电压|容量)$/i
-  const TRUSTED = { product_field: true, spec_table: true, json_ld: true, explicit_page_field: true }
+  const TRUSTED = {
+    product_field: true,
+    spec_table: true,
+    spec_row: true,
+    json_ld: true,
+    explicit_page_field: true,
+    explicit_form: true,
+    paired_id_text: true,
+    EXPLICIT_FORM: true,
+    SPEC_TABLE: true,
+    JSON_LD: true,
+    PAIRED_ID_TEXT: true,
+    EXPLICIT_PAGE_FIELD: true,
+  }
 
   function fieldKey(item) {
     return String((item && (item.field || item.label)) || '')
@@ -100,8 +113,16 @@
 
     facts.forEach(function (fact) {
       if (!fact) return
-      const trusted = !!TRUSTED[String(fact.sourceType || '')]
+      const sourceType = String(fact.sourceType || '')
+      const trusted =
+        ASD.fieldProvenance && typeof ASD.fieldProvenance.canSupportVerified === 'function'
+          ? ASD.fieldProvenance.canSupportVerified(sourceType, fact.confidence != null ? fact.confidence : 80)
+          : !!TRUSTED[sourceType]
       const critical = isCritical(fact)
+      if (String(fact.contentSource || '').toUpperCase() === 'REASONING_RECOVERY') {
+        score += 20
+        reasons.push('reasoning_recovery')
+      }
 
       if (String(fact.status || '').toUpperCase() === 'VERIFIED' && !trusted) {
         score += 30

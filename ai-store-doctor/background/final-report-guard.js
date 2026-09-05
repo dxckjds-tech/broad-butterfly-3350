@@ -3,7 +3,20 @@
   const ns = (root.ASD = root.ASD || {})
   ns.bg = ns.bg || {}
 
-  const TRUSTED = { product_field: true, spec_table: true, json_ld: true, explicit_page_field: true }
+  const TRUSTED = {
+    product_field: true,
+    spec_table: true,
+    spec_row: true,
+    json_ld: true,
+    explicit_page_field: true,
+    explicit_form: true,
+    paired_id_text: true,
+    EXPLICIT_FORM: true,
+    SPEC_TABLE: true,
+    JSON_LD: true,
+    PAIRED_ID_TEXT: true,
+    EXPLICIT_PAGE_FIELD: true,
+  }
 
   function asString(value) {
     return value == null ? '' : String(value)
@@ -61,11 +74,16 @@
         return false
       }
       const status = asString(fact.status).toUpperCase()
-      const trusted = !!TRUSTED[String(fact.sourceType || '')]
-      if (status === 'VERIFIED' && !trusted) {
-        fact.status = String(fact.sourceType || '') === 'vision' ? 'OBSERVED' : 'OBSERVED'
+      const sourceType = String(fact.sourceType || '')
+      const recovered = String(fact.contentSource || '').toUpperCase() === 'REASONING_RECOVERY'
+      const trusted =
+        ASD.fieldProvenance && typeof ASD.fieldProvenance.canSupportVerified === 'function'
+          ? ASD.fieldProvenance.canSupportVerified(sourceType, fact.confidence != null ? fact.confidence : 80)
+          : !!TRUSTED[sourceType]
+      if (status === 'VERIFIED' && (!trusted || recovered)) {
+        fact.status = 'OBSERVED'
         downgraded += 1
-        repaired.push('guard-verified-downgrade')
+        repaired.push(recovered ? 'guard-reasoning-recovery' : 'guard-verified-downgrade')
       }
       return true
     })
