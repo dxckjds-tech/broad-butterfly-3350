@@ -14,7 +14,11 @@
         error.code === 'CONFIG_ERROR' ||
         error.code === 'NO_COMPATIBLE_MODEL' ||
         error.code === 'TASK_VALIDATOR_UNAVAILABLE' ||
-        error.code === 'UNSUPPORTED_CAPABILITY'
+        error.code === 'UNSUPPORTED_CAPABILITY' ||
+        error.code === 'ORCHESTRATION_BUDGET_EXCEEDED' ||
+        error.code === 'VALIDATION_ERROR' ||
+        error.code === 'EVIDENCE_CONFLICT' ||
+        error.code === 'SECURITY_SANITIZER_UNAVAILABLE'
       ) {
         return error.code
       }
@@ -105,10 +109,53 @@
       const source = message.fields || {}
       const cfg = await ASD.bg.settings.load()
       const visionSource = (message.product && message.product.images) || source.images || []
+      const hasImages = visionSource.length > 0
+      if (ASD.bg.orchestrator && typeof ASD.bg.orchestrator.runProductDiagnosis === 'function') {
+        const plan = ASD.bg.orchestrationPlanner
+          ? ASD.bg.orchestrationPlanner.build({ settings: cfg, hasImages: hasImages })
+          : { ok: true, mode: 'single', stages: [{ model: cfg.deepseekModel || '' }] }
+        if (!plan.ok) {
+          return {
+            ok: false,
+            reason: (plan.reason || []).join('；') || '没有兼容模型',
+            code: plan.code || 'NO_COMPATIBLE_MODEL',
+          }
+        }
+        const key = ASD.bg.requests.fingerprint({
+          url: source.url,
+          title: source.title,
+          name: message.product && message.product.product && message.product.product.name,
+          model: (plan.stages || []).map(function (item) { return item.model }).join('+'),
+          promptVersion: ASD.constants.PROMPT_VERSION,
+        })
+        try {
+          return await ASD.bg.requests.run(key, async function () {
+            const out = await ASD.bg.orchestrator.runProductDiagnosis({
+              productBundle: message.product,
+              fields: source,
+              images: visionSource,
+              settings: cfg,
+              requestContext: { hasImages: hasImages },
+            })
+            out.requestId = message.requestId || null
+            out.fieldsVersion = message.fieldsVersion || 0
+            out.collaboration = ASD.bg.orchestrationPlanner.formatCollaboration(out.plan || plan)
+            return { ok: true, ...out }
+          })
+        } catch (error) {
+          return {
+            ok: false,
+            reason: error.message || 'AI 分析失败',
+            code: classify(error),
+            requestId: message.requestId || null,
+            fieldsVersion: message.fieldsVersion || 0,
+          }
+        }
+      }
       const route = ASD.bg.modelRouter && ASD.bg.modelRouter.selectModel
         ? ASD.bg.modelRouter.selectModel(
             'product_diagnosis',
-            { hasImages: visionSource.length > 0, settings: cfg },
+            { hasImages: hasImages, settings: cfg },
             null,
           )
         : { ok: true, selected: { provider: cfg.provider, model: cfg.provider === 'kimi' ? cfg.kimiModel : cfg.deepseekModel, capabilities: {} } }
@@ -154,7 +201,7 @@
             provider: route.selected.provider,
             model: route.selected.model,
             route: route,
-            requestContext: { hasImages: visionSource.length > 0 },
+            requestContext: { hasImages: hasImages },
             messages: [
               { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
               { role: 'user', content: userContent },

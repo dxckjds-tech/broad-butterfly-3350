@@ -33,7 +33,7 @@ if (!manifest.optional_host_permissions || manifest.optional_host_permissions.in
 const csp = manifest.content_security_policy && manifest.content_security_policy.extension_pages
 if (!csp) errors.push('extension_pages CSP missing')
 if (csp && /unsafe-eval|unsafe-inline|https?:\/\/|cdn/i.test(csp)) errors.push('CSP must not allow eval or remote script')
-if (manifest.version !== '1.6.1') errors.push('manifest version must be 1.6.1, got ' + manifest.version)
+if (manifest.version !== '1.6.2') errors.push('manifest version must be 1.6.2, got ' + manifest.version)
 
 const sw = fs.readFileSync(path.join(root, 'background/service-worker.js'), 'utf8')
 const listenerCount = (sw.match(/onMessage\.addListener/g) || []).length

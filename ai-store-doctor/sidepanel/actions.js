@@ -156,6 +156,8 @@
               imageRank: r.imageRank,
               code: r.code,
               route: r.route || null,
+              orchestration: r.orchestration || null,
+              collaboration: r.collaboration || [],
             },
           },
           'analyze:ok',
@@ -213,6 +215,7 @@
         product: state.product,
         model: state.meta && state.meta.model,
         provider: state.meta && state.meta.provider,
+        orchestration: state.meta && state.meta.orchestration,
         scoreVersion: state.health && state.health.scoreVersion,
       })
       ns.sidepanel.state.update({ saveNotice: '已保存到历史诊断' }, 'history:saved')

@@ -80,6 +80,9 @@
     $('advTranslationModel').value = (adv.translation && adv.translation.model) || ''
     $('advContentProvider').value = (adv.content && adv.content.provider) || ''
     $('advContentModel').value = (adv.content && adv.content.model) || ''
+    $('orchAuto').checked = bundle.orchestrationMode !== 'single' && bundle.orchestrationMode !== 'multi'
+    $('orchSingle').checked = bundle.orchestrationMode === 'single'
+    $('orchMulti').checked = bundle.orchestrationMode === 'multi'
     showRouting()
   }
 
@@ -90,6 +93,7 @@
       provider: $('fixedProvider').value,
       model: $('fixedModel').value.trim(),
     }
+    bundle.orchestrationMode = $('orchMulti').checked ? 'multi' : $('orchSingle').checked ? 'single' : 'auto'
     bundle.advanced = {
       product_diagnosis: { provider: $('advDiagnosisProvider').value, model: $('advDiagnosisModel').value.trim() },
       vision_analysis: { provider: $('advVisionProvider').value, model: $('advVisionModel').value.trim() },
@@ -261,6 +265,9 @@
     'advTranslationModel',
     'advContentProvider',
     'advContentModel',
+    'orchAuto',
+    'orchSingle',
+    'orchMulti',
   ].forEach(function (id) {
     $(id).addEventListener('change', function () {
       showRouting()

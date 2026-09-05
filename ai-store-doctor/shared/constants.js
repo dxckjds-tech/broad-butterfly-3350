@@ -14,7 +14,7 @@
   }
 
   ns.constants = {
-    EXTENSION_VERSION: '1.6.1',
+    EXTENSION_VERSION: '1.6.2',
     PROMPT_VERSION: '1.6.0',
     SCHEMA_VERSION: '1',
     MAX_ORCHESTRATION_CALLS: 3,

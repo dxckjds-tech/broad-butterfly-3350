@@ -32,6 +32,16 @@
         ? `<div class="card"><b>采集性能</b><p>quality：${esc(dProduct.finalQualityScore != null ? dProduct.finalQualityScore : dProduct.qualityScore)}</p><p>sampleCount：${esc(dProduct.sampleCount || 0)}</p><p>observerTriggered：${esc(dProduct.observerTriggeredCount || 0)}</p><p>readDurationMs：${esc(dProduct.readDurationMs || 0)}</p></div>`
         : ''
     const route = meta && meta.route
+    const orch = meta && meta.orchestration
+    const orchCard = orch
+      ? `<div class="card"><b>协同编排</b><p>模式：${esc(orch.mode || '—')}</p><p>调用次数：${esc(orch.totalCalls || '—')}</p><p>耗时：${esc(orch.totalDurationMs || '—')} ms</p>${
+          arr(orch.stages)
+            .map(function (item) {
+              return `<p>• ${esc(item.stage || item.id)}：${esc(item.provider)} / ${esc(item.model)} · ${esc(item.durationMs || '—')}ms${item.fallbackUsed ? ' · fallback' : ''}</p>`
+            })
+            .join('')
+        }${arr(meta.collaboration).map(function (item) { return `<p>${esc(item)}</p>` }).join('')}</div>`
+      : ''
     const routeCard = route
       ? `<div class="card"><b>本次自动选择</b><p>Provider：${esc((route.selected && route.selected.provider) || meta.provider || '—')}</p><p>Model：${esc((route.selected && route.selected.model) || meta.model || '—')}</p><p>评分：${esc((route.selected && route.selected.score) || '—')}</p>${
           arr(route.reason)
@@ -46,6 +56,7 @@
       : ''
     return (
       collectCompare +
+      orchCard +
       routeCard +
       hitsCard +
       perfCard +

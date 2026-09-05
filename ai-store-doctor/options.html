@@ -88,6 +88,14 @@
     </div>
   </section>
 
+  <section id="orchSection" class="card">
+    <h2>商品诊断协同</h2>
+    <p class="muted">一次诊断最多 3 次模型调用。自动模式在只有 1 个 Provider 时保持单模型。</p>
+    <label class="check-line"><input id="orchAuto" type="radio" name="orchMode" value="auto"> 自动（推荐）</label>
+    <label class="check-line"><input id="orchSingle" type="radio" name="orchMode" value="single"> 单模型（兼容 v1.6.1）</label>
+    <label class="check-line"><input id="orchMulti" type="radio" name="orchMode" value="multi"> 强制三阶段</label>
+  </section>
+
   <section id="enabledSummary" class="card">
     <h2>已启用模型</h2>
     <div id="enabledList" class="muted">尚未保存任何 API Key</div>

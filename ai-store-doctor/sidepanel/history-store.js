@@ -34,7 +34,22 @@
     if (value && typeof value === 'object') {
       const out = {}
       Object.keys(value).forEach(function (key) {
-        if (key === 'fallbackText' || key === 'images' || key === 'visibleText' || key === 'html') return
+        if (
+          key === 'fallbackText' ||
+          key === 'images' ||
+          key === 'visibleText' ||
+          key === 'html' ||
+          key === 'prompt' ||
+          key === 'systemPrompt' ||
+          key === 'messages' ||
+          key === 'raw' ||
+          key === 'rawResponse' ||
+          key === 'stageRaw' ||
+          key === 'visionUrls' ||
+          key === 'base64'
+        ) {
+          return
+        }
         const next = stripHeavy(value[key])
         if (next != null) out[key] = next
       })
@@ -74,6 +89,24 @@
         deliveryTime: product.deliveryTime || null,
       },
       company: { name: company.name || null, profile: company.profile || null },
+    }
+  }
+
+  function slimOrchestration(raw) {
+    if (!raw || typeof raw !== 'object') return null
+    return {
+      mode: raw.mode || '',
+      totalCalls: raw.totalCalls || 0,
+      totalDurationMs: raw.totalDurationMs || 0,
+      stages: Array.isArray(raw.stages)
+        ? raw.stages.map(function (item) {
+            return {
+              stage: (item && (item.stage || item.id)) || '',
+              provider: (item && item.provider) || '',
+              model: (item && item.model) || '',
+            }
+          })
+        : [],
     }
   }
 
@@ -153,6 +186,7 @@
       scoreVersion: input.scoreVersion || (ASD.healthScore && ASD.healthScore.SCORE_VERSION) || '',
       extensionVersion: input.extensionVersion || (ASD.constants && ASD.constants.EXTENSION_VERSION) || '',
       productSnapshot: snap,
+      orchestration: slimOrchestration(input.orchestration),
     }
     const itemPatch = {}
     itemPatch[itemKey(id)] = record

@@ -24,10 +24,16 @@
 - [ ] RC 人工：5–10 个不同品类商品页
 - [ ] Chrome Web Store 最终发布
 
+## 已完成（v1.6.2 Step 16.1）
+
+- [x] 三阶段编排（证据 / 诊断 / 内容），最多 3 次调用
+- [x] orchestrationMode: auto / single / multi
+- [x] 相邻同模型合并；Vision 不得升为 VERIFIED
+
 ## 下一阶段（未开始）
 
-- Multi-Model Orchestration（一次诊断拆 vision / facts / keywords / content / synthesis）
-- 完整自动 Failover（超过 1 个备用）
+- Step 16.2 精确 Token/成本统计
+- 完整自动 Failover / 多模型互评
 - 批量店铺分析 / CRM / 询盘
 
 ## v1.7 技术债（本轮不修）

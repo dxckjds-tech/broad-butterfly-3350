@@ -67,7 +67,7 @@
         description: rec.productSnapshot && rec.productSnapshot.current && rec.productSnapshot.current.description,
         url: rec.url,
       },
-      meta: { provider: rec.provider, model: rec.model },
+      meta: { provider: rec.provider, model: rec.model, orchestration: rec.orchestration || null },
     })
   }
 

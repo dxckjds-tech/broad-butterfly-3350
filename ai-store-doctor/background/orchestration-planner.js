@@ -110,7 +110,7 @@
     }
 
     if (orchMode === 'auto' && preference === 'economy') {
-      const cheap = select('product_diagnosis', diagnosisCtx, prefs)
+      const cheap = select('product_diagnosis', { settings: cfg, hasImages: false }, prefs)
       if (cheap.ok && canCoverAll(cheap.selected, hasImages)) {
         return singlePlan(cheap, ['省钱模式：单一低成本模型满足全部能力，使用 single'])
       }
@@ -205,5 +205,19 @@
     canCoverAll: canCoverAll,
     mergeAdjacent: mergeAdjacent,
     canMergeEvidenceDiagnosis: canMergeEvidenceDiagnosis,
+    formatCollaboration: function formatCollaboration(plan) {
+      const label = { evidence: '证据', diagnosis: '诊断', content: '内容' }
+      return ((plan && plan.stages) || []).map(function (stage) {
+        const parts = (stage.covers || [stage.id]).map(function (id) {
+          return label[id] || id
+        })
+        return parts.join(' + ') + '：' + (stage.providerName || displayName(stage.provider) || stage.provider)
+      })
+    },
+  }
+
+  function displayName(id) {
+    const meta = ASD.providerRegistry && ASD.providerRegistry.get(id)
+    return (meta && meta.name) || id || ''
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)

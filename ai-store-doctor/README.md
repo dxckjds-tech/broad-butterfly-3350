@@ -2,7 +2,7 @@
 
 Chrome Manifest V3 侧边栏扩展。它读取 Made-in-China / VEMIC 商品页字段，按任务自动选择已配置的 AI Provider 做商品诊断和内容优化。
 
-当前版本：`1.6.1`（以 `EXTENSION_VERSION` 为准）。  
+当前版本：`1.6.2`（以 `EXTENSION_VERSION` 为准）。     
 Prompt 版本：`1.6.0`（独立字段，不与扩展版本混用）。
 
 ## 产品说明
@@ -22,6 +22,7 @@ AI 店铺医生帮助跨境卖家检查商品页事实是否完整、标题和�
 - MutationObserver + 低频轮询的动态页采集
 - 多 Provider 配置（DeepSeek / Kimi / OpenAI / Claude / Gemini / Qwen / Custom）
 - 智能自动模型路由（平衡 / 省钱 / 最佳质量）
+- 三阶段商品诊断协同（证据 / 诊断 / 内容，最多 3 次调用）
 - AI 诊断
 - 商品事实台账（VERIFIED / OBSERVED / INFERRED / UNKNOWN）
 - 确定性健康评分
