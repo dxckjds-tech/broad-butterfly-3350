@@ -70,6 +70,9 @@
     if (!item.apiKey) return 'NO_API_KEY'
     if (item.enabled === false) return 'DISABLED'
     if (mode === 'auto' && item.participateInAuto === false) return 'NOT_IN_AUTO'
+    if (ASD.bg.modelHealth && typeof ASD.bg.modelHealth.isRoutable === 'function' && !ASD.bg.modelHealth.isRoutable(item.provider, item.model, { auto: mode === 'auto' })) {
+      return item.health && item.health.needsAttention ? 'NEEDS_ATTENTION' : 'CIRCUIT_OPEN'
+    }
     if (ASD.bg.modelHealth && ASD.bg.modelHealth.isCircuitOpen(item.health)) return 'CIRCUIT_OPEN'
     if (ASD.modelCapabilities && !ASD.modelCapabilities.hasRequired(item.capabilities, required)) return 'MISSING_CAPABILITY'
     return null
@@ -82,6 +85,9 @@
       return q.vision != null ? q.vision : 70
     }
     if (task === 'diagnosis_reasoning') return q.reasoning != null ? q.reasoning : 70
+    if (task === 'fact_verification') {
+      return Math.round(((q.reasoning != null ? q.reasoning : 70) + (q.jsonReliability != null ? q.jsonReliability : 70)) / 2)
+    }
     if (task === 'content_generation' || task === 'title_generation' || task === 'detail_generation') {
       return q.writing != null ? q.writing : 70
     }
@@ -114,6 +120,24 @@
     return base
   }
 
+  function costScore(item) {
+    const pricing = (ASD.shared && ASD.shared.modelPricing) || ASD.modelPricing
+    if (pricing && typeof pricing.lookup === 'function') {
+      const row = pricing.lookup(item.provider, item.model)
+      if (row) {
+        const avg = (Number(row.inputPer1M) + Number(row.outputPer1M)) / 2
+        if (avg <= 0.3) return 95
+        if (avg <= 1) return 88
+        if (avg <= 2) return 78
+        if (avg <= 4) return 65
+        if (avg <= 8) return 50
+        return 35
+      }
+      return 70
+    }
+    return item.scores && item.scores.cost != null ? item.scores.cost : 70
+  }
+
   function taskMatchScore(item, profile, required) {
     let score = 55
     if (ASD.modelCapabilities && ASD.modelCapabilities.hasRequired(item.capabilities, required)) score += 20
@@ -130,7 +154,7 @@
       quality: qualityScore(item, profile, task),
       reliability: reliabilityScore(item),
       speed: speedScore(item),
-      cost: item.scores.cost != null ? item.scores.cost : 70,
+      cost: costScore(item),
       taskMatch: taskMatchScore(item, profile, required),
     }
     const penalty = ASD.bg.modelHealth ? ASD.bg.modelHealth.temporaryPenalty(item.health) : 0
