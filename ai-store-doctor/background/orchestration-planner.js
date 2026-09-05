@@ -126,20 +126,114 @@
     }
 
     const rawStages = [stageRow('evidence', evidence), stageRow('diagnosis', diagnosis), stageRow('content', content)]
-    const stages = mergeAdjacent(rawStages)
+    let stages = mergeAdjacent(rawStages)
+    const stageCap = stageCallCap(preference)
+    if (stages.length > stageCap) {
+      stages = mergeToFit(stages, stageCap)
+    }
+    const costPlan = estimatePlanCostUsd(stages)
+    const costCap = costCapUsd(preference)
+    if (costPlan.costKnown && costCap != null && costPlan.estimatedCostUsd > costCap) {
+      stages = mergeToFit(stages, Math.max(1, stages.length - 1))
+    }
     if (stages.length > maxCalls()) {
       return fail('ORCHESTRATION_BUDGET_EXCEEDED', ['规划调用数超过 ' + maxCalls()])
     }
     const textFallback = !!(evidence.reason && evidence.reason.indexOf('未配置已确认支持视觉的模型，Stage 1 使用文本证据模式。') !== -1)
     const merged = stages.some(function (item) { return item.mergedWith })
+    const reasons = []
+    if (preference === 'economy') reasons.push('省钱模式：少调用、低成本、优先合并')
+    else if (preference === 'quality') reasons.push('质量模式：能力优先，调用仍不超过预算')
+    else reasons.push('平衡模式：质量、稳定、速度与成本')
+    if (merged) reasons.push('相邻阶段选择同一模型，已合并调用')
+    else reasons.push('三阶段独立路由')
+    if (costPlan.costKnown && costCap != null && costPlan.estimatedCostUsd > costCap) reasons.push('cost_limit_replan')
     return {
       ok: true,
       mode: 'multi',
       stages: stages,
       estimatedCalls: stages.length,
-      reason: merged ? ['相邻阶段选择同一模型，已合并调用'] : ['三阶段独立路由'],
+      reason: reasons,
       textFallback: textFallback,
       mergeEnabled: true,
+      estimatedCostUsd: costPlan.estimatedCostUsd,
+      costKnown: costPlan.costKnown,
+    }
+  }
+
+  function stageCallCap(preference) {
+    const preset = ASD.bg.executionBudget && ASD.bg.executionBudget.preset(preference)
+    if (!preset) return maxCalls()
+    if (preset.reserveVerifier) return Math.min(maxCalls(), Math.max(1, preset.maxCalls - 1))
+    return Math.min(maxCalls(), preset.maxCalls)
+  }
+
+  function costCapUsd(preference) {
+    const preset = ASD.bg.executionBudget && ASD.bg.executionBudget.preset(preference)
+    return preset ? preset.maxEstimatedCostUsd : null
+  }
+
+  function estimatePlanCostUsd(stages) {
+    const pricing = (ASD.shared && ASD.shared.modelPricing) || ASD.modelPricing
+    if (!pricing || typeof pricing.estimateCostUsd !== 'function') {
+      return { costKnown: false, estimatedCostUsd: null }
+    }
+    let total = 0
+    let known = true
+    ;(stages || []).forEach(function (stage) {
+      const row = pricing.estimateCostUsd({
+        provider: stage.provider,
+        model: stage.model,
+        inputTokens: 4000,
+        outputTokens: 1500,
+      })
+      if (!row.costKnown) known = false
+      else total += Number(row.estimatedCostUsd) || 0
+    })
+    return { costKnown: known, estimatedCostUsd: known ? Math.round(total * 1e6) / 1e6 : null }
+  }
+
+  function mergeToFit(stages, max) {
+    let out = (stages || []).map(cloneStage)
+    while (out.length > max && out.length >= 2) {
+      const right = out.pop()
+      mergePair(out[out.length - 1], right)
+    }
+    return out
+  }
+
+  function replanAfterFailure(input) {
+    const ctx = input || {}
+    const remainingCalls = Math.max(0, Number(ctx.remainingCalls) || 0)
+    const remainingDuration = ctx.remainingDuration == null ? 1 : Number(ctx.remainingDuration)
+    const remainingCost = ctx.remainingCost
+    const remainingStages = (ctx.remainingStages || []).map(cloneStage)
+    const verificationRisk = ctx.verificationRisk || {}
+    const reasons = []
+
+    if (remainingDuration <= 0) {
+      return { action: remainingStages.length ? 'partial' : 'stop', stages: [], skipVerifier: true, reason: ['duration_budget'] }
+    }
+    if (remainingCalls <= 0) {
+      return { action: remainingStages.length ? 'partial' : 'stop', stages: [], skipVerifier: true, reason: ['call_budget'] }
+    }
+
+    let stages = remainingStages
+    if (stages.length > remainingCalls) {
+      stages = mergeToFit(stages, remainingCalls)
+      reasons.push('merged_to_fit_budget')
+    }
+    if (remainingCost != null && Number(remainingCost) <= 0 && stages.length > 1) {
+      stages = mergeToFit(stages, 1)
+      reasons.push('cost_budget')
+    }
+
+    const wantVerifier = !!(verificationRisk.requiresVerification || verificationRisk.level === 'high')
+    return {
+      action: stages.length ? 'continue' : 'partial',
+      stages: stages,
+      skipVerifier: !wantVerifier || remainingCalls <= stages.length,
+      reason: reasons,
     }
   }
 
@@ -204,6 +298,10 @@
     singlePlan: singlePlan,
     canCoverAll: canCoverAll,
     mergeAdjacent: mergeAdjacent,
+    mergeToFit: mergeToFit,
+    replanAfterFailure: replanAfterFailure,
+    estimatePlanCostUsd: estimatePlanCostUsd,
+    stageCallCap: stageCallCap,
     canMergeEvidenceDiagnosis: canMergeEvidenceDiagnosis,
     formatCollaboration: function formatCollaboration(plan) {
       const label = { evidence: '证据', diagnosis: '诊断', content: '内容' }
