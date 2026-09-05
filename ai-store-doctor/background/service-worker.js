@@ -5,6 +5,8 @@ importScripts(
   '../shared/pii-patterns.js',
   '../shared/sanitize.js',
   '../shared/result-schema.js',
+  '../shared/task-types.js',
+  '../shared/task-validators.js',
   '../shared/image-score.js',
   './settings.js',
   './model-router.js',

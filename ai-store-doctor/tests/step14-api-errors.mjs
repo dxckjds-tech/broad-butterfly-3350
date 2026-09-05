@@ -48,6 +48,8 @@ function loadClient(fetchImpl) {
     'shared/pii-patterns.js',
     'shared/sanitize.js',
     'shared/result-schema.js',
+    'shared/task-types.js',
+    'shared/task-validators.js',
     'background/settings.js',
     'background/payload-builder.js',
     'background/ai-client.js',
@@ -74,7 +76,10 @@ try {
   unauthorizedMsg = error.message || String(error)
 }
 assert(/invalid api key|HTTP 401/i.test(unauthorizedMsg), '401 message: ' + unauthorizedMsg)
-assert(unauthorized.ASD.bg.messageHandler.classify({ message: unauthorizedMsg }) === 'AI_ERROR', '401 classify')
+assert(
+  unauthorized.ASD.bg.messageHandler.classify({ message: unauthorizedMsg, code: 'AUTH_ERROR' }) === 'AUTH_ERROR',
+  '401 classify: ' + unauthorized.ASD.bg.messageHandler.classify({ message: unauthorizedMsg }),
+)
 
 const timeout = loadClient(function (url, opts) {
   return new Promise(function (resolve, reject) {

@@ -4,9 +4,24 @@
   ns.bg = ns.bg || {}
 
   function classify(error) {
+    if (error && error.code) {
+      if (
+        error.code === 'AUTH_ERROR' ||
+        error.code === 'CONNECTION_ERROR' ||
+        error.code === 'LENGTH_ERROR' ||
+        error.code === 'RESPONSE_ERROR' ||
+        error.code === 'SCHEMA_ERROR' ||
+        error.code === 'CONFIG_ERROR'
+      ) {
+        return error.code
+      }
+    }
     const msg = (error && error.message) || String(error || '')
-    if (/API Key|设置页|HTTPS/.test(msg)) return 'CONFIG_ERROR'
-    if (/SCHEMA_ERROR|PAYLOAD_/.test(msg)) return 'SCHEMA_ERROR'
+    if (/API Key|设置页|HTTPS|CONFIG_ERROR/.test(msg)) return 'CONFIG_ERROR'
+    if (/AUTH_ERROR|401|invalid api key|unauthorized/i.test(msg)) return 'AUTH_ERROR'
+    if (/CONNECTION_ERROR|Failed to fetch|超时|network/i.test(msg)) return 'CONNECTION_ERROR'
+    if (/LENGTH_ERROR|输出被截断|输出长度不足/.test(msg)) return 'LENGTH_ERROR'
+    if (/SCHEMA_ERROR|PAYLOAD_|RESPONSE_ERROR/.test(msg)) return 'SCHEMA_ERROR'
     if (/商品 URL|NO_|无法取得|CONTENT_SCRIPT/.test(msg)) return 'FIELD_ERROR'
     return 'AI_ERROR'
   }
@@ -46,14 +61,19 @@
       return { ok: true }
     }
     if (message?.type === 'TEST_AI') {
-      const out = await ASD.bg.aiClient.callAI(
-        [
-          { role: 'system', content: '请只输出 JSON。' },
-          { role: 'user', content: '输出 {"ok":true,"message":"连接成功"}' },
-        ],
-        100,
-      )
-      return { ok: out.result?.ok === true, ...out }
+      try {
+        const out = await ASD.bg.aiClient.callAI({
+          task: 'connection_test',
+          messages: [
+            { role: 'system', content: '你正在执行 API 连通性测试。只输出 JSON，不要解释。' },
+            { role: 'user', content: '严格输出：\n{"ok":true,"message":"连接成功"}' },
+          ],
+          maxTokens: 512,
+        })
+        return { ok: out.result && out.result.ok === true, ...out }
+      } catch (error) {
+        return { ok: false, reason: error.message || '连接失败', code: classify(error) }
+      }
     }
     if (message?.type === 'LIST_AI_MODELS') return { ok: true, ...(await ASD.bg.aiClient.listAIModels()) }
     if (message?.type === 'TRANSLATE_TEXT') {
@@ -61,8 +81,9 @@
         .trim()
         .slice(0, 12000)
       if (!sourceText) return { ok: false, reason: '没有可翻译的英文内容' }
-      const out = await ASD.bg.aiClient.callAI(
-        [
+      const out = await ASD.bg.aiClient.callAI({
+        task: 'translation',
+        messages: [
           {
             role: 'system',
             content:
@@ -70,8 +91,8 @@
           },
           { role: 'user', content: sourceText },
         ],
-        1800,
-      )
+        maxTokens: 1800,
+      })
       return { ok: true, translation: out.result?.translation || '', provider: out.provider, model: out.model }
     }
     if (message?.type === 'ANALYZE_PRODUCT') {
@@ -107,10 +128,13 @@
             : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
           const userText = `${intro}\n${wrapped}`
           const userContent = imageBlocks.length ? [{ type: 'text', text: userText }, ...imageBlocks] : userText
-          const out = await ASD.bg.aiClient.callAI([
-            { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
-            { role: 'user', content: userContent },
-          ])
+          const out = await ASD.bg.aiClient.callAI({
+            task: 'product_diagnosis',
+            messages: [
+              { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
+              { role: 'user', content: userContent },
+            ],
+          })
           out.visionUsed = imageBlocks.length > 0
           out.payloadMode = built.mode
           out.payloadTruncated = built.truncated
