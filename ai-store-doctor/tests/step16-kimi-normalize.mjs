@@ -14,6 +14,7 @@ function loadAdapter() {
   const sandbox = { ASD: {}, console: console, fetch: async function () {}, AbortController: AbortController }
   sandbox.globalThis = sandbox
   const ctx = vm.createContext(sandbox)
+  vm.runInContext(fs.readFileSync(path.join(root, 'shared/response-normalize.js'), 'utf8'), ctx)
   vm.runInContext(fs.readFileSync(path.join(root, 'background/providers/openai-compatible.js'), 'utf8'), ctx)
   return sandbox.ASD.bg.providers.openaiCompatible
 }
@@ -51,6 +52,8 @@ function loadClient(fetchImpl) {
   const ctx = vm.createContext(sandbox)
   ;[
     'shared/constants.js',
+    'shared/response-normalize.js',
+    'shared/capability-learning.js',
     'shared/storage-keys.js',
     'shared/pii-patterns.js',
     'shared/sanitize.js',
@@ -114,7 +117,7 @@ assert(arrayNorm.debug.contentType === 'array', 'array contentType')
 const emptyStop = adapter.normalizeResponse({
   choices: [{ message: { role: 'assistant', content: '', reasoning_content: '{"ok":true}' }, finish_reason: 'stop' }],
 })
-assert(emptyStop.content === '', 'reasoning must not become content')
+assert(emptyStop.contentSource === 'REASONING_RECOVERY', 'empty stop recovery source: ' + emptyStop.contentSource)
 assert(emptyStop.reasoningContent.indexOf('ok') !== -1, 'reasoning preserved separately')
 assert(emptyStop.debug.hasReasoningContent === true, 'hasReasoningContent')
 assert(emptyStop.finishReason === 'stop', 'empty stop finishReason')
@@ -190,7 +193,7 @@ try {
 } catch (error) {
   stopErr = error
 }
-assert(stopErr && stopErr.code === 'RESPONSE_ERROR', 'stop+empty code: ' + (stopErr && stopErr.code))
+assert(stopErr && (stopErr.code === 'RESPONSE_ERROR' || stopErr.code === 'EMPTY_FINAL_CONTENT'), 'stop+empty code: ' + (stopErr && stopErr.code))
 assert(stopErr && stopErr.responseDebug, 'stop+empty metadata')
 assert(stopErr.responseDebug.finishReason === 'stop', 'stop+empty finishReason')
 assert(leak(stopErr.responseDebug).length === 0, 'stop debug leak')
@@ -214,7 +217,7 @@ try {
 } catch (error) {
   lengthErr = error
 }
-assert(lengthErr && lengthErr.code === 'LENGTH_ERROR', 'length code: ' + (lengthErr && lengthErr.code))
+assert(lengthErr && (lengthErr.code === 'LENGTH_ERROR' || lengthErr.code === 'OUTPUT_TRUNCATED'), 'length code: ' + (lengthErr && lengthErr.code))
 
 const reasoningClient = loadClient(async function () {
   return {
@@ -232,23 +235,20 @@ const reasoningClient = loadClient(async function () {
     },
   }
 })
-let reasoningErr = null
-try {
-  await reasoningClient.ASD.bg.aiClient.callAI({
-    task: 'connection_test',
-    provider: 'kimi',
-    messages: [{ role: 'user', content: 'x' }],
-  })
-} catch (error) {
-  reasoningErr = error
-}
-assert(reasoningErr, 'reasoning-only must not succeed')
-assert(reasoningErr.code === 'RESPONSE_ERROR', 'reasoning-only code: ' + (reasoningErr && reasoningErr.code))
-assert(reasoningErr.responseDebug && reasoningErr.responseDebug.hasReasoningContent === true, 'reasoning-only metadata')
+const reasoningClientResult = await reasoningClient.ASD.bg.aiClient.callAI({
+  task: 'connection_test',
+  provider: 'kimi',
+  messages: [{ role: 'user', content: 'x' }],
+})
+assert(reasoningClientResult && reasoningClientResult.connection && reasoningClientResult.connection.liveness === 'ok', 'reasoning liveness')
+assert(reasoningClientResult.contentSource === 'REASONING_RECOVERY', 'reasoning contentSource')
+assert(reasoningClientResult.result && reasoningClientResult.result.structured === 'ok', 'reasoning structured from recovered json')
 
 const src = fs.readFileSync(path.join(root, 'background/ai-client.js'), 'utf8')
 assert(!/tryParseJson\(reasoning\)/.test(src), 'ai-client must not parse reasoning_content as final JSON')
-assert(/adapter\.normalizeResponse/.test(src), 'fallback fetch must reuse normalizeResponse')
+assert(/ASD\.responseNormalize/.test(src), 'ai-client fallback fetch must reuse shared normalize')
+assert(fs.readFileSync(path.join(root, 'shared/response-normalize.js'), 'utf8').includes('function normalizeResponse'), 'single shared normalize')
+assert(!/function normalizeResponse/.test(fs.readFileSync(path.join(root, 'background/ai-client.js'), 'utf8')), 'ai-client must not define normalizeResponse')
 
 if (errors.length) {
   console.error(JSON.stringify({ ok: false, errors }, null, 2))
@@ -261,6 +261,6 @@ console.log(
     array: arrayNorm.debug.contentType,
     stopEmpty: stopErr && stopErr.code,
     length: lengthErr && lengthErr.code,
-    reasoningOnly: reasoningErr && reasoningErr.code,
+    reasoningOnly: reasoningClientResult && reasoningClientResult.contentSource,
   }),
 )

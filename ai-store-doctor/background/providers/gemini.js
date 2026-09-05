@@ -92,7 +92,7 @@
     return body
   }
 
-  function normalizeResponse(data) {
+  function normalizeResponse(data, extras) {
     const candidate = data && data.candidates && data.candidates[0]
     const parts = candidate && candidate.content && candidate.content.parts ? candidate.content.parts : []
     const content = parts
@@ -110,13 +110,21 @@
           total_tokens: data.usageMetadata.totalTokenCount,
         }
       : null
+    const shaped = {
+      model: (data && data.modelVersion) || '',
+      usage: usage,
+      choices: [{ message: { content: content }, finish_reason: finishReason }],
+    }
+    if (ASD.responseNormalize && typeof ASD.responseNormalize.normalizeResponse === 'function') {
+      return ASD.responseNormalize.normalizeResponse(shaped, Object.assign({ provider: 'Gemini' }, extras || {}))
+    }
     return {
       content: content,
       reasoningContent: '',
       finishReason: finishReason,
       usage: usage,
       model: (data && data.modelVersion) || '',
-      raw: data,
+      contentSource: 'MESSAGE_CONTENT',
     }
   }
 

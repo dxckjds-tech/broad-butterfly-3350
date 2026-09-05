@@ -99,17 +99,26 @@
     return body
   }
 
-  function normalizeResponse(data) {
+  function normalizeResponse(data, extras) {
     const content = textOf(data && data.content).trim()
     const stop = (data && data.stop_reason) || ''
     const finishReason = stop === 'max_tokens' ? 'length' : stop === 'end_turn' || stop === 'stop_sequence' ? 'stop' : stop
+    const usage = data && data.usage ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens } : null
+    const shaped = {
+      model: (data && data.model) || '',
+      usage: usage,
+      choices: [{ message: { content: content }, finish_reason: finishReason }],
+    }
+    if (ASD.responseNormalize && typeof ASD.responseNormalize.normalizeResponse === 'function') {
+      return ASD.responseNormalize.normalizeResponse(shaped, Object.assign({ provider: 'Anthropic' }, extras || {}))
+    }
     return {
       content: content,
       reasoningContent: '',
       finishReason: finishReason,
-      usage: data && data.usage ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens } : null,
+      usage: usage,
       model: (data && data.model) || '',
-      raw: data,
+      contentSource: 'MESSAGE_CONTENT',
     }
   }
 

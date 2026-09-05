@@ -4,43 +4,31 @@
   ns.bg = ns.bg || {}
   ns.bg.providers = ns.bg.providers || {}
 
+  function shared() {
+    return ASD.responseNormalize
+  }
+
   function classifyHttp(status, message) {
-    if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
-      return 'AUTH_ERROR'
-    }
-    if (status === 429 || /rate limit|too many requests/i.test(message || '')) return 'RATE_LIMIT_ERROR'
-    if (status === 404 && /model/i.test(message || '')) return 'MODEL_NOT_FOUND'
+    if (shared() && typeof shared().classifyHttp === 'function') return shared().classifyHttp(status, message)
+    if (status === 401 || status === 403) return 'AUTH_ERROR'
+    if (status === 429) return 'RATE_LIMIT_ERROR'
     if (status >= 500) return 'PROVIDER_ERROR'
     return 'RESPONSE_ERROR'
   }
 
-  function contentTypeOf(rawContent) {
-    if (typeof rawContent === 'string') return 'string'
-    if (Array.isArray(rawContent)) return 'array'
-    if (rawContent == null) return 'empty'
-    return typeof rawContent
-  }
-
   function extractText(rawContent) {
-    if (typeof rawContent === 'string') return rawContent.trim()
-    if (!Array.isArray(rawContent)) return ''
-    return rawContent
-      .map(function (part) {
-        if (typeof part === 'string') return part
-        if (!part || typeof part !== 'object') return ''
-        const partType = String(part.type || '').toLowerCase()
-        if (partType === 'reasoning' || partType === 'thinking' || partType === 'thought') return ''
-        if (partType === 'text' || partType === 'output_text') return part.text || part.content || ''
-        return part.text || (typeof part.content === 'string' ? part.content : '')
-      })
-      .join('')
-      .trim()
+    if (shared() && typeof shared().extractTextParts === 'function') return shared().extractTextParts(rawContent)
+    return typeof rawContent === 'string' ? rawContent.trim() : ''
   }
 
   function extractFinalContent(data, message, choice) {
     const fromMessage = extractText(message && message.content)
     if (fromMessage) {
-      return { content: fromMessage, contentType: contentTypeOf(message.content), source: 'message.content' }
+      return {
+        content: fromMessage,
+        contentType: typeof (message && message.content) === 'string' ? 'string' : 'array',
+        source: 'message.content',
+      }
     }
     if (message && typeof message.output_text === 'string' && message.output_text.trim()) {
       return { content: message.output_text.trim(), contentType: 'output_text', source: 'message.output_text' }
@@ -48,53 +36,31 @@
     if (choice && typeof choice.text === 'string' && choice.text.trim()) {
       return { content: choice.text.trim(), contentType: 'choice.text', source: 'choice.text' }
     }
-    if (data && typeof data.output_text === 'string' && data.output_text.trim()) {
-      return { content: data.output_text.trim(), contentType: 'output_text', source: 'output_text' }
-    }
-    return { content: '', contentType: contentTypeOf(message && message.content), source: 'message.content' }
-  }
-
-  function objectKeys(value) {
-    if (!value || typeof value !== 'object') return []
-    return Object.keys(value).slice(0, 24)
+    return { content: '', contentType: 'empty', source: 'message.content' }
   }
 
   function responseDebug(data, extras, extracted) {
-    const extra = extras || {}
-    const choice = data && data.choices && data.choices[0]
-    const message = (choice && choice.message) || {}
-    return {
-      provider: extra.provider || extra.providerName || '',
-      model: (data && data.model) || extra.model || '',
-      httpStatus: extra.httpStatus != null ? extra.httpStatus : 200,
-      finishReason: (choice && choice.finish_reason) || '',
-      choicesCount: data && Array.isArray(data.choices) ? data.choices.length : 0,
-      contentType: extracted && extracted.contentType ? extracted.contentType : contentTypeOf(message.content),
-      contentLength: extracted && extracted.content ? extracted.content.length : 0,
-      hasReasoningContent: !!(message.reasoning_content || message.reasoning || message.thinking),
-      topLevelKeys: objectKeys(data),
-      messageKeys: objectKeys(message),
+    if (shared() && typeof shared().safeDebug === 'function') {
+      return shared().safeDebug(data, extras, extracted)
     }
+    return { provider: extras && extras.provider, model: extras && extras.model }
   }
 
   function normalizeResponse(data, extras) {
-    const choice = data && data.choices && data.choices[0]
-    const message = (choice && choice.message) || {}
-    const extracted = extractFinalContent(data, message, choice)
-    const reasoning =
-      typeof message.reasoning_content === 'string'
-        ? message.reasoning_content
-        : typeof message.reasoning === 'string'
-          ? message.reasoning
-          : ''
-    return {
-      content: extracted.content,
-      reasoningContent: reasoning,
-      finishReason: (choice && choice.finish_reason) || '',
-      usage: (data && data.usage) || null,
-      model: (data && data.model) || (extras && extras.model) || '',
-      debug: responseDebug(data, extras, extracted),
+    if (!shared() || typeof shared().normalizeResponse !== 'function') {
+      const choice = data && data.choices && data.choices[0]
+      const message = (choice && choice.message) || {}
+      return {
+        content: typeof message.content === 'string' ? message.content.trim() : '',
+        reasoningContent: '',
+        finishReason: (choice && choice.finish_reason) || '',
+        usage: (data && data.usage) || null,
+        model: (data && data.model) || (extras && extras.model) || '',
+        contentSource: 'MESSAGE_CONTENT',
+        debug: { provider: extras && extras.provider, model: extras && extras.model },
+      }
     }
+    return shared().normalizeResponse(data, extras)
   }
 
   function stripImageParts(messages) {
