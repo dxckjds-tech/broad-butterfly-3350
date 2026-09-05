@@ -7,6 +7,7 @@ importScripts(
   '../shared/result-schema.js',
   '../shared/task-types.js',
   '../shared/task-validators.js',
+  '../shared/provider-registry.js',
   '../shared/image-score.js',
   './settings.js',
   './model-router.js',
