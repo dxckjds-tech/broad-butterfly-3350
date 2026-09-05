@@ -13,7 +13,8 @@
 
 ## 仍待真实环境
 
-- [ ] REAL_AI_REGRESSION：DeepSeek 需环境 Key；Kimi 若正式宣称支持需同样 1 MIC + 1 VEMIC
+- [x] REAL_AI DeepSeek：MIC + VEMIC fixture 已用环境 Key 跑通（Step 14）
+- [ ] REAL_AI Kimi：环境无 `KIMI_API_KEY`，正式版前仍需 1 MIC + 1 VEMIC
 - [ ] 视觉模型：Logo 在前、商品图在后的真实页确认
 - [ ] RC 人工：5–10 个不同品类商品页
 - [ ] Chrome Web Store 最终发布
