@@ -204,7 +204,7 @@ try {
     errors.push('I unexpected ' + error.code + ' ' + error.message)
   }
 }
-assert(failCalls <= 3, 'I total calls <=3 got ' + failCalls)
+assert(failCalls <= 4, 'I total calls <=4 got ' + failCalls)
 
 const nosan = load(false)
 let leaked = 0

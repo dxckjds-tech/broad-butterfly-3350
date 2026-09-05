@@ -46,7 +46,12 @@
           key === 'rawResponse' ||
           key === 'stageRaw' ||
           key === 'visionUrls' ||
-          key === 'base64'
+          key === 'base64' ||
+          key === 'authorization' ||
+          key === 'Authorization' ||
+          key === 'apiKey' ||
+          key === 'api_key' ||
+          key === 'verifierRaw'
         ) {
           return
         }
@@ -94,10 +99,21 @@
 
   function slimOrchestration(raw) {
     if (!raw || typeof raw !== 'object') return null
+    const verification = raw.verification || {}
     return {
       mode: raw.mode || '',
       totalCalls: raw.totalCalls || 0,
       totalDurationMs: raw.totalDurationMs || 0,
+      inputTokens: raw.usage && raw.usage.inputTokens != null ? raw.usage.inputTokens : raw.inputTokens || 0,
+      outputTokens: raw.usage && raw.usage.outputTokens != null ? raw.usage.outputTokens : raw.outputTokens || 0,
+      estimatedCostUsd: raw.cost && raw.cost.costKnown ? raw.cost.estimatedCostUsd : raw.estimatedCostUsd != null && raw.costKnown !== false ? raw.estimatedCostUsd : null,
+      costKnown: raw.cost ? !!raw.cost.costKnown : raw.costKnown !== false && raw.estimatedCostUsd != null,
+      fallbackUsed: !!raw.fallbackUsed,
+      riskScore: raw.riskScore != null ? raw.riskScore : verification.riskScore,
+      verificationTriggered: !!(raw.verificationTriggered || verification.triggered),
+      confirmed: verification.confirmed || 0,
+      downgraded: verification.downgraded || 0,
+      rejected: verification.rejected || 0,
       stages: Array.isArray(raw.stages)
         ? raw.stages.map(function (item) {
             return {

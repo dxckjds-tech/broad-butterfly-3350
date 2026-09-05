@@ -67,14 +67,18 @@
     if (task === 'product_diagnosis' && ASD.bg.payloadBuilder && ASD.bg.payloadBuilder.sanitizeModelEvidence) {
       result = ASD.bg.payloadBuilder.sanitizeModelEvidence(result)
     }
+    const usage = ASD.bg.tokenAccounting
+      ? ASD.bg.tokenAccounting.normalize(data.usage, { content: data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content })
+      : data.usage || null
     return {
       result: result,
-      usage: data.usage || null,
+      usage: usage,
       model: data.model || model,
       provider: providerName,
       attempts: attempt + 1,
       schemaRepaired: parsed.repaired || [],
       finishReason: data && data.choices && data.choices[0] ? data.choices[0].finish_reason || '' : '',
+      _healthRecorded: false,
     }
   }
 
@@ -107,7 +111,9 @@
     if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
       return 'AUTH_ERROR'
     }
-    if (status === 429 || status >= 500) return 'CONNECTION_ERROR'
+    if (status === 429 || /rate limit|too many requests/i.test(message || '')) return 'RATE_LIMIT_ERROR'
+    if (status === 404 && /model/i.test(message || '')) return 'MODEL_NOT_FOUND'
+    if (status >= 500) return 'PROVIDER_ERROR'
     return 'RESPONSE_ERROR'
   }
 
@@ -252,11 +258,19 @@
     )
   }
 
-  function recordHealth(routed, ok, startedAt) {
+  function recordHealth(routed, ok, startedAt, error) {
     if (!ASD.bg.modelHealth || !routed) return
     const latency = Date.now() - startedAt
     if (ok) ASD.bg.modelHealth.recordSuccess(routed.id || routed.providerName, routed.model, latency)
-    else ASD.bg.modelHealth.recordFailure(routed.id || routed.providerName, routed.model, latency)
+    else {
+      ASD.bg.modelHealth.recordFailure(
+        routed.id || routed.providerName,
+        routed.model,
+        latency,
+        error && error.code,
+        { retryAfterMs: error && error.retryAfterMs },
+      )
+    }
   }
 
   async function executeOnRouted(opts, cfg, routed) {
@@ -420,11 +434,21 @@
       const out = await executeOnRouted(opts, cfg, primary)
       out.route = selection || null
       recordHealth(primary, true, startedAt)
+      out._healthRecorded = true
       return out
     } catch (error) {
-      recordHealth(primary, false, startedAt)
+      recordHealth(primary, false, startedAt, error)
+      error._healthRecorded = true
       const backup = selection && selection.fallbacks && selection.fallbacks[0]
-      if (backup && error.code === 'CONNECTION_ERROR') {
+      if (
+        backup &&
+        (error.code === 'CONNECTION_ERROR' ||
+          error.code === 'NETWORK_ERROR' ||
+          error.code === 'RATE_LIMIT_ERROR' ||
+          error.code === 'TIMEOUT' ||
+          error.code === 'PROVIDER_ERROR' ||
+          error.code === 'MODEL_NOT_FOUND')
+      ) {
         const second = resolveRouted({ provider: backup.provider, model: backup.model }, cfg)
         if (backup.model) second.model = backup.model
         if (backup.capabilities) second.capabilities = backup.capabilities

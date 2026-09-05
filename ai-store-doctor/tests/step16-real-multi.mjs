@@ -50,6 +50,7 @@ function loadAnalyze(settings) {
   const ctx = vm.createContext(sandbox)
   ;[
     'shared/constants.js',
+    'shared/error-codes.js',
     'shared/storage-keys.js',
     'shared/pii-patterns.js',
     'shared/sanitize.js',
@@ -61,6 +62,7 @@ function loadAnalyze(settings) {
     'shared/provider-configs.js',
     'shared/model-capabilities.js',
     'shared/task-profiles.js',
+    'shared/model-pricing.js',
     'shared/image-score.js',
     'shared/health-score.js',
     'background/settings.js',
@@ -69,6 +71,9 @@ function loadAnalyze(settings) {
     'background/providers/gemini.js',
     'background/provider-manager.js',
     'background/model-health.js',
+    'background/execution-budget.js',
+    'background/token-accounting.js',
+    'background/failover-policy.js',
     'background/model-router.js',
     'background/orchestration-planner.js',
     'background/prompt-builder.js',
@@ -76,6 +81,9 @@ function loadAnalyze(settings) {
     'background/prompts/evidence-prompt.js',
     'background/prompts/diagnosis-prompt.js',
     'background/prompts/content-prompt.js',
+    'background/prompts/verification-prompt.js',
+    'background/verification-risk.js',
+    'background/final-report-guard.js',
     'background/payload-builder.js',
     'background/image-fetcher.js',
     'background/ai-client.js',
@@ -133,6 +141,22 @@ if (onlyPlan.mode !== 'single') {
   results.error = 'only DeepSeek must auto-single'
 }
 
+const manufacturedRisk = onlyDeepseek.ASD.bg.verificationRisk.assessVerificationRisk({
+  productBundle: { product: { specifications: [{ name: 'Power', value: '1200W' }], power: '1200W' } },
+  diagnosis: {
+    identity: { name: 'Demo Valve', confidence: 40 },
+    facts: [
+      { field: 'power', label: 'Power', value: '1500W', sourceType: 'vision', status: 'OBSERVED' },
+      { field: 'material', label: 'Material', value: 'Stainless Steel', sourceType: 'vision', status: 'VERIFIED' },
+    ],
+  },
+})
+results.highRiskSample = manufacturedRisk
+if (manufacturedRisk.level !== 'high') {
+  results.ok = false
+  results.error = (results.error ? results.error + '; ' : '') + 'manufactured high-risk sample did not trigger'
+}
+
 const secondKey = openaiKey ? { id: 'openai', apiKey: openaiKey, model: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1' } : kimiKey ? { id: 'moonshot', apiKey: kimiKey, model: 'kimi-k2.5', baseUrl: 'https://api.moonshot.cn/v1' } : null
 
 if (!deepseekKey) {
@@ -143,8 +167,8 @@ if (!deepseekKey) {
 }
 
 if (!secondKey) {
-  results.real = 'SINGLE_ONLY'
-  results.reason = 'second provider key missing; auto stays single'
+  results.real = 'REAL_MULTI_PROVIDER_PENDING'
+  results.reason = 'second provider key missing; auto stays single; cannot claim live multi-model orchestration'
   const singleCfg = {
     provider: 'deepseek',
     deepseekApiKey: deepseekKey,
@@ -153,7 +177,7 @@ if (!secondKey) {
       'auto',
     ),
   }
-  for (const sample of samples.filter(function (item) { return item.id === 'mic-01' || item.id === 'mic-05' || item.id === 'vemic-02' })) {
+  for (const sample of samples.filter(function (item) { return item.id === 'mic-01' || item.id === 'mic-05' || item.id === 'vemic-02' || item.id === 'dyn-04' })) {
     try {
       const bundle = collectFixture(sample.file, sample.url)
       const sandbox = loadAnalyze(singleCfg)
@@ -170,8 +194,14 @@ if (!secondKey) {
       results.cases[sample.id] = {
         mode: out.orchestration && out.orchestration.mode,
         totalCalls: out.orchestration && out.orchestration.totalCalls,
-        totalDurationMs: Date.now() - started,
+        totalDurationMs: (out.orchestration && out.orchestration.totalDurationMs) || Date.now() - started,
         stages: (out.orchestration && out.orchestration.stages) || [],
+        models: ((out.orchestration && out.orchestration.stages) || []).map(function (item) { return item.model }),
+        fallback: !!(out.orchestration && out.orchestration.fallbackUsed),
+        tokens: out.orchestration && out.orchestration.usage,
+        cost: out.orchestration && out.orchestration.cost,
+        riskScore: out.orchestration && (out.orchestration.riskScore != null ? out.orchestration.riskScore : out.orchestration.verification && out.orchestration.verification.riskScore),
+        verification: out.orchestration && out.orchestration.verification,
         identity: out.result.summary && out.result.summary.identity,
         facts: (out.result.facts || []).length,
         health: health.total,
@@ -218,14 +248,20 @@ for (const sample of samples) {
     results.cases[sample.id] = {
       mode: out.orchestration && out.orchestration.mode,
       totalCalls: out.orchestration && out.orchestration.totalCalls,
-      totalDurationMs: Date.now() - started,
+      totalDurationMs: (out.orchestration && out.orchestration.totalDurationMs) || Date.now() - started,
       stages: (out.orchestration && out.orchestration.stages) || [],
+      models: ((out.orchestration && out.orchestration.stages) || []).map(function (item) { return item.model }),
+      fallback: !!(out.orchestration && out.orchestration.fallbackUsed),
+      tokens: out.orchestration && out.orchestration.usage,
+      cost: out.orchestration && out.orchestration.cost,
+      riskScore: out.orchestration && (out.orchestration.riskScore != null ? out.orchestration.riskScore : out.orchestration.verification && out.orchestration.verification.riskScore),
+      verification: out.orchestration && out.orchestration.verification,
       identity: out.result.summary && out.result.summary.identity,
       facts: (out.result.facts || []).length,
       health: health.total,
       contentTitles: ((out.result.content && out.result.content.titles) || []).length,
     }
-    if (out.orchestration && out.orchestration.totalCalls > 3) throw new Error('calls>3')
+    if (out.orchestration && out.orchestration.totalCalls > 4) throw new Error('calls>4')
   } catch (error) {
     results.ok = false
     results.cases[sample.id] = { error: error.message || String(error) }

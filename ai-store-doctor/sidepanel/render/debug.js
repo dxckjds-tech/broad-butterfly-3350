@@ -42,6 +42,16 @@
             .join('')
         }${arr(meta.collaboration).map(function (item) { return `<p>${esc(item)}</p>` }).join('')}</div>`
       : ''
+    const verification = (orch && orch.verification) || (d && d.verification) || null
+    const verifyCard = verification
+      ? `<div class="card"><b>高风险复核</b><p>riskScore：${esc(verification.riskScore != null ? verification.riskScore : '—')}</p><p>level：${esc(verification.level || '—')}</p><p>triggered：${esc(!!verification.triggered)}</p><p>provider：${esc(verification.provider || '—')}</p><p>model：${esc(verification.model || '—')}</p><p>independentVerification：${esc(verification.independentVerification)}</p><p>confirmed / downgraded / rejected：${esc(verification.confirmed || 0)} / ${esc(verification.downgraded || 0)} / ${esc(verification.rejected || 0)}</p>${
+          arr(verification.reasons)
+            .map(function (item) {
+              return `<p>• ${esc(item)}</p>`
+            })
+            .join('')
+        }</div>`
+      : ''
     const routeCard = route
       ? `<div class="card"><b>本次自动选择</b><p>Provider：${esc((route.selected && route.selected.provider) || meta.provider || '—')}</p><p>Model：${esc((route.selected && route.selected.model) || meta.model || '—')}</p><p>评分：${esc((route.selected && route.selected.score) || '—')}</p>${
           arr(route.reason)
@@ -57,6 +67,7 @@
     return (
       collectCompare +
       orchCard +
+      verifyCard +
       routeCard +
       hitsCard +
       perfCard +

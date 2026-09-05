@@ -14,12 +14,34 @@
     const meta = props.meta || {}
     const orch = meta.orchestration || r.debug && r.debug.orchestration
     const lines = meta.collaboration || []
+    const userLines = (orch && orch.userLines) || []
+    const statusLines = userLines.length
+      ? userLines
+      : lines.length
+        ? lines
+        : orch
+          ? [
+              orch.mode === 'single' ? '单模型诊断' : 'AI协同完成',
+              orch.totalCalls
+                ? orch.totalCalls + '次调用 · ' + (((orch.totalDurationMs || 0) / 1000).toFixed(1) + '秒')
+                : '',
+            ].filter(Boolean)
+          : []
+    if (orch && orch.verification && orch.verification.triggered && statusLines.indexOf('已对高风险事实进行二次复核') === -1) {
+      statusLines.push('已对高风险事实进行二次复核')
+    }
+    if (orch && orch.verification && orch.verification.downgraded && !statusLines.some(function (item) { return String(item).indexOf('已自动降级') !== -1 })) {
+      statusLines.push('发现' + orch.verification.downgraded + '条证据不足内容，已自动降级')
+    }
+    if (orch && orch.completion && orch.completion.status === 'partial' && statusLines.indexOf('诊断已完成，但部分内容建议生成失败。') === -1) {
+      statusLines.push('诊断已完成，但部分内容建议生成失败。')
+    }
     const orchCard =
-      orch || lines.length
+      orch || statusLines.length
         ? `<div class="card"><div class="section-label">本次 AI 协同</div>${
-            lines.length
-              ? lines.map(function (item) { return `<p>${esc(item)}</p>` }).join('')
-              : `<p>${esc(orch && orch.mode === 'single' ? '单模型诊断' : '多模型协同')}</p>`
+            statusLines.length
+              ? statusLines.map(function (item) { return `<p>${esc(item)}</p>` }).join('')
+              : `<p>${esc(orch && orch.mode === 'single' ? '单模型诊断' : 'AI协同完成')}</p>`
           }</div>`
         : ''
     return orchCard + `<div class="card"><div class="section-label">AI 诊断</div>${

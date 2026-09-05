@@ -16,6 +16,13 @@
         error.code === 'TASK_VALIDATOR_UNAVAILABLE' ||
         error.code === 'UNSUPPORTED_CAPABILITY' ||
         error.code === 'ORCHESTRATION_BUDGET_EXCEEDED' ||
+        error.code === 'BUDGET_EXCEEDED' ||
+        error.code === 'COST_BUDGET_EXCEEDED' ||
+        error.code === 'NETWORK_ERROR' ||
+        error.code === 'RATE_LIMIT_ERROR' ||
+        error.code === 'MODEL_NOT_FOUND' ||
+        error.code === 'TIMEOUT' ||
+        error.code === 'PROVIDER_ERROR' ||
         error.code === 'VALIDATION_ERROR' ||
         error.code === 'EVIDENCE_CONFLICT' ||
         error.code === 'SECURITY_SANITIZER_UNAVAILABLE'
@@ -78,6 +85,9 @@
           ],
           maxTokens: 512,
         })
+        if (out && ASD.bg.modelHealth && typeof ASD.bg.modelHealth.clearAttention === 'function') {
+          ASD.bg.modelHealth.clearAttention(message.provider || (out.route && out.route.selected && out.route.selected.provider))
+        }
         return { ok: out.result && out.result.ok === true, ...out }
       } catch (error) {
         return { ok: false, reason: error.message || '连接失败', code: classify(error) }

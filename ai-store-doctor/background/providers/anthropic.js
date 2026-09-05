@@ -8,7 +8,9 @@
     if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
       return 'AUTH_ERROR'
     }
-    if (status === 429 || status >= 500) return 'CONNECTION_ERROR'
+    if (status === 429 || /rate limit|too many requests/i.test(message || '')) return 'RATE_LIMIT_ERROR'
+    if (status === 404 && /model/i.test(message || '')) return 'MODEL_NOT_FOUND'
+    if (status >= 500) return 'PROVIDER_ERROR'
     return 'RESPONSE_ERROR'
   }
 

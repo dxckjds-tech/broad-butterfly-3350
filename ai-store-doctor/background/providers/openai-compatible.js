@@ -8,7 +8,9 @@
     if (status === 401 || status === 403 || /invalid api key|unauthorized|authentication/i.test(message || '')) {
       return 'AUTH_ERROR'
     }
-    if (status === 429 || status >= 500) return 'CONNECTION_ERROR'
+    if (status === 429 || /rate limit|too many requests/i.test(message || '')) return 'RATE_LIMIT_ERROR'
+    if (status === 404 && /model/i.test(message || '')) return 'MODEL_NOT_FOUND'
+    if (status >= 500) return 'PROVIDER_ERROR'
     return 'RESPONSE_ERROR'
   }
 
@@ -100,7 +102,15 @@
     const data = await response.json().catch(function () {
       return {}
     })
-    if (!response.ok) throw parseError(response.status, data, opts.providerName)
+    if (!response.ok) {
+      const error = parseError(response.status, data, opts.providerName)
+      const retryAfter = response.headers && response.headers.get && response.headers.get('Retry-After')
+      if (retryAfter) {
+        const sec = Number(retryAfter)
+        error.retryAfterMs = Number.isFinite(sec) ? sec * 1000 : 15000
+      }
+      throw error
+    }
     return normalizeResponse(data)
   }
 

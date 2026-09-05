@@ -20,10 +20,11 @@
     return (meta && meta.name) || id || ''
   }
 
-  function fallbackAllowed(error) {
-    const code = error && error.code
-    if (code === 'CONNECTION_ERROR' || code === 'RATE_LIMIT_ERROR' || code === 'TIMEOUT') return true
-    return /超时|RATE_LIMIT|Failed to fetch/i.test((error && error.message) || '')
+  function throwBudget() {
+    const error = new Error('ORCHESTRATION_BUDGET_EXCEEDED')
+    error.code = 'ORCHESTRATION_BUDGET_EXCEEDED'
+    error.budgetCode = 'BUDGET_EXCEEDED'
+    throw error
   }
 
   function wrapUser(text, images) {
@@ -79,38 +80,185 @@
     }
   }
 
+  function trustedPageEvidence(evidence) {
+    const trusted = { product_field: true, spec_table: true, json_ld: true, explicit_page_field: true }
+    return {
+      evidence: ((evidence && evidence.evidence) || []).filter(function (item) {
+        return item && trusted[item.sourceType]
+      }),
+    }
+  }
+
+  function textOnlyEvidenceFromBundle(product, fields) {
+    const root = (product && product.product) || product || {}
+    const specs = Array.isArray(root.specifications) ? root.specifications : []
+    const evidence = specs
+      .filter(function (row) {
+        return row && (row.name || row.label) && row.value
+      })
+      .map(function (row) {
+        return {
+          field: String(row.name || row.label),
+          value: String(row.value),
+          sourceType: 'spec_table',
+          sourceRef: String(row.name || row.label),
+          status: 'VERIFIED',
+          confidence: 80,
+        }
+      })
+    if (root.name) {
+      evidence.unshift({
+        field: 'name',
+        value: String(root.name),
+        sourceType: 'product_field',
+        sourceRef: 'product.name',
+        status: 'VERIFIED',
+        confidence: 90,
+      })
+    }
+    if (fields && fields.title && !root.name) {
+      evidence.unshift({
+        field: 'name',
+        value: String(fields.title),
+        sourceType: 'product_field',
+        sourceRef: 'fields.title',
+        status: 'VERIFIED',
+        confidence: 70,
+      })
+    }
+    return {
+      identityCandidates: root.name ? [{ name: String(root.name), confidence: 70, evidence: ['product_field'] }] : [],
+      evidence: evidence,
+      imageObservations: [],
+      unknowns: ['vision_degraded_to_text'],
+    }
+  }
+
+  function stubContentFromDiagnosis(diagnosis) {
+    const identity = (diagnosis && diagnosis.identity) || {}
+    const keywords = (diagnosis && diagnosis.keywordStrategy) || {}
+    return {
+      summary: {
+        identity: identity.name || '',
+        confidence: identity.confidence || 0,
+        dataCompleteness: 50,
+        contentReadiness: 0,
+        status: 'UNKNOWN',
+      },
+      facts: (diagnosis && diagnosis.facts) || [],
+      keywords: {
+        current: keywords.primary || [],
+        blocked: keywords.blocked || [],
+        candidates: keywords.secondary || [],
+      },
+      content: {
+        titles: [],
+        detail: {
+          headline: '',
+          overview: '',
+          highlights: [],
+          specifications: [],
+          applications: [],
+          packagingDelivery: '',
+          buyerNote: '',
+        },
+        faq: [],
+        geo: {
+          headline: '',
+          directAnswer: '',
+          productFacts: [],
+          companyContext: '',
+          buyerQuestions: [],
+          sourcingGuidance: [],
+          evidenceBasis: [],
+        },
+      },
+      debug: { missingFields: ['content'], warnings: ['content_stage_failed'] },
+    }
+  }
+
+  function normalizeUsage(raw, extras) {
+    if (ASD.bg.tokenAccounting && typeof ASD.bg.tokenAccounting.normalize === 'function') {
+      return ASD.bg.tokenAccounting.normalize(raw, extras)
+    }
+    return raw || null
+  }
+
+  function estimateCost(used, usage) {
+    const pricing = (ASD.shared && ASD.shared.modelPricing) || ASD.modelPricing
+    if (!pricing || !usage) return { estimatedCostUsd: null, costKnown: false, costEstimated: false }
+    return pricing.estimateCostUsd({
+      provider: used && used.provider,
+      model: used && used.model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    })
+  }
+
+  function makeBudget(opts, plan) {
+    if (ASD.bg.executionBudget && typeof ASD.bg.executionBudget.create === 'function') {
+      return ASD.bg.executionBudget.create({
+        mode: opts.mode || opts.costPreference || 'balanced',
+        orchestrationMode: plan && plan.mode,
+        maxCalls: opts.maxCalls,
+        maxDurationMs: opts.maxDurationMs,
+        maxEstimatedCostUsd: opts.maxEstimatedCostUsd,
+      })
+    }
+    return {
+      mode: 'balanced',
+      maxCalls: maxCalls(),
+      usedCalls: 0,
+      reserveVerifier: false,
+      maxDurationMs: 40000,
+      maxEstimatedCostUsd: 1,
+      inputTokens: 0,
+      outputTokens: 0,
+      estimatedCostUsd: 0,
+      costKnown: true,
+      consumeCall: function consumeCall() {
+        this.usedCalls += 1
+        return this.usedCalls
+      },
+      canCall: function canCall() {
+        return this.usedCalls < this.maxCalls
+      },
+      remainingCalls: function remainingCalls() {
+        return Math.max(0, this.maxCalls - this.usedCalls)
+      },
+      remainingMs: function remainingMs() {
+        return 40000
+      },
+      stageTimeout: function stageTimeout() {
+        return 20000
+      },
+      addUsage: function addUsage() {},
+      snapshot: function snapshot() {
+        return { usedCalls: this.usedCalls, maxCalls: this.maxCalls }
+      },
+    }
+  }
+
   async function defaultExecute(opts) {
     return ASD.bg.aiClient.callAI(opts)
   }
 
-  async function runSingle(opts, cfg, built, plan, executeFn, visionPack) {
-    const started = Date.now()
-    const selected = plan.stages[0]
-    const caps = selected.capabilities || {}
-    const visionUrls = caps.vision === true ? (visionPack && visionPack.urls) || [] : []
-    const intro = visionUrls.length
-      ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
-      : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
-    const out = await executeFn({
-      task: 'product_diagnosis',
-      provider: selected.provider,
-      model: selected.model,
-      capabilities: caps,
-      requestContext: { hasImages: !!(opts.requestContext && opts.requestContext.hasImages) },
-      messages: [
-        { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
-        { role: 'user', content: wrapUser(intro + '\n' + built.text, visionUrls) },
-      ],
-    })
-    out.orchestration = summarize(plan, [{ stage: 'diagnosis', provider: selected.provider, model: selected.model, durationMs: Date.now() - started, success: true, fallbackUsed: false }], Date.now() - started, 1)
-    out.visionUsed = visionUrls.length > 0
-    out.payloadMode = built.mode
-    out.payloadTruncated = built.truncated
-    return out
+  function userStatus(orch) {
+    const calls = (orch && orch.totalCalls) || 0
+    const sec = (((orch && orch.totalDurationMs) || 0) / 1000).toFixed(1)
+    const lines = ['AI协同完成', calls + '次调用 · ' + sec + '秒']
+    if (orch && orch.verification && orch.verification.triggered) lines.push('已对高风险事实进行二次复核')
+    const down = orch && orch.verification && orch.verification.downgraded
+    if (down) lines.push('发现' + down + '条证据不足内容，已自动降级')
+    if (orch && orch.completion && orch.completion.status === 'partial') {
+      lines.push('诊断已完成，但部分内容建议生成失败。')
+    }
+    return lines
   }
 
-  function summarize(plan, stages, durationMs, totalCalls) {
-    return {
+  function summarize(plan, stages, durationMs, totalCalls, extras) {
+    const extra = extras || {}
+    const orch = {
       mode: plan.mode,
       totalCalls: totalCalls,
       totalDurationMs: durationMs,
@@ -118,58 +266,278 @@
       reason: plan.reason || [],
       textFallback: !!plan.textFallback,
       stages: stages,
+      fallbackUsed: !!(extra.fallbackUsed || (stages || []).some(function (item) { return item && item.fallbackUsed })),
+      budget: extra.budget || null,
+      usage: extra.usage || null,
+      cost: extra.cost || null,
+      verification: extra.verification || null,
+      completion: extra.completion || { status: 'complete', missingStages: [], reasons: [] },
+      riskScore: extra.riskScore,
     }
+    orch.userLines = userStatus(orch)
+    return orch
   }
 
-  async function callStage(stage, messages, executeFn, budget, traces, taskOverride) {
-    if (budget.used >= budget.max) {
-      const error = new Error('ORCHESTRATION_BUDGET_EXCEEDED')
-      error.code = 'ORCHESTRATION_BUDGET_EXCEEDED'
-      throw error
+  function selectVerifier(cfg, prefs, avoid) {
+    if (!ASD.bg.modelRouter || typeof ASD.bg.modelRouter.selectModel !== 'function') return null
+    const sel = ASD.bg.modelRouter.selectModel('fact_verification', { settings: cfg, hasImages: false }, prefs)
+    if (!sel.ok || !sel.selected) return null
+    let picked = sel.selected
+    let independent = true
+    if (avoid && picked.provider === avoid.provider && picked.model === avoid.model) {
+      if (sel.fallbacks && sel.fallbacks[0] && sel.fallbacks[0].capabilities && sel.fallbacks[0].capabilities.structuredOutput !== false) {
+        picked = sel.fallbacks[0]
+        independent = true
+      } else {
+        independent = false
+      }
     }
-    const task = taskOverride || stage.task
-    const started = Date.now()
-    let fallbackUsed = false
+    if (picked.capabilities && picked.capabilities.structuredOutput === false) return null
+    return { selected: picked, fallbacks: sel.fallbacks || [], independentVerification: independent }
+  }
+
+  async function callStage(stage, messages, executeFn, budget, traces, taskOverride, extras) {
+    const extra = extras || {}
+    const health = ASD.bg.modelHealth
+    let alreadyFallback = false
+    let alreadyRepaired = false
+    let alreadyLengthRetry = false
     let used = { provider: stage.provider, model: stage.model, capabilities: stage.capabilities }
-    try {
-      budget.used += 1
-      const out = await executeFn({
-        task: task,
-        provider: used.provider,
-        model: used.model,
-        capabilities: used.capabilities,
-        messages: messages,
-      })
-      traces.push({ stage: stage.covers ? stage.covers.join('+') : stage.id, provider: used.provider, model: used.model, durationMs: Date.now() - started, success: true, fallbackUsed: false })
-      return out
-    } catch (error) {
-      traces.push({ stage: stage.id, provider: used.provider, model: used.model, durationMs: Date.now() - started, success: false, fallbackUsed: false, error: error.code || error.message })
-      const canFallback =
-        fallbackAllowed(error) &&
-        stage.fallback &&
-        budget.used < budget.max &&
-        (error.code === 'CONNECTION_ERROR' || error.code === 'RATE_LIMIT_ERROR' || error.code === 'TIMEOUT' || fallbackAllowed(error))
-      if (!canFallback) throw error
-      fallbackUsed = true
-      used = { provider: stage.fallback.provider, model: stage.fallback.model, capabilities: stage.fallback.capabilities }
-      budget.used += 1
-      const retryAt = Date.now()
-      const out = await executeFn({
-        task: task,
-        provider: used.provider,
-        model: used.model,
-        capabilities: used.capabilities,
-        messages: messages,
-      })
-      traces.push({ stage: stage.id, provider: used.provider, model: used.model, durationMs: Date.now() - retryAt, success: true, fallbackUsed: true })
-      out.usedFallback = fallbackUsed
-      return out
+    let maxTokens = extra.maxTokens || 4200
+    const fallbacks = stage.fallback ? [stage.fallback] : stage.fallbacks || []
+    const task = taskOverride || stage.task
+
+    while (true) {
+      if (budget.canCall && !budget.canCall()) throwBudget()
+      if (budget.usedCalls >= budget.maxCalls) throwBudget()
+      try {
+        if (budget.consumeCall) budget.consumeCall()
+        else budget.usedCalls += 1
+      } catch (error) {
+        throwBudget()
+      }
+      const started = Date.now()
+      try {
+        const out = await executeFn({
+          task: task,
+          provider: used.provider,
+          model: used.model,
+          capabilities: used.capabilities,
+          messages: messages,
+          maxTokens: maxTokens,
+          timeoutMs: budget.stageTimeout ? budget.stageTimeout(stage.id || task) : undefined,
+        })
+        const usage = normalizeUsage(out.usage, { messages: messages, content: out.result ? JSON.stringify(out.result) : '' })
+        const cost = estimateCost(used, usage)
+        if (budget.addUsage) {
+          try {
+            budget.addUsage(usage, cost)
+          } catch (costErr) {
+            out.costBudgetExceeded = true
+          }
+        }
+        if (health && !out._healthRecorded) {
+          health.recordSuccess(used.provider, used.model, Date.now() - started)
+        }
+        traces.push({
+          stage: stage.covers ? stage.covers.join('+') : stage.id,
+          provider: used.provider,
+          model: used.model,
+          durationMs: Date.now() - started,
+          success: true,
+          fallbackUsed: alreadyFallback,
+          schemaRepaired: alreadyRepaired,
+        })
+        out.usedFallback = alreadyFallback
+        out.usageNormalized = usage
+        out.cost = cost
+        return out
+      } catch (error) {
+        if (health && !error._healthRecorded) {
+          health.recordFailure(used.provider, used.model, Date.now() - started, error.code, {
+            retryAfterMs: error.retryAfterMs,
+          })
+        }
+        traces.push({
+          stage: stage.id,
+          provider: used.provider,
+          model: used.model,
+          durationMs: Date.now() - started,
+          success: false,
+          fallbackUsed: alreadyFallback,
+          error: error.code || error.message,
+        })
+        const policy = ASD.bg.failoverPolicy
+        let decision
+        if (policy && typeof policy.decideFailureAction === 'function') {
+          decision = policy.decideFailureAction({
+            error: error,
+            stage: stage,
+            selected: used,
+            fallbacks: fallbacks,
+            budget: budget,
+            health: health,
+            alreadyFallback: alreadyFallback,
+            alreadyRepaired: alreadyRepaired,
+            alreadyLengthRetry: alreadyLengthRetry,
+          })
+        } else {
+          const code = error && error.code
+          const allow =
+            !alreadyFallback &&
+            (code === 'CONNECTION_ERROR' || code === 'NETWORK_ERROR' || code === 'RATE_LIMIT_ERROR' || code === 'TIMEOUT') &&
+            fallbacks[0]
+          decision = allow
+            ? { action: 'fallback', reason: 'legacy_failover', target: fallbacks[0] }
+            : { action: 'fail', reason: 'legacy_fail', target: null }
+        }
+        if (decision.action === 'retry_same') {
+          if (decision.reason === 'schema_repair') alreadyRepaired = true
+          if (decision.reason === 'raise_max_output_tokens') {
+            alreadyLengthRetry = true
+            maxTokens = Math.min(Math.max(maxTokens * 2, 6000), 8000)
+          }
+          continue
+        }
+        if (decision.action === 'fallback' && decision.target) {
+          alreadyFallback = true
+          used = {
+            provider: decision.target.provider || decision.target.providerId,
+            model: decision.target.model,
+            capabilities: decision.target.capabilities || used.capabilities,
+          }
+          continue
+        }
+        if (decision.action === 'degrade') {
+          return { degraded: true, error: error, usedFallback: alreadyFallback }
+        }
+        throw error
+      }
     }
   }
 
-  async function runMulti(opts, cfg, built, plan, executeFn, visionPack) {
+  async function runSingle(opts, cfg, built, plan, executeFn, visionPack, budget) {
     const started = Date.now()
-    const budget = { max: maxCalls(), used: 0 }
+    const traces = []
+    const selected = plan.stages[0]
+    const caps = selected.capabilities || {}
+    const visionUrls = caps.vision === true ? (visionPack && visionPack.urls) || [] : []
+    const intro = visionUrls.length
+      ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
+      : '请根据下列不可信页面数据完成诊断并输出 JSON。当前模型未启用视觉能力，不得把图片 URL 当作图片证据。'
+    const out = await callStage(
+      selected,
+      [
+        { role: 'system', content: ASD.bg.promptBuilder.SYSTEM_PROMPT },
+        { role: 'user', content: wrapUser(intro + '\n' + built.text, visionUrls) },
+      ],
+      executeFn,
+      budget,
+      traces,
+      'product_diagnosis',
+    )
+    const snap = budget.snapshot ? budget.snapshot() : { usedCalls: budget.usedCalls }
+    out.orchestration = summarize(plan, traces, Date.now() - started, snap.usedCalls || traces.length, {
+      fallbackUsed: traces.some(function (item) { return item.fallbackUsed }),
+      budget: snap,
+      usage: { inputTokens: snap.inputTokens || 0, outputTokens: snap.outputTokens || 0 },
+      cost: { estimatedCostUsd: snap.costKnown ? snap.estimatedCostUsd : null, costKnown: snap.costKnown !== false, costEstimated: !!snap.costEstimated },
+      completion: { status: 'complete', missingStages: [], reasons: [] },
+    })
+    out.visionUsed = visionUrls.length > 0
+    out.payloadMode = built.mode
+    out.payloadTruncated = built.truncated
+    return out
+  }
+
+  function attachGuard(report, rejected, risk) {
+    if (!ASD.bg.finalReportGuard || typeof ASD.bg.finalReportGuard.apply !== 'function') {
+      return { result: report, downgraded: 0 }
+    }
+    return ASD.bg.finalReportGuard.apply(report, { rejectedClaims: rejected || [], risk: risk })
+  }
+
+  async function maybeVerify(opts, cfg, prefs, budget, traces, diagnosis, evidence, avoid, risk) {
+    const empty = {
+      triggered: false,
+      provider: '',
+      model: '',
+      independentVerification: false,
+      confirmed: 0,
+      downgraded: 0,
+      rejected: 0,
+      riskScore: risk && risk.score,
+      level: risk && risk.level,
+      reasons: (risk && risk.reasons) || [],
+    }
+    if (!risk || !risk.requiresVerification) return { meta: empty, diagnosis: diagnosis, rejected: [] }
+    if (!budget.canCall || !budget.canCall({ verifier: true })) return { meta: empty, diagnosis: diagnosis, rejected: [] }
+    if (budget.usedCalls >= budget.maxCalls) return { meta: empty, diagnosis: diagnosis, rejected: [] }
+    const picked = selectVerifier(cfg, prefs, avoid)
+    if (!picked) return { meta: empty, diagnosis: diagnosis, rejected: [] }
+    const schemas = ASD.orchestrationSchemas
+    const prompt = ASD.bg.verificationPrompt && ASD.bg.verificationPrompt.systemPrompt
+      ? ASD.bg.verificationPrompt.systemPrompt()
+      : '只复核 claims，输出 decisions JSON。禁止 newFacts。'
+    const payload = {
+      claimsToVerify: risk.claimsToVerify || [],
+      trustedPageEvidence: trustedPageEvidence(evidence),
+      diagnosisDecisions: compactDiagnosis(diagnosis),
+    }
+    const stage = {
+      id: 'verification',
+      task: 'fact_verification',
+      provider: picked.selected.provider,
+      model: picked.selected.model,
+      capabilities: picked.selected.capabilities,
+      fallback: null,
+      covers: ['verification'],
+    }
+    const out = await callStage(
+      stage,
+      [
+        { role: 'system', content: prompt },
+        { role: 'user', content: wrapUser(JSON.stringify(payload), []) },
+      ],
+      opts.executeFn || defaultExecute,
+      budget,
+      traces,
+      'fact_verification',
+    )
+    const parsed = schemas && schemas.normalizeVerification ? schemas.normalizeVerification(out.result || out) : { ok: false }
+    if (!parsed.ok) {
+      return {
+        meta: Object.assign({}, empty, {
+          triggered: true,
+          provider: picked.selected.provider,
+          model: picked.selected.model,
+          independentVerification: picked.independentVerification,
+        }),
+        diagnosis: diagnosis,
+        rejected: [],
+      }
+    }
+    const applied = schemas.applyVerifierDecisions(diagnosis, parsed.result)
+    return {
+      meta: {
+        triggered: true,
+        provider: picked.selected.provider,
+        model: picked.selected.model,
+        independentVerification: picked.independentVerification,
+        confirmed: applied.counts.confirmed,
+        downgraded: applied.counts.downgraded,
+        rejected: applied.counts.rejected,
+        riskScore: risk.score,
+        level: risk.level,
+        reasons: risk.reasons || [],
+      },
+      diagnosis: applied.diagnosis,
+      rejected: applied.rejected,
+    }
+  }
+
+  async function runMulti(opts, cfg, built, plan, executeFn, visionPack, budget, prefs) {
+    const started = Date.now()
     const traces = []
     const schemas = ASD.orchestrationSchemas
     if (!schemas) {
@@ -181,12 +549,12 @@
     if (plan.stages.length === 1) {
       const only = plan.stages[0]
       const coversAll = (only.covers || []).indexOf('evidence') !== -1 && (only.covers || []).indexOf('content') !== -1
-      if (coversAll) return runSingle(opts, cfg, built, plan, executeFn, visionPack)
+      if (coversAll) return runSingle(opts, cfg, built, plan, executeFn, visionPack, budget)
     }
 
-    const evidenceStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('evidence') !== -1 })
-    const diagnosisStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('diagnosis') !== -1 })
-    const contentStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('content') !== -1 })
+    let evidenceStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('evidence') !== -1 })
+    let diagnosisStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('diagnosis') !== -1 })
+    let contentStage = plan.stages.find(function (item) { return (item.covers || [item.id]).indexOf('content') !== -1 })
 
     let evidence = null
     const evidenceCaps = (evidenceStage && evidenceStage.capabilities) || {}
@@ -197,33 +565,135 @@
     if (plan.textFallback) {
       traces.push({ stage: 'evidence', note: '未配置已确认支持视觉的模型，Stage 1 使用文本证据模式。' })
     }
-    const evidenceOut = await callStage(
-      evidenceStage,
-      [
-        { role: 'system', content: ASD.bg.evidencePrompt.systemPrompt() },
-        { role: 'user', content: wrapUser(evidenceIntro + '\n' + built.text, visionUrls) },
-      ],
-      executeFn,
-      budget,
-      traces,
-      'evidence_analysis',
-    )
-    const evidenceParsed = schemas.normalizeEvidence(evidenceOut.result || evidenceOut, {
-      sourceModel: evidenceStage.model,
-      sourceProvider: evidenceStage.provider,
-    })
-    if (!evidenceParsed.ok) {
-      const error = new Error('VALIDATION_ERROR:' + (evidenceParsed.errors || []).join(';'))
-      error.code = 'VALIDATION_ERROR'
-      throw error
-    }
-    evidence = evidenceParsed.result
 
-    const remainingAfterEvidence = budget.max - budget.used
+    try {
+      const evidenceOut = await callStage(
+        evidenceStage,
+        [
+          { role: 'system', content: ASD.bg.evidencePrompt.systemPrompt() },
+          { role: 'user', content: wrapUser(evidenceIntro + '\n' + built.text, visionUrls) },
+        ],
+        executeFn,
+        budget,
+        traces,
+        'evidence_analysis',
+      )
+      if (evidenceOut && evidenceOut.degraded) {
+        evidence = textOnlyEvidenceFromBundle(opts.productBundle || opts.product, opts.fields)
+      } else {
+        const evidenceParsed = schemas.normalizeEvidence(evidenceOut.result || evidenceOut, {
+          sourceModel: evidenceStage.model,
+          sourceProvider: evidenceStage.provider,
+        })
+        if (!evidenceParsed.ok) {
+          const error = new Error('VALIDATION_ERROR:' + (evidenceParsed.errors || []).join(';'))
+          error.code = 'VALIDATION_ERROR'
+          throw error
+        }
+        evidence = evidenceParsed.result
+      }
+    } catch (error) {
+      if (error.code === 'VALIDATION_ERROR' || error.code === 'AUTH_ERROR' || error.code === 'UNSUPPORTED_CAPABILITY' || error.code === 'EVIDENCE_CONFLICT') {
+        throw error
+      }
+      evidence = textOnlyEvidenceFromBundle(opts.productBundle || opts.product, opts.fields)
+      traces.push({ stage: 'evidence', note: 'vision_or_stage_degraded_to_text', error: error.code || error.message })
+    }
+
+    const hadFailover = traces.some(function (item) {
+      return item && (item.fallbackUsed || item.success === false)
+    })
+    const remainingAfterEvidence = budget.remainingCalls
+      ? budget.remainingCalls({ keepVerifier: !!budget.reserveVerifier && !hadFailover })
+      : Math.max(0, budget.maxCalls - budget.usedCalls)
     let diagnosis = null
-    let contentRaw = null
     const sameDiagContent = diagnosisStage && contentStage && diagnosisStage.provider === contentStage.provider && diagnosisStage.model === contentStage.model
-    const mustMergeRest = remainingAfterEvidence <= 1 || (diagnosisStage && contentStage && diagnosisStage !== contentStage && remainingAfterEvidence < 2)
+    const mustMergeRest =
+      remainingAfterEvidence <= 1 ||
+      (diagnosisStage && contentStage && diagnosisStage !== contentStage && remainingAfterEvidence < 2)
+
+    function packExtras(completion, verification, riskScore) {
+      const snap = budget.snapshot ? budget.snapshot() : { usedCalls: budget.usedCalls }
+      return summarize(plan, traces, Date.now() - started, snap.usedCalls, {
+        fallbackUsed: traces.some(function (item) { return item.fallbackUsed }),
+        budget: snap,
+        usage: { inputTokens: snap.inputTokens || 0, outputTokens: snap.outputTokens || 0 },
+        cost: {
+          estimatedCostUsd: snap.costKnown === false ? null : snap.estimatedCostUsd,
+          costKnown: snap.costKnown !== false,
+          costEstimated: !!snap.costEstimated,
+        },
+        verification: verification || null,
+        completion: completion || { status: 'complete', missingStages: [], reasons: [] },
+        riskScore: riskScore,
+      })
+    }
+
+    async function finishFromDiagnosis(diag, contentRaw, completion) {
+      const health = diagnosisStage && ASD.bg.modelHealth ? ASD.bg.modelHealth.get(diagnosisStage.provider, diagnosisStage.model) : {}
+      const risk = ASD.bg.verificationRisk
+        ? ASD.bg.verificationRisk.assessVerificationRisk({
+            productBundle: opts.productBundle || opts.product,
+            stage1: evidence,
+            diagnosis: diag,
+            orchestration: { schemaRepaired: traces.some(function (item) { return item.schemaRepaired }), stages: traces },
+            health: health,
+            content: contentRaw && contentRaw.content,
+          })
+        : { score: 0, level: 'low', reasons: [], requiresVerification: false, claimsToVerify: [] }
+      const verified = await maybeVerify(
+        { executeFn: executeFn },
+        cfg,
+        prefs,
+        budget,
+        traces,
+        diag,
+        evidence,
+        { provider: (diagnosisStage && diagnosisStage.provider) || '', model: (diagnosisStage && diagnosisStage.model) || '' },
+        risk,
+      )
+      const finalized = schemas.finalizeOrchestrationReport(
+        verified.diagnosis,
+        contentRaw,
+        packExtras(completion, Object.assign({
+          riskScore: risk.score,
+          level: risk.level,
+          reasons: risk.reasons,
+        }, verified.meta), risk.score),
+      )
+      if (!finalized.ok) {
+        const error = new Error('VALIDATION_ERROR:' + (finalized.errors || []).join(';'))
+        error.code = 'VALIDATION_ERROR'
+        throw error
+      }
+      const guarded = attachGuard(finalized.result, verified.rejected, risk)
+      if (guarded.downgraded && finalized.result.debug && finalized.result.debug.orchestration && finalized.result.debug.orchestration.verification) {
+        finalized.result.debug.orchestration.verification.downgraded =
+          (finalized.result.debug.orchestration.verification.downgraded || 0) + guarded.downgraded
+      }
+      const orch = packExtras(
+        completion,
+        Object.assign({}, verified.meta, {
+          riskScore: risk.score,
+          level: risk.level,
+          reasons: risk.reasons,
+          downgraded: (verified.meta.downgraded || 0) + (guarded.downgraded || 0),
+        }),
+        risk.score,
+      )
+      if (guarded.result && guarded.result.debug) guarded.result.debug.orchestration = orch
+      return {
+        result: guarded.result,
+        usage: null,
+        model: (contentStage && contentStage.model) || (diagnosisStage && diagnosisStage.model) || '',
+        provider: displayName((contentStage && contentStage.provider) || (diagnosisStage && diagnosisStage.provider)),
+        attempts: budget.usedCalls,
+        orchestration: orch,
+        visionUsed: visionUrls.length > 0,
+        payloadMode: built.mode,
+        payloadTruncated: built.truncated,
+      }
+    }
 
     if (sameDiagContent || mustMergeRest || (diagnosisStage && contentStage && diagnosisStage === contentStage)) {
       const merged = diagnosisStage || contentStage
@@ -233,10 +703,7 @@
           { role: 'system', content: ASD.bg.contentPrompt.diagnosisAndContentPrompt() },
           {
             role: 'user',
-            content: wrapUser(
-              JSON.stringify({ product: built.object || built.text, evidence: compactEvidence(evidence) }),
-              [],
-            ),
+            content: wrapUser(JSON.stringify({ product: built.object || built.text, evidence: compactEvidence(evidence) }), []),
           },
         ],
         executeFn,
@@ -250,7 +717,7 @@
         error.code = 'VALIDATION_ERROR'
         throw error
       }
-      const guarded = schemas.normalizeDiagnosis(
+      const guardedDiag = schemas.normalizeDiagnosis(
         {
           summary: finalReport.result.summary && finalReport.result.summary.identity,
           identity: { name: finalReport.result.summary.identity, confidence: finalReport.result.summary.confidence },
@@ -262,13 +729,17 @@
         evidence,
         { sourceModel: merged.model, sourceProvider: merged.provider },
       )
-      if (guarded.ok) finalReport.result.facts = guarded.result.facts
-      mergedOut.result = finalReport.result
-      mergedOut.orchestration = summarize(plan, traces, Date.now() - started, budget.used)
-      mergedOut.visionUsed = visionUrls.length > 0
-      mergedOut.payloadMode = built.mode
-      mergedOut.payloadTruncated = built.truncated
-      return mergedOut
+      if (guardedDiag.ok) {
+        finalReport.result.facts = guardedDiag.result.facts
+        diagnosis = guardedDiag.result
+      }
+      const finished = await finishFromDiagnosis(diagnosis || guardedDiag.result, finalReport.result, {
+        status: 'complete',
+        missingStages: [],
+        reasons: [],
+      })
+      finished.visionUsed = visionUrls.length > 0
+      return finished
     }
 
     const diagnosisOut = await callStage(
@@ -296,37 +767,32 @@
     }
     diagnosis = diagnosisParsed.result
 
-    const contentOut = await callStage(
-      contentStage,
-      [
-        { role: 'system', content: ASD.bg.contentPrompt.systemPrompt() },
-        {
-          role: 'user',
-          content: wrapUser(JSON.stringify({ product: built.object || built.text, diagnosis: compactDiagnosis(diagnosis) }), []),
-        },
-      ],
-      executeFn,
-      budget,
-      traces,
-      'raw_json',
-    )
-    contentRaw = contentOut.result || contentOut
-    const finalized = schemas.finalizeOrchestrationReport(diagnosis, contentRaw, summarize(plan, traces, Date.now() - started, budget.used))
-    if (!finalized.ok) {
-      const error = new Error('VALIDATION_ERROR:' + (finalized.errors || []).join(';'))
-      error.code = 'VALIDATION_ERROR'
-      throw error
-    }
-    return {
-      result: finalized.result,
-      usage: contentOut.usage || diagnosisOut.usage || null,
-      model: contentStage.model,
-      provider: displayName(contentStage.provider),
-      attempts: budget.used,
-      orchestration: summarize(plan, traces, Date.now() - started, budget.used),
-      visionUsed: visionUrls.length > 0,
-      payloadMode: built.mode,
-      payloadTruncated: built.truncated,
+    let contentRaw = null
+    try {
+      const contentOut = await callStage(
+        contentStage,
+        [
+          { role: 'system', content: ASD.bg.contentPrompt.systemPrompt() },
+          {
+            role: 'user',
+            content: wrapUser(JSON.stringify({ product: built.object || built.text, diagnosis: compactDiagnosis(diagnosis) }), []),
+          },
+        ],
+        executeFn,
+        budget,
+        traces,
+        'raw_json',
+      )
+      if (contentOut && contentOut.degraded) throw contentOut.error || new Error('CONTENT_DEGRADED')
+      contentRaw = contentOut.result || contentOut
+      return await finishFromDiagnosis(diagnosis, contentRaw, { status: 'complete', missingStages: [], reasons: [] })
+    } catch (error) {
+      if (error.code === 'ORCHESTRATION_BUDGET_EXCEEDED' && !diagnosis) throw error
+      return await finishFromDiagnosis(diagnosis, stubContentFromDiagnosis(diagnosis), {
+        status: 'partial',
+        missingStages: ['content'],
+        reasons: [error.code || error.message || 'content_failed'],
+      })
     }
   }
 
@@ -340,11 +806,14 @@
     const visionSource = opts.images || (product && product.images) || fields.images || []
     const hasImages = visionSource.length > 0 || !!(opts.requestContext && opts.requestContext.hasImages)
     const built = ASD.bg.payloadBuilder.buildAnalyzePayload(product, fields)
+    const bundle = cfg.providerConfigs || (ASD.providerConfigs ? ASD.providerConfigs.migrate(cfg) : {})
+    const preference =
+      (opts.preferences && opts.preferences.costPreference) || bundle.costPreference || 'balanced'
     const plan = ASD.bg.orchestrationPlanner.build({
       settings: cfg,
       hasImages: hasImages,
       orchestrationMode: opts.preferences && opts.preferences.orchestrationMode,
-      costPreference: opts.preferences && opts.preferences.costPreference,
+      costPreference: preference,
       requestContext: opts.requestContext,
     })
     if (!plan.ok) {
@@ -352,11 +821,17 @@
       error.code = plan.code || 'NO_COMPATIBLE_MODEL'
       throw error
     }
-    if (plan.estimatedCalls > maxCalls()) {
-      const error = new Error('ORCHESTRATION_BUDGET_EXCEEDED')
-      error.code = 'ORCHESTRATION_BUDGET_EXCEEDED'
-      throw error
-    }
+    const budget = makeBudget(
+      {
+        mode: preference,
+        costPreference: preference,
+        maxCalls: opts.preferences && opts.preferences.maxCalls,
+        maxDurationMs: opts.preferences && opts.preferences.maxDurationMs,
+        maxEstimatedCostUsd: opts.preferences && opts.preferences.maxEstimatedCostUsd,
+      },
+      plan,
+    )
+    if (plan.estimatedCalls > budget.maxCalls) throwBudget()
     const selectedVision = plan.stages.some(function (stage) {
       return stage.capabilities && stage.capabilities.vision === true && (stage.covers || [stage.id]).indexOf('evidence') !== -1
     })
@@ -364,9 +839,15 @@
       selectedVision && ASD.bg.imageFetcher && typeof ASD.bg.imageFetcher.fetchVisionImages === 'function'
         ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
         : { urls: [], picked: [], ranked: [] }
-    const out = plan.mode === 'single'
-      ? await runSingle(opts, cfg, built, plan, executeFn, visionPack)
-      : await runMulti(opts, cfg, built, plan, executeFn, visionPack)
+    const prefs = { mode: bundle.activeMode || 'auto', costPreference: preference }
+    const out =
+      plan.mode === 'single'
+        ? await runSingle(opts, cfg, built, plan, executeFn, visionPack, budget)
+        : await runMulti(opts, cfg, built, plan, executeFn, visionPack, budget, prefs)
+    if (out.result && ASD.bg.finalReportGuard && plan.mode === 'single') {
+      const guarded = attachGuard(out.result, [], null)
+      out.result = guarded.result
+    }
     out.plan = plan
     out.route = {
       ok: true,
@@ -388,5 +869,6 @@
     runProductDiagnosis: runProductDiagnosis,
     compactEvidence: compactEvidence,
     compactDiagnosis: compactDiagnosis,
+    userStatus: userStatus,
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self)
