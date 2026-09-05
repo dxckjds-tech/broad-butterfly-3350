@@ -46,7 +46,10 @@
                 content: `上一次响应${lastReason}。请立即重新输出完整、非空、可解析的 JSON 对象，不要使用 Markdown 代码块。`,
               },
             ]
-      const safeMessages = ASD.sanitize ? ASD.sanitize.sanitizePayload(retryMessages) : retryMessages
+      if (!ASD.sanitize || typeof ASD.sanitize.sanitizePayload !== 'function') {
+        throw new Error('SECURITY_SANITIZER_UNAVAILABLE')
+      }
+      const safeMessages = ASD.sanitize.sanitizePayload(retryMessages)
       const body = {
         model,
         messages: safeMessages,

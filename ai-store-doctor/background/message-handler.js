@@ -94,8 +94,13 @@
           const visionSource = (message.product && message.product.images) || source.images || []
           const visionPack = visionCapable
             ? await ASD.bg.imageFetcher.fetchVisionImages(visionSource)
-            : { urls: [], ranked: [] }
+            : { urls: [], picked: [], ranked: [] }
           const visionUrls = visionPack.urls
+          const pickedSources = new Set(
+            (visionPack.picked || []).map(function (item) {
+              return item.originalSrc
+            }),
+          )
           const imageBlocks = visionUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
           const intro = imageBlocks.length
             ? '请结合真实图片像素与下列不可信页面数据完成诊断并输出 JSON。禁止根据图片文件名或 URL 猜测图片内容。'
@@ -116,11 +121,7 @@
               src: ASD.imageScore ? ASD.imageScore.redactSrc(img.src) : img.src,
               score: img.score || 0,
               reasons: img.reasons || [],
-              selected:
-                visionUrls.indexOf(img.src) !== -1 ||
-                visionUrls.some(function (url) {
-                  return typeof url === 'string' && url.indexOf('data:') === 0
-                }),
+              selected: pickedSources.has(img.src),
             }
           })
           return { ok: true, ...out }
