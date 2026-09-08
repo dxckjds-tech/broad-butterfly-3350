@@ -12,7 +12,7 @@
     <header class="topbar">
       <p class="eyebrow">AI Store Doctor</p>
       <h1>立体 3D 图标</h1>
-      <p class="lede">原设计被拆成多层玻璃、浮起的机器人与挤出文字。移动鼠标可转动，感受厚度和光影。</p>
+      <p class="lede">玻璃厚板、浮起的机器人和挤出文字分层摆开。移动鼠标转动，离开后回正。</p>
     </header>
 
     <main>
@@ -21,55 +21,47 @@
           <div class="icon" id="icon">
             <div class="contact-shadow"></div>
             <div class="halo"></div>
+            <div class="extrusion" id="extrusion" aria-hidden="true"></div>
 
-            <div class="slab">
-              <div class="slab-back"></div>
-              <div class="slab-edge slab-edge-left"></div>
-              <div class="slab-edge slab-edge-right"></div>
-              <div class="slab-edge slab-edge-top"></div>
-              <div class="slab-edge slab-edge-bottom"></div>
-              <div class="slab-face">
-                <div class="face-inner-glow"></div>
-                <div class="face-vignette"></div>
-                <div class="neon-rim"></div>
+            <div class="slab-face">
+              <div class="face-wash"></div>
+              <div class="neon-rim"></div>
 
-                <div class="robot">
-                  <div class="antenna">
-                    <span class="antenna-stem"></span>
-                    <span class="antenna-ball"></span>
-                  </div>
-                  <div class="ear ear-left"></div>
-                  <div class="ear ear-right"></div>
-                  <div class="head">
-                    <div class="head-body"></div>
-                    <div class="head-ao"></div>
-                    <div class="visor">
-                      <span class="eye"></span>
-                      <span class="eye"></span>
-                    </div>
-                    <div class="head-specular"></div>
-                    <div class="head-rim"></div>
-                  </div>
-                  <div class="dings" aria-hidden="true">
-                    <span></span><span></span><span></span>
-                  </div>
+              <div class="robot">
+                <div class="robot-shadow"></div>
+                <div class="antenna">
+                  <span class="antenna-stem"></span>
+                  <span class="antenna-ball"></span>
                 </div>
-
-                <div class="bubble">
-                  <span>AI助手</span>
+                <div class="ear ear-left"></div>
+                <div class="ear ear-right"></div>
+                <div class="head">
+                  <div class="head-body"></div>
+                  <div class="visor">
+                    <svg class="eyes" viewBox="0 0 88 36" aria-hidden="true">
+                      <path d="M8 28 Q22 2 36 28" />
+                      <path d="M52 28 Q66 2 80 28" />
+                    </svg>
+                  </div>
+                  <div class="head-specular"></div>
                 </div>
-
-                <div class="copy">
-                  <h2 class="title">
-                    <span class="ai">AI</span>
-                    <span class="rest">Store Doctor</span>
-                  </h2>
-                  <p class="tagline">— Your MIC AI Assistant —</p>
+                <div class="dings" aria-hidden="true">
+                  <span></span><span></span><span></span>
                 </div>
+              </div>
 
-                <div class="glare" id="glare"></div>
+              <div class="bubble"><span>AI助手</span></div>
+
+              <div class="copy">
+                <h2 class="title">
+                  <span class="ai">AI</span>
+                  <span class="rest">Store Doctor</span>
+                </h2>
+                <p class="tagline">— Your MIC AI Assistant —</p>
               </div>
             </div>
+
+            <div class="glare" id="glare"></div>
           </div>
         </div>
         <p class="hint">移动鼠标转动图标 · 离开后自动回正</p>
@@ -103,7 +95,7 @@
       <section class="compare" aria-label="原图与立体对比">
         <div class="section-head">
           <h2>前后对比</h2>
-          <p>拖动滑杆，对照原图和立体厚板版本。</p>
+          <p>拖动滑杆，对照原设计和立体厚板版本。</p>
         </div>
         <div class="compare-frame" id="compare">
           <img class="compare-after" src="assets/ai-store-doctor-3d.png" alt="立体厚板版本" />
@@ -116,7 +108,7 @@
             type="range"
             min="0"
             max="100"
-            value="50"
+            value="48"
             aria-label="对比滑杆"
           />
           <div class="compare-handle" id="compareHandle" aria-hidden="true"></div>
