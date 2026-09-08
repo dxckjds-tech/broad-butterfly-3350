@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Store Doctor · 3D</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="studio-bg" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <p class="eyebrow">AI Store Doctor</p>
+      <h1>立体 3D 图标</h1>
+      <p class="lede">玻璃厚板、浮起的机器人和挤出文字分层摆开。移动鼠标转动，离开后回正。</p>
+    </header>
+
+    <main>
+      <section class="hero" aria-label="可交互立体图标">
+        <div class="stage" id="stage">
+          <div class="icon" id="icon">
+            <div class="contact-shadow"></div>
+            <div class="halo"></div>
+            <div class="extrusion" id="extrusion" aria-hidden="true"></div>
+
+            <div class="slab-face">
+              <div class="face-wash"></div>
+              <div class="neon-rim"></div>
+
+              <div class="robot">
+                <div class="robot-shadow"></div>
+                <div class="antenna">
+                  <span class="antenna-stem"></span>
+                  <span class="antenna-ball"></span>
+                </div>
+                <div class="ear ear-left"></div>
+                <div class="ear ear-right"></div>
+                <div class="head">
+                  <div class="head-body"></div>
+                  <div class="visor">
+                    <svg class="eyes" viewBox="0 0 88 36" aria-hidden="true">
+                      <path d="M8 28 Q22 2 36 28" />
+                      <path d="M52 28 Q66 2 80 28" />
+                    </svg>
+                  </div>
+                  <div class="head-specular"></div>
+                </div>
+                <div class="dings" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+
+              <div class="bubble"><span>AI助手</span></div>
+
+              <div class="copy">
+                <h2 class="title">
+                  <span class="ai">AI</span>
+                  <span class="rest">Store Doctor</span>
+                </h2>
+                <p class="tagline">— Your MIC AI Assistant —</p>
+              </div>
+            </div>
+
+            <div class="glare" id="glare"></div>
+          </div>
+        </div>
+        <p class="hint">移动鼠标转动图标 · 离开后自动回正</p>
+      </section>
+
+      <section class="gallery" aria-label="立体静帧">
+        <div class="section-head">
+          <h2>3D 静帧</h2>
+          <p>同一套造型，三种立体拍法。可直接当图标或海报用。</p>
+        </div>
+        <div class="gallery-grid">
+          <figure>
+            <img src="assets/original-icon.png" alt="原设计：正面扁平发光图标" />
+            <figcaption>原设计</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/ai-store-doctor-3d-front.png" alt="正面立体版：玻璃厚边与陶瓷机器人" />
+            <figcaption>正面立体</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/ai-store-doctor-3d.png" alt="倾斜玻璃厚板立体渲染" />
+            <figcaption>玻璃厚板</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/ai-store-doctor-3d-tilt.png" alt="产品透视立体渲染" />
+            <figcaption>产品透视</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="compare" aria-label="原图与立体对比">
+        <div class="section-head">
+          <h2>前后对比</h2>
+          <p>拖动滑杆，对照原设计和立体厚板版本。</p>
+        </div>
+        <div class="compare-frame" id="compare">
+          <img class="compare-after" src="assets/ai-store-doctor-3d.png" alt="立体厚板版本" />
+          <div class="compare-before-clip" id="beforeClip">
+            <img src="assets/original-icon.png" alt="原设计" />
+          </div>
+          <input
+            id="compareRange"
+            class="compare-range"
+            type="range"
+            min="0"
+            max="100"
+            value="48"
+            aria-label="对比滑杆"
+          />
+          <div class="compare-handle" id="compareHandle" aria-hidden="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
