@@ -1,0 +1,46 @@
+AI Store Doctor Page Builder — v0.3.0 Step 4 增量模块包
+
+不含 Editor Core / Canvas / Drag Drop / History / MIC 组件结构。
+接线改动见完整源码包：
+  src/ai/suggestion-ui/SuggestionPanel.tsx
+  src/editor/layout/RightPanel.tsx
+  src/editor/layout/EditorShell.tsx
+  src/mic/studio/useMicStudio.ts
+  src/mic/services/index.ts
+  scripts/smoke.tsx
+
+交付包：
+  ai-store-doctor-page-builder-0.3.0-step4-modules.tar.gz
+  ai-store-doctor-page-builder-0.3.0-step4-src.tar.gz
+
+--- reports ---
+开发报告-v0.3.0-Step4.md
+MANIFEST.txt
+
+--- agents ---
+src/ai/agents/types.ts
+src/ai/agents/json.ts
+src/ai/agents/ProductIdentityAgent.ts
+src/ai/agents/KeywordAgent.ts
+src/ai/agents/ContentAgent.ts
+src/ai/agents/VerificationAgent.ts
+src/ai/agents/index.ts
+
+--- providers ---
+src/ai/providers/types.ts
+src/ai/providers/catalog.ts
+src/ai/providers/agentProvider.ts
+src/ai/providers/httpProvider.ts
+src/ai/providers/scriptedProvider.ts
+src/ai/providers/index.ts
+
+--- orchestrator ---
+src/ai/orchestrator/AgentOrchestrator.ts
+src/ai/orchestrator/index.ts
+
+--- services ---
+src/mic/services/agentService.ts
+src/vite-env.d.ts
+
+--- tests ---
+tests/agents.test.ts

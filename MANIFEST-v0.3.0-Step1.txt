@@ -1,0 +1,22 @@
+AI Store Doctor Page Builder — v0.3.0 Step 1 模块包
+
+包含本 Step 新增文件（不含 v0.2.1 编辑器核心）。
+
+src/mic/schema/coerce.ts
+src/mic/schema/company.ts
+src/mic/schema/image.ts
+src/mic/schema/index.ts
+src/mic/schema/page.ts
+src/mic/schema/product.ts
+src/ai/protocol/index.ts
+src/ai/protocol/patch.ts
+src/ai/protocol/suggestion.ts
+src/ai/protocol/validation.ts
+src/core/adapters/index.ts
+src/core/adapters/micAdapter.ts
+tests/mic-schema.test.ts
+开发报告-v0.3.0-Step1.md
+MANIFEST.txt
+
+既有文件的唯一改动（不在本包内，见完整源码包）：
+vitest.config.ts — include 增加 tests/**/*.test.ts?(x)
