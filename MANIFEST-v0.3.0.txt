@@ -1,14 +1,20 @@
-AI Store Doctor Page Builder — v0.3.0 模块包（Step 1 + Step 2）
+AI Store Doctor Page Builder — v0.3.0 模块包（Step 1 + Step 2 + Step 3）
 
 不含 v0.2.1 编辑器核心实现。接线改动见完整源码包中的：
   vitest.config.ts
   src/editor/components/index.ts
   scripts/smoke.tsx
+  src/editor/layout/LeftPanel.tsx
+  src/editor/layout/TemplatesPanel.tsx
+  src/editor/layout/RightPanel.tsx
+  src/editor/layout/EditorShell.tsx
+  src/index.css
 
 --- reports ---
 开发报告-v0.3.0.md
 开发报告-v0.3.0-Step1.md
 开发报告-v0.3.0-Step2.md
+开发报告-v0.3.0-Step3.md
 MANIFEST.txt
 
 --- Step 1 schema ---
@@ -54,3 +60,24 @@ src/mic/adapters/micComponentAdapter.ts
 --- tests ---
 tests/mic-schema.test.ts
 tests/mic-components.test.tsx
+tests/suggestion-ui.test.tsx
+
+--- Step 3 suggestion UI ---
+src/ai/suggestion-ui/index.ts
+src/ai/suggestion-ui/SuggestionPanel.tsx
+src/ai/suggestion-ui/SuggestionCard.tsx
+src/ai/suggestion-ui/DiffViewer.tsx
+src/ai/suggestion-ui/RiskBadge.tsx
+src/ai/suggestion-ui/ApprovalActions.tsx
+
+--- Step 3 template center ---
+src/mic/templates/ui/index.ts
+src/mic/templates/ui/TemplateCenter.tsx
+src/mic/templates/ui/TemplateCard.tsx
+
+--- Step 3 services & local studio state ---
+src/mic/services/index.ts
+src/mic/services/templateService.ts
+src/mic/services/suggestionService.ts
+src/mic/studio/useMicStudio.ts
+
