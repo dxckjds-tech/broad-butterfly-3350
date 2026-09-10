@@ -12,12 +12,16 @@ export function RightPanel({
   onApprove,
   onReject,
   suggestNonce = 0,
+  onRunAgents,
+  agentBusy = false,
 }: {
   suggestions?: AISuggestion[]
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
   /** Bumped after a template apply so the Suggest tab opens without a store. */
   suggestNonce?: number
+  onRunAgents?: () => void
+  agentBusy?: boolean
 }) {
   const [tab, setTab] = useState<RightTab>('inspector')
   const pending = suggestions.filter((entry) => entry.status === 'PENDING').length
@@ -43,6 +47,8 @@ export function RightPanel({
           suggestions={suggestions}
           onApprove={onApprove ?? (() => undefined)}
           onReject={onReject ?? (() => undefined)}
+          onRunAgents={onRunAgents}
+          agentBusy={agentBusy}
         />
       )}
     </aside>

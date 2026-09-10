@@ -15,6 +15,8 @@ import {
   declineSuggestion,
   replaceSuggestion,
 } from '../services/suggestionService'
+import { runMicAgents } from '../services/agentService'
+import { parseAssignments, createAssignedProviders } from '../../ai/providers/agentProvider'
 import { createMICPageFromTemplate } from '../services/templateService'
 import { useEditorStore } from '../../editor/store/editorStore'
 
@@ -26,6 +28,7 @@ export function useMicStudio() {
   const [micPage, setMicPage] = useState<MICPageSchema>(() => emptyMICPageSchema())
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [suggestNonce, setSuggestNonce] = useState(0)
+  const [agentBusy, setAgentBusy] = useState(false)
 
   const publish = useCallback(
     (page: MICPageSchema, notice: string) => {
@@ -79,5 +82,43 @@ export function useMicStudio() {
     [micPage, setNotice, suggestions],
   )
 
-  return { suggestions, suggestNonce, applyMicTemplate, approveSuggestion, rejectSuggestion }
+  const runAgents = useCallback(async () => {
+    setAgentBusy(true)
+    try {
+      const env = {
+        vision: import.meta.env.VITE_AGENT_VISION,
+        keyword: import.meta.env.VITE_AGENT_KEYWORD,
+        content: import.meta.env.VITE_AGENT_CONTENT,
+        verification: import.meta.env.VITE_AGENT_VERIFICATION,
+      }
+      const assignments = parseAssignments(env)
+      const providers = createAssignedProviders(assignments, {
+        openai: import.meta.env.VITE_OPENAI_API_KEY,
+        gemini: import.meta.env.VITE_GEMINI_API_KEY,
+        deepseek: import.meta.env.VITE_DEEPSEEK_API_KEY,
+        kimi: import.meta.env.VITE_KIMI_API_KEY,
+        claude: import.meta.env.VITE_ANTHROPIC_API_KEY,
+      })
+      const result = await runMicAgents({ page: micPage, assignments, providers })
+      setSuggestions(result.suggestions)
+      setSuggestNonce((value) => value + 1)
+      if (result.suggestions.length === 0) {
+        setNotice(result.warnings[0] ?? 'No AI suggestions (models unassigned or failed)')
+      } else {
+        setNotice('AI suggestions ready — accept to apply')
+      }
+    } finally {
+      setAgentBusy(false)
+    }
+  }, [micPage, setNotice])
+
+  return {
+    suggestions,
+    suggestNonce,
+    agentBusy,
+    applyMicTemplate,
+    approveSuggestion,
+    rejectSuggestion,
+    runAgents,
+  }
 }

@@ -187,6 +187,10 @@ export function EditorShell() {
                   onApprove={mic.approveSuggestion}
                   onReject={mic.rejectSuggestion}
                   suggestNonce={mic.suggestNonce}
+                  onRunAgents={() => {
+                    void mic.runAgents()
+                  }}
+                  agentBusy={mic.agentBusy}
                 />
               )}
             </div>

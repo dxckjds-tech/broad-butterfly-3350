@@ -17,6 +17,7 @@ import { findNode, collectIds } from '../src/editor/core/tree'
 import { createEmptyPage } from '../src/editor/store/defaultPage'
 import { TEMPLATE_PRESETS } from '../src/editor/presets/templates'
 import { SECTION_PRESETS } from '../src/editor/presets/sections'
+import { DEFAULT_AGENT_ORDER } from '../src/ai/orchestrator'
 import type { PageDocument } from '../src/editor/core/types'
 
 let failures = 0
@@ -163,6 +164,13 @@ for (const preset of SECTION_PRESETS) {
   const ids = collectIds(preset.build())
   check(`section “${preset.label}” has unique ids`, new Set(ids).size === ids.length)
 }
+
+// --- agents (v0.3.0 Step 4) --------------------------------------------
+group('agents')
+check(
+  'orchestrator order is identity → keyword → content → verification',
+  DEFAULT_AGENT_ORDER.join(',') === 'identity,keyword,content,verification',
+)
 
 // --- render -------------------------------------------------------------
 group('render')

@@ -8,3 +8,5 @@ export {
   replaceSuggestion,
 } from './suggestionService'
 export type { SuggestionServiceResult } from './suggestionService'
+export { runMicAgents } from './agentService'
+export type { RunMicAgentsInput } from './agentService'
