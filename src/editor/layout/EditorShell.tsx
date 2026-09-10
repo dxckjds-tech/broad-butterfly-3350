@@ -27,6 +27,7 @@ import { useEditorStore } from '../store/editorStore'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useAutosave } from '../hooks/useAutosave'
 import { usePointerPosition } from '../hooks/usePointerPosition'
+import { useMicStudio } from '../../mic/studio/useMicStudio'
 
 /**
  * Nested containers all register as droppables, so the plain pointer-within
@@ -51,6 +52,7 @@ export function EditorShell() {
   const loadFromStorage = useEditorStore((state) => state.loadFromStorage)
   const notice = useEditorStore((state) => state.notice)
   const setNotice = useEditorStore((state) => state.setNotice)
+  const mic = useMicStudio()
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [plan, setPlan] = useState<DropPlan | null>(null)
@@ -177,9 +179,16 @@ export function EditorShell() {
             <Toolbar />
             {preview ? null : <RecoveryBanner />}
             <div className="flex min-h-0 flex-1">
-              {preview ? null : <LeftPanel />}
+              {preview ? null : <LeftPanel onSelectMicTemplate={mic.applyMicTemplate} />}
               <Canvas />
-              {preview ? null : <RightPanel />}
+              {preview ? null : (
+                <RightPanel
+                  suggestions={mic.suggestions}
+                  onApprove={mic.approveSuggestion}
+                  onReject={mic.rejectSuggestion}
+                  suggestNonce={mic.suggestNonce}
+                />
+              )}
             </div>
           </div>
           <DragOverlay dropAnimation={null}>

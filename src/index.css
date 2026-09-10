@@ -9,6 +9,16 @@
   --color-brand-700: #1d4ed8;
   --color-shell-bg: #f4f5f7;
   --color-shell-border: #e4e6eb;
+  --color-risk-low: #15803d;
+  --color-risk-low-soft: #dcfce7;
+  --color-risk-medium: #b45309;
+  --color-risk-medium-soft: #ffedd5;
+  --color-risk-high: #b91c1c;
+  --color-risk-high-soft: #fee2e2;
+  --color-diff-old: #9f1239;
+  --color-diff-old-soft: #fff1f2;
+  --color-diff-new: #166534;
+  --color-diff-new-soft: #f0fdf4;
 }
 
 html,

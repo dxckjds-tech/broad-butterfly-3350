@@ -1,10 +1,11 @@
 import { LayoutTemplate } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { TEMPLATE_PRESETS } from '../presets/templates'
 import type { PageDocument } from '../core/types'
 import { useEditorStore } from '../store/editorStore'
 
 /** Whole-page starters. Applying one discards the current document. */
-export function TemplatesPanel() {
+export function TemplatesPanel({ micTemplates }: { micTemplates?: ReactNode }) {
   const replacePage = useEditorStore((state) => state.replacePage)
   const dirty = useEditorStore((state) => state.dirty)
   const setNotice = useEditorStore((state) => state.setNotice)
@@ -19,6 +20,11 @@ export function TemplatesPanel() {
 
   return (
     <div className="pb-scroll flex-1 overflow-y-auto p-3">
+      {micTemplates ? (
+        <div className="mb-4">
+          {micTemplates}
+        </div>
+      ) : null}
       <p className="mb-2.5 text-[11px] leading-relaxed text-slate-500">
         Applying a template replaces the whole document and resets undo history.
       </p>
