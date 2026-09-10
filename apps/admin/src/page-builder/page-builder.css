@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-shell-bg: #f4f5f7;
+  --color-shell-border: #e4e6eb;
+  --color-risk-low: #15803d;
+  --color-risk-low-soft: #dcfce7;
+  --color-risk-medium: #b45309;
+  --color-risk-medium-soft: #ffedd5;
+  --color-risk-high: #b91c1c;
+  --color-risk-high-soft: #fee2e2;
+  --color-diff-old: #9f1239;
+  --color-diff-old-soft: #fff1f2;
+  --color-diff-new: #166534;
+  --color-diff-new-soft: #f0fdf4;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #1f2937;
+  background: var(--color-shell-bg);
+}
+
+/* Thin, unobtrusive scrollbars for the editor chrome panels. */
+.pb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.pb-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.pb-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.pb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

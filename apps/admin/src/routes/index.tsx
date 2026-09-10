@@ -13,6 +13,7 @@ import { RulesPage } from '../pages/RulesPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { ShopDetailPage } from '../pages/ShopDetailPage';
 import { ShopsPage } from '../pages/ShopsPage';
+import { EditorPage } from '../page-builder/pages/EditorPage';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'shops', element: <ShopsPage /> },
       { path: 'shops/:id', element: <ShopDetailPage /> },
       { path: 'products', element: <ProductsPage /> },
+      { path: 'page-builder', element: <EditorPage /> },
       { path: 'mic/products', element: <MicProductsPage /> },
       { path: 'mic/inquiries', element: <MicInquiriesPage /> },
       { path: 'mic/opportunities', element: <MicOpportunitiesPage /> },

@@ -8,6 +8,7 @@ import {
   ShopOutlined,
   ThunderboltOutlined,
   SafetyCertificateOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -17,6 +18,7 @@ const items = [
   { key: '/', icon: <BarChartOutlined />, label: '仪表盘' },
   { key: '/shops', icon: <ShopOutlined />, label: '店铺管理' },
   { key: '/products', icon: <AppstoreOutlined />, label: '产品诊断' },
+  { key: '/page-builder', icon: <EditOutlined />, label: 'AI Page Builder' },
   { key: '/mic/products', icon: <AppstoreOutlined />, label: 'MIC 产品中心' },
   { key: '/mic/inquiries', icon: <FileSearchOutlined />, label: '询盘中心' },
   { key: '/mic/opportunities', icon: <ThunderboltOutlined />, label: '商机中心' },
