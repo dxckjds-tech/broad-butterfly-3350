@@ -12,3 +12,5 @@ import './TextComponent'
 import './ImageComponent'
 import './ButtonComponent'
 import './SpacerComponent'
+// MIC library (v0.3.0 Step 2). Registers via registerComponent(); registry.ts is unchanged.
+import '../../mic/components'

@@ -9,7 +9,7 @@
 import { renderToString } from 'react-dom/server'
 import App from '../src/App'
 import '../src/editor/components'
-import { createNode, getComponent, listComponents } from '../src/editor/core/registry'
+import { createNode, getComponent } from '../src/editor/core/registry'
 import { applyCommand } from '../src/editor/core/reducer'
 import { parsePageDocument } from '../src/editor/core/schema'
 import { hasOverride, resolveNodeStyles } from '../src/editor/core/styles'
@@ -36,8 +36,24 @@ function group(name: string) {
 
 // --- registry -----------------------------------------------------------
 group('registry')
-const registered = listComponents()
-check('all eight components registered', registered.length === 8, `got ${registered.length}`)
+const v021Types = ['section', 'container', 'columns', 'heading', 'text', 'button', 'image', 'spacer']
+check(
+  'v0.2.1 eight components still registered',
+  v021Types.every((type) => getComponent(type) !== undefined),
+)
+check(
+  'MIC components registered',
+  [
+    'mic-product-hero',
+    'mic-feature-section',
+    'mic-specification-table',
+    'mic-certification',
+    'mic-factory-gallery',
+    'mic-packaging',
+    'mic-faq',
+    'mic-company-profile',
+  ].every((type) => getComponent(type) !== undefined),
+)
 check('root type is hidden from the palette', getComponent('root')?.hidden === true)
 check('columns ships with two starter columns', (createNode('columns').children ?? []).length === 2)
 check('text does not accept children', getComponent('text')?.acceptsChildren !== true)
