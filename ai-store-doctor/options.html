@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 店铺医生设置</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="options-body">
+<main class="options">
+  <h1>AI 店铺医生 · 模型设置</h1>
+  <p class="muted">可以同时保存多个 Provider 的 API Key。诊断时仍可先指定当前要测试的提供商；智能调度将在后续路由设置中使用已启用的模型。</p>
+
+  <label>当前配置的提供商
+    <select id="provider">
+      <option value="deepseek">DeepSeek</option>
+      <option value="moonshot">Kimi / Moonshot</option>
+      <option value="openai">OpenAI</option>
+      <option value="anthropic">Claude / Anthropic</option>
+      <option value="gemini">Gemini / Google</option>
+      <option value="qwen">Qwen</option>
+      <option value="custom">Custom OpenAI-Compatible</option>
+    </select>
+  </label>
+
+  <section id="providerForm">
+    <label class="check-line"><input id="enabled" type="checkbox"> 启用此提供商</label>
+    <label class="check-line"><input id="routeEnabled" type="checkbox"> 参与自动路由</label>
+    <label id="customNameWrap" hidden>Provider 名称<input id="customName" autocomplete="off" placeholder="例如：内部网关"></label>
+    <label>API Key<input id="apiKey" type="password" autocomplete="off" placeholder="API Key"></label>
+    <label>API 地址<input id="baseUrl" type="url" placeholder="https://"></label>
+    <label>模型 ID<input id="model" list="modelList" placeholder="获取账号可用模型后选择，或直接手填"><datalist id="modelList"></datalist></label>
+    <p class="muted">即使支持拉取模型列表，也始终允许手填 Model ID。</p>
+    <div id="thinkingWrap" hidden>
+      <label>思考模式
+        <select id="thinking">
+          <option value="disabled">关闭（更快）</option>
+          <option value="enabled">开启（更深入）</option>
+        </select>
+      </label>
+    </div>
+    <button id="refreshModels" class="btn-outline" type="button">获取账号可用模型</button>
+    <section id="advancedCaps" hidden>
+      <h2>高级能力（Custom 手工声明）</h2>
+      <label class="check-line"><input id="capVision" type="checkbox"> 支持 Vision</label>
+      <label class="check-line"><input id="capJson" type="checkbox"> 支持 JSON Mode</label>
+      <label class="check-line"><input id="capReasoning" type="checkbox"> 支持 Reasoning</label>
+      <label class="check-line"><input id="capModelList" type="checkbox"> 支持 Model List</label>
+    </section>
+  </section>
+
+  <section id="routingSection" class="card">
+    <h2>AI 调度模式</h2>
+    <label class="check-line"><input id="modeAuto" type="radio" name="routeMode" value="auto"> 智能自动</label>
+    <label class="check-line"><input id="modeFixed" type="radio" name="routeMode" value="fixed"> 固定模型</label>
+    <label class="check-line"><input id="modeAdvanced" type="radio" name="routeMode" value="advanced"> 高级自定义</label>
+
+    <div id="autoPrefs">
+      <p class="muted">优化目标</p>
+      <label class="check-line"><input id="prefBalanced" type="radio" name="costPref" value="balanced"> 平衡</label>
+      <label class="check-line"><input id="prefEconomy" type="radio" name="costPref" value="economy"> 省钱</label>
+      <label class="check-line"><input id="prefQuality" type="radio" name="costPref" value="quality"> 最佳质量</label>
+    </div>
+
+    <div id="fixedPrefs" hidden>
+      <label>固定提供商<select id="fixedProvider"></select></label>
+      <label>固定模型<input id="fixedModel" placeholder="Model ID"></label>
+    </div>
+
+    <div id="advancedPrefs" hidden>
+      <p class="muted">只配置当前会用到的任务。未填写的任务回退到智能自动。</p>
+      <label>商品诊断
+        <select id="advDiagnosisProvider"></select>
+        <input id="advDiagnosisModel" placeholder="Model ID">
+      </label>
+      <label>视觉
+        <select id="advVisionProvider"></select>
+        <input id="advVisionModel" placeholder="Model ID">
+      </label>
+      <label>翻译
+        <select id="advTranslationProvider"></select>
+        <input id="advTranslationModel" placeholder="Model ID">
+      </label>
+      <label>内容生成
+        <select id="advContentProvider"></select>
+        <input id="advContentModel" placeholder="Model ID">
+      </label>
+    </div>
+  </section>
+
+  <section id="enabledSummary" class="card">
+    <h2>已启用模型</h2>
+    <div id="enabledList" class="muted">尚未保存任何 API Key</div>
+  </section>
+
+  <div class="option-actions">
+    <button id="save" class="btn-primary" type="button">保存</button>
+    <button id="test" class="btn-outline" type="button">保存并测试当前模型</button>
+  </div>
+  <div id="status" class="notice"></div>
+  <p class="muted">密钥仅保存在当前浏览器的扩展本地存储中。商品字段只会发送给用户已配置且启用的 AI Provider，并产生相应 API 费用。</p>
+</main>
+<script src="shared/dom.js"></script>
+<script src="shared/constants.js"></script>
+<script src="shared/storage-keys.js"></script>
+<script src="shared/provider-registry.js"></script>
+<script src="shared/provider-configs.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
