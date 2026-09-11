@@ -1,0 +1,39 @@
+;(function (root) {
+  'use strict'
+  const ns = (root.ASD = root.ASD || {})
+
+  const SUPPORTED_HOST_SUFFIXES = ['made-in-china.com', 'vemic.com']
+
+  const DEFAULTS = {
+    provider: 'deepseek',
+    deepseekBaseUrl: 'https://api.deepseek.com',
+    deepseekModel: 'deepseek-v4-flash',
+    deepseekThinking: 'disabled',
+    kimiBaseUrl: 'https://api.moonshot.cn/v1',
+    kimiModel: 'kimi-k2.5',
+  }
+
+  /**
+   * options.js historically falls back to moonshot-v1-8k when no kimiModel is saved.
+   * background settings() falls back to DEFAULTS.kimiModel ('kimi-k2.5').
+   * Both values are preserved to keep v1.5.1 behavior. See TODO-v1.6.md.
+   */
+  const OPTIONS_KIMI_MODEL_FALLBACK = 'moonshot-v1-8k'
+
+  ns.constants = {
+    EXTENSION_VERSION: '1.6.0-dev',
+    PROMPT_VERSION: '1.5.1',
+    SCHEMA_VERSION: '1',
+    SUPPORTED_HOST_SUFFIXES,
+    DEFAULTS,
+    OPTIONS_KIMI_MODEL_FALLBACK,
+    DEEPSEEK_CHAT_PATH: '/chat/completions',
+    HISTORY_MAX: 100,
+    isSupportedHost: function isSupportedHost(hostname) {
+      const host = String(hostname || '').toLowerCase()
+      return SUPPORTED_HOST_SUFFIXES.some(function (suffix) {
+        return host === suffix || host.endsWith('.' + suffix)
+      })
+    },
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : self)

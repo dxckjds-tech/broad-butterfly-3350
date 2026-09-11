@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI 店铺医生设置</title><link rel="stylesheet" href="styles.css"></head>
+<body class="options-body"><main class="options">
+  <h1>AI 店铺医生 · 模型设置</h1>
+  <p class="muted">选择当前使用的 AI。两个提供商的密钥分别保存，切换时不需要重复填写。</p>
+  <label>AI 提供商<select id="provider"><option value="deepseek">DeepSeek</option><option value="kimi">Kimi（Moonshot AI）</option></select></label>
+  <section id="deepseekPanel">
+    <h2>DeepSeek</h2>
+    <label>API Key<input id="deepseekApiKey" type="password" autocomplete="off" placeholder="DeepSeek API Key"></label>
+    <label>API 地址<input id="deepseekBaseUrl" type="url" value="https://api.deepseek.com"></label>
+    <label>模型<select id="deepseekModel"><option>deepseek-v4-flash</option><option>deepseek-v4-pro</option><option>deepseek-v4-flash-vision-exp</option></select></label>
+    <label>思考模式<select id="deepseekThinking"><option value="disabled">关闭（更快）</option><option value="enabled">开启（更深入）</option></select></label>
+  </section>
+  <section id="kimiPanel" hidden>
+    <h2>Kimi</h2>
+    <label>API Key<input id="kimiApiKey" type="password" autocomplete="off" placeholder="Moonshot API Key"></label>
+    <label>API 地址<input id="kimiBaseUrl" type="url" value="https://api.moonshot.cn/v1"></label>
+    <label>模型 ID<input id="kimiModel" list="kimiModels" value="moonshot-v1-8k" placeholder="获取账号可用模型后选择"><datalist id="kimiModels"><option value="kimi-k3"><option value="moonshot-v1-8k"><option value="moonshot-v1-32k"><option value="moonshot-v1-128k"><option value="kimi-k2-turbo-preview"><option value="kimi-k2.5"></datalist></label>
+    <p class="muted">Kimi K3 使用模型 ID <code>kimi-k3</code>，诊断请求默认采用 low 推理强度以缩短等待时间。</p>
+    <button id="refreshModels" class="btn-outline" type="button">获取账号可用模型</button>
+  </section>
+  <div class="option-actions"><button id="save" class="btn-primary">保存</button><button id="test" class="btn-outline">保存并测试当前模型</button></div>
+  <div id="status" class="notice"></div>
+  <p class="muted">密钥仅保存在当前浏览器的扩展本地存储中。商品字段会发送给当前选择的 AI 提供商，并产生相应 API 费用。</p>
+</main><script src="shared/constants.js"></script><script src="shared/storage-keys.js"></script><script src="options.js"></script></body></html>
