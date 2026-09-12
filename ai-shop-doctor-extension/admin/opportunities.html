@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 店铺医生 · 商机与 Quick Wins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Noto Sans SC', system-ui, sans-serif;
+    font-size: 13px; color: #1A2433;
+    background: #F7F8FA;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8DCE2; border-radius: 4px; }
+
+  .layout { display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: 230px; flex: none;
+    background: #0F2540;
+    padding: 20px 12px;
+    display: flex; flex-direction: column; gap: 3px;
+    overflow-y: auto;
+  }
+  .sidebar-brand { padding: 0 8px 16px; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 700; color: #FFFFFF; }
+  .sidebar-brand-sub { font-size: 11px; color: #7FBDB4; margin-top: 2px; }
+  .nav-item {
+    font-size: 12px; padding: 8px 11px; border-radius: 6px;
+    cursor: pointer; color: #B9C4D2; font-weight: 400;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none; display: block;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: #FFFFFF; }
+  .nav-item.active { background: #12385F; color: #FFFFFF; font-weight: 700; }
+
+  .main { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+  .page-header { display: flex; flex-direction: column; gap: 3px; }
+  .page-title { font-size: 18px; font-weight: 700; color: #0F2540; }
+  .page-sub { font-size: 12px; color: #8B95A1; }
+
+  .top-stats { display: flex; gap: 12px; }
+  .top-stat {
+    flex: 1; background: #FFFFFF; border: 1px solid #E2E5EA; border-radius: 10px; padding: 14px;
+  }
+  .top-stat-label { font-size: 11px; color: #5B6472; }
+  .top-stat-value { font-size: 21px; font-weight: 700; margin-top: 4px; }
+
+  .table-card {
+    background: #FFFFFF; border: 1px solid #E2E5EA; border-radius: 10px;
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .table-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .table-card-title { font-size: 12.5px; font-weight: 700; color: #0F2540; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-chip {
+    font-size: 10.5px; font-weight: 600; padding: 5px 10px; border-radius: 12px;
+    cursor: pointer; border: 1px solid #D8DCE2;
+    transition: background 0.15s, color 0.15s;
+  }
+  .filter-chip.active { background: #0F2540; color: #FFFFFF; border-color: #0F2540; }
+  .filter-chip:not(.active) { background: #FFFFFF; color: #5B6472; }
+  .filter-chip:hover:not(.active) { background: #F1F2F4; }
+
+  .opp-header {
+    display: grid;
+    grid-template-columns: 2fr 0.8fr 0.9fr 0.9fr 0.8fr 0.9fr 0.6fr;
+    font-size: 10.5px; color: #8B95A1;
+    padding: 6px 0; border-bottom: 1px solid #EEF0F3;
+  }
+  .opp-row {
+    display: grid;
+    grid-template-columns: 2fr 0.8fr 0.9fr 0.9fr 0.8fr 0.9fr 0.6fr;
+    align-items: center; font-size: 12px; color: #1A2433;
+    padding: 8px 0; border-bottom: 1px solid #EEF0F3;
+  }
+  .opp-row:last-child { border-bottom: none; }
+  .row-product { overflow-wrap: break-word; padding-right: 8px; }
+  .row-action { color: #0E8E82; font-weight: 600; cursor: pointer; }
+  .row-action:hover { text-decoration: underline; }
+  .na-badge {
+    font-size: 9.5px; font-weight: 700;
+    background: #F1F2F4; color: #6B7280; border: 1px solid #DCE0E5;
+    border-radius: 4px; padding: 2px 5px; display: inline-block;
+  }
+  .table-note { font-size: 10px; color: #8B95A1; margin-top: 4px; }
+
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: 360px;
+    background: #FFFFFF; border-left: 1px solid #E2E5EA;
+    box-shadow: -8px 0 24px rgba(15,37,64,0.10);
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    z-index: 100; transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .drawer-title { font-size: 14px; font-weight: 700; color: #0F2540; overflow-wrap: break-word; padding-right: 10px; }
+  .drawer-close { cursor: pointer; color: #8B95A1; font-size: 12px; flex: none; }
+  .drawer-close:hover { color: #0F2540; }
+  .drawer-row { display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #EEF0F3; padding-bottom: 8px; }
+  .drawer-row:last-child { border-bottom: none; }
+  .drawer-row-label { font-size: 10.5px; color: #8B95A1; }
+  .drawer-row-value { font-size: 12.5px; color: #1A2433; overflow-wrap: break-word; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name">AI 店铺医生</div>
+      <div class="sidebar-brand-sub">运营驾驶舱</div>
+    </div>
+    <a href="index.html" class="nav-item">今日概览</a>
+    <a href="#" class="nav-item">店铺扫描</a>
+    <a href="#" class="nav-item">产品中心</a>
+    <a href="#" class="nav-item">商品真相</a>
+    <a href="#" class="nav-item">关键词中心</a>
+    <a href="#" class="nav-item">内容优化</a>
+    <a href="#" class="nav-item">询盘与买家问题</a>
+    <a href="opportunities.html" class="nav-item active">商机与 Quick Wins</a>
+    <a href="#" class="nav-item">任务中心</a>
+    <a href="#" class="nav-item">Before / After</a>
+    <a href="#" class="nav-item">数据源与系统设置</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">商机与 Quick Wins</div>
+      <div class="page-sub">按可解释维度排序，非搜索热度或流量预测</div>
+    </div>
+
+    <!-- Top stats -->
+    <div class="top-stats">
+      <div class="top-stat">
+        <div class="top-stat-label">Quick Win 候选产品</div>
+        <div class="top-stat-value" style="color:#1C9A5A">67</div>
+      </div>
+      <div class="top-stat">
+        <div class="top-stat-label">高价值但被阻断</div>
+        <div class="top-stat-value" style="color:#C63C3C">23</div>
+      </div>
+      <div class="top-stat">
+        <div class="top-stat-label">关键词蚕食风险产品组</div>
+        <div class="top-stat-value" style="color:#C8901A">9 组</div>
+      </div>
+    </div>
+
+    <!-- Opportunity table -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">Opportunity 明细</div>
+        <div class="filter-row" id="opp-filters"></div>
+      </div>
+      <div class="opp-header">
+        <div>产品</div><div>商业价值</div><div>缺陷严重度</div>
+        <div>搜索机会</div><div>修改成本</div><div>数据完整度</div><div>操作</div>
+      </div>
+      <div id="opp-table-body"></div>
+      <div class="table-note">搜索机会一列未接入真实数据源前统一标记为 NOT_AVAILABLE，不参与优先级计算。</div>
+    </div>
+  </main>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-title"></div>
+    <div class="drawer-close" onclick="closeDrawer()">关闭</div>
+  </div>
+  <div id="drawer-body"></div>
+</div>
+
+<script>
+const allOpps = [
+  { product: 'LED Panel Light 60x60',          value: '中', severity: '低', cost: '低', completeness: 82, action: '直接应用已生成标题，预计 10 分钟完成' },
+  { product: 'Reflective Safety Vest Class 2', value: '中', severity: '中', cost: '低', completeness: 70, action: '补充材质认证字段后可解除内容限制' },
+  { product: 'Aluminum Extrusion Profile 6063',value: '高', severity: '中', cost: '中', completeness: 64, action: '补充规格字段，人工复核后生成标题' },
+  { product: 'Industrial Ball Valve DN50',      value: '高', severity: '低', cost: '中', completeness: 58, action: '确认身份候选后生成安全标题' },
+  { product: 'CNC Aluminum Machining Part',     value: '中', severity: '高', cost: '高', completeness: 45, action: '需人工补充多项规格字段，成本较高' },
+];
+
+const costRank = { '低': 0, '中': 1, '高': 2 };
+const costKeyMap = { '低': 'LOW', '中': 'MID', '高': 'HIGH' };
+
+let currentFilter = 'ALL';
+let sortDesc = true;
+
+const filterDefs = [
+  { key: 'ALL', label: '全部' },
+  { key: 'LOW', label: '低成本' },
+  { key: 'MID', label: '中成本' },
+  { key: 'HIGH', label: '高成本' },
+];
+
+function renderFilters() {
+  const row = document.getElementById('opp-filters');
+  row.innerHTML = '';
+  filterDefs.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip' + (currentFilter === f.key ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { currentFilter = f.key; renderFilters(); renderTable(); });
+    row.appendChild(chip);
+  });
+  const sortBtn = document.createElement('div');
+  sortBtn.className = 'filter-chip';
+  sortBtn.textContent = sortDesc ? '修改成本 低→高 ↓' : '修改成本 高→低 ↑';
+  sortBtn.addEventListener('click', () => { sortDesc = !sortDesc; renderFilters(); renderTable(); });
+  row.appendChild(sortBtn);
+}
+
+function renderTable() {
+  const body = document.getElementById('opp-table-body');
+  body.innerHTML = '';
+
+  const opps = allOpps
+    .filter(o => currentFilter === 'ALL' || costKeyMap[o.cost] === currentFilter)
+    .sort((a, b) => sortDesc
+      ? costRank[a.cost] - costRank[b.cost]
+      : costRank[b.cost] - costRank[a.cost]
+    );
+
+  opps.forEach(o => {
+    const row = document.createElement('div');
+    row.className = 'opp-row';
+    row.innerHTML = `
+      <div class="row-product">${o.product}</div>
+      <div>${o.value}</div>
+      <div>${o.severity}</div>
+      <div><span class="na-badge">NOT_AVAILABLE</span></div>
+      <div>${o.cost}</div>
+      <div>${o.completeness}%</div>
+      <div class="row-action">详情</div>
+    `;
+    row.querySelector('.row-action').addEventListener('click', () => {
+      openDrawer(o.product, [
+        { label: '商业价值',   value: o.value },
+        { label: '缺陷严重度', value: o.severity },
+        { label: '搜索机会',   value: 'NOT_AVAILABLE（未接入真实数据源，不计入优先级）' },
+        { label: '修改成本',   value: o.cost },
+        { label: '数据完整度', value: o.completeness + '%' },
+        { label: '建议动作',   value: o.action },
+      ]);
+    });
+    body.appendChild(row);
+  });
+}
+
+function openDrawer(title, rows) {
+  document.getElementById('drawer-title').textContent = title;
+  const body = document.getElementById('drawer-body');
+  body.innerHTML = '';
+  rows.forEach(r => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'drawer-row';
+    rowEl.innerHTML = `<div class="drawer-row-label">${r.label}</div><div class="drawer-row-value">${r.value}</div>`;
+    body.appendChild(rowEl);
+  });
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+}
+
+renderFilters();
+renderTable();
+</script>
+</body>
+</html>
