@@ -1,0 +1,206 @@
+{
+  "ok": true,
+  "onlyDeepseekMode": "single",
+  "keys": {
+    "deepseek": true,
+    "openai": false,
+    "kimi": false
+  },
+  "cases": {
+    "mic-01": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 10222,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 10222,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1726,
+        "outputTokens": 2029
+      },
+      "cost": {
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Canister Vacuum Cleaner 20L",
+      "facts": 9,
+      "health": 78,
+      "contentTitles": 2
+    },
+    "mic-05": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 10051,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 10051,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1574,
+        "outputTokens": 1990
+      },
+      "cost": {
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Industrial Ball Valve DN50",
+      "facts": 8,
+      "health": 53,
+      "contentTitles": 3
+    },
+    "vemic-02": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 12137,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 12137,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1587,
+        "outputTokens": 2171
+      },
+      "cost": {
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "Portable Steam Cleaner / Canister Vacuum Cleaner",
+      "facts": 8,
+      "health": 60,
+      "contentTitles": 2
+    },
+    "dyn-04": {
+      "mode": "single",
+      "totalCalls": 1,
+      "totalDurationMs": 2413,
+      "stages": [
+        {
+          "stage": "evidence+diagnosis+content",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "durationMs": 2413,
+          "success": true,
+          "fallbackUsed": false,
+          "schemaRepaired": false
+        }
+      ],
+      "models": [
+        "deepseek-v4-flash"
+      ],
+      "fallback": false,
+      "tokens": {
+        "inputTokens": 1360,
+        "outputTokens": 386
+      },
+      "cost": {
+        "estimatedCostUsd": null,
+        "costKnown": false,
+        "costEstimated": false
+      },
+      "riskScore": null,
+      "verification": null,
+      "identity": "UNKNOWN",
+      "facts": 0,
+      "health": 6,
+      "contentTitles": 0
+    }
+  },
+  "highRiskSample": {
+    "score": 100,
+    "level": "high",
+    "reasons": [
+      "low_identity_confidence",
+      "vision_only_critical_fact",
+      "fact_conflict",
+      "verified_without_trusted_source"
+    ],
+    "requiresVerification": true,
+    "claimsToVerify": [
+      {
+        "claimId": "power",
+        "field": "power",
+        "value": "1500W",
+        "status": "OBSERVED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "vision_only_critical"
+      },
+      {
+        "claimId": "power",
+        "field": "power",
+        "value": "1500W",
+        "status": "OBSERVED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "conflict"
+      },
+      {
+        "claimId": "material",
+        "field": "material",
+        "value": "Stainless Steel",
+        "status": "VERIFIED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "untrusted_verified"
+      },
+      {
+        "claimId": "material",
+        "field": "material",
+        "value": "Stainless Steel",
+        "status": "VERIFIED",
+        "sourceType": "vision",
+        "sourceRef": "",
+        "sourceStage": "",
+        "reason": "vision_only_critical"
+      }
+    ]
+  },
+  "real": "REAL_MULTI_PROVIDER_PENDING",
+  "reason": "second provider key missing; auto stays single; cannot claim live multi-model orchestration"
+}
