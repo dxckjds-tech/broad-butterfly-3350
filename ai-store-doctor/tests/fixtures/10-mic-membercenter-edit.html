@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>编辑商品 - 中国制造网</title>
+  <script>
+    window.__INITIAL_STATE__ = {
+      productForm: {
+        prodName: "Should not override input title",
+        catName: "Should not override selected category"
+      }
+    };
+  </script>
+</head>
+<body>
+  <header class="vo-header">
+    <h1>编辑商品</h1>
+    <nav>Virtual Office / 产品管理</nav>
+  </header>
+  <form id="productForm" class="product-edit-form" action="/productmanage/product/save">
+    <div class="form-item">
+      <label for="prodName">产品名称</label>
+      <input id="prodName" name="prodName" maxlength="160" value="Stainless Steel Ball Valve DN50 MIC Editor">
+    </div>
+    <div class="form-item">
+      <label>关键词</label>
+      <input name="keywords" value="ball valve, stainless steel valve, DN50">
+    </div>
+    <div class="form-item">
+      <label>产品目录</label>
+      <span class="cate-selected">Industrial Equipment &gt; Valves &gt; Ball Valves</span>
+      <input type="hidden" name="catName" value="Ball Valves">
+      <input type="hidden" name="catCode" value="3312">
+    </div>
+    <table>
+      <tr><th>Material</th><td>Stainless Steel 304</td></tr>
+      <tr><th>Size</th><td>DN50</td></tr>
+      <tr><th>Pressure</th><td>PN16</td></tr>
+      <tr><th>Connection</th><td>Flange</td></tr>
+      <tr><th>Standard</th><td>ANSI</td></tr>
+    </table>
+    <label>产品详情
+      <textarea name="prodDesc">Editor description for DN50 stainless steel ball valve. Suitable for water, oil and gas pipelines. Face to face dimension follows ANSI B16.10.</textarea>
+    </label>
+    <img src="https://img.made-in-china.com/sample/dn50-editor.jpg" alt="DN50 ball valve">
+  </form>
+</body>
+</html>
