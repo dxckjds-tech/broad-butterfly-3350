@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "none",
+    "noEmit": true,
+    "strict": false,
+    "allowJs": true
+  },
+  "include": [
+    "shared/**/*.js",
+    "background/**/*.js",
+    "sidepanel/**/*.js",
+    "content-script.js",
+    "options.js"
+  ],
+  "exclude": ["tests", "node_modules"]
+}

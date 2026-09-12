@@ -1,0 +1,17 @@
+{
+  "name": "ai-store-doctor-tests",
+  "private": true,
+  "description": "Offline fixtures for v1.5.1 regression. Not packed into the Chrome extension.",
+  "type": "module",
+  "scripts": {
+    "regression": "node run-regression.mjs && node render-smoke.mjs && node check-architecture.mjs && node check-innerhtml.mjs && node dom-smoke.mjs && node settings-legacy-smoke.mjs && node sw-boot.mjs && node sidepanel-boot.mjs && node options-boot.mjs && node step4-collect.mjs && node step5-pii.mjs && node step6-payload.mjs && node step7-schema.mjs && node step8-images.mjs && node step8-image-security.mjs && node step9-concurrency.mjs && node step10-health-score.mjs && node step11-history.mjs && node step12-diff.mjs && node step13-dynamic.mjs && node step14-api-errors.mjs && node step14.1-task-validators.mjs && node step14.1-provider-registry.mjs && node step14.1-openai-adapter.mjs && node step14.1-anthropic-gemini.mjs && node step14.1-provider-migration.mjs && node step15-model-capabilities.mjs && node step15-capabilities-profiles.mjs && node step15-router.mjs && node step15.1-capability-hardening.mjs && node step16-evidence-schema.mjs && node step16-provenance.mjs && node step16-planner.mjs && node step16-orchestrator.mjs && node step16-budget.mjs && node step16-failover.mjs && node step16-cost.mjs && node step16-risk.mjs && node step16-verifier.mjs && node step16-final-guard.mjs && node step16-budget-enforce.mjs && node ../scripts/pack-extension.mjs",
+    "real-ai": "node step14-real-ai.mjs",
+    "real-route": "node step15-real-route.mjs",
+    "real-multi": "node step16-real-multi.mjs",
+    "baseline": "node run-regression.mjs --write",
+    "render": "node render-smoke.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}
