@@ -1,0 +1,22 @@
+{
+  "title": null,
+  "category": null,
+  "keywords": [],
+  "specs": [],
+  "formFields": [],
+  "certifications": [],
+  "description": null,
+  "sku": null,
+  "brand": null,
+  "companyName": null,
+  "companyProfile": null,
+  "visibleText": "Please wait, product data is loading…",
+  "images": [
+    {
+      "src": "https://img.made-in-china.com/static/placeholder.gif"
+    }
+  ],
+  "pageTitle": "Loading product…",
+  "frameCount": 1,
+  "url": "https://sample.made-in-china.com/product/loading.html"
+}
