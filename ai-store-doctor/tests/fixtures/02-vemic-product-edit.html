@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>编辑商品 - VEMIC 示例</title>
+</head>
+<body>
+  <div class="admin-nav">商品中心 / 编辑商品</div>
+  <form id="productForm" class="product-main">
+    <label>商品标题
+      <input name="subject" id="productName" value="Steam Cleaner Portable Home Vacuum Cleaner with CE Certification">
+    </label>
+    <div class="category-breadcrumb">Household Appliances &gt; Vacuum Cleaners &gt; Canister Vacuum Cleaners</div>
+    <label>关键词
+      <input name="keywords" value="steam cleaner, portable vacuum, home cleaning machine, ce certified vacuum">
+    </label>
+    <label>容量
+      <input name="capacity" aria-label="Capacity" value="20L">
+    </label>
+    <label>材质
+      <textarea name="material" placeholder="Material">ABS plastic shell</textarea>
+    </label>
+    <label>额定功率
+      <input name="ratedPower" aria-label="Rated Power" value="">
+    </label>
+    <label>认证
+      <input type="checkbox" name="certificationCE" value="CE" checked>
+      <span class="certif-label">CE</span>
+    </label>
+    <select name="application" aria-label="Application">
+      <option value="home" selected>Home / Office</option>
+      <option value="industrial">Industrial</option>
+    </select>
+    <table>
+      <tr><th>Capacity</th><td>20 L</td></tr>
+      <tr><th>Accessories</th><td>Hose, combination brush x2</td></tr>
+    </table>
+    <img src="https://file.vemic.com/sample/edit-canister-body.png" alt="">
+    <img src="https://file.vemic.com/sample/edit-brush-set.png" alt="">
+    <p>编辑页说明：标题含 Steam Cleaner，商品分组为 Canister Vacuum Cleaner。认证仅出现在旧标题，结构化认证字段未验证。</p>
+  </form>
+</body>
+</html>
