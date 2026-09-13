@@ -1,0 +1,103 @@
+# Clash Verge Rev / Mihomo — ChatGPT/OpenAI split over existing WireGuard.
+# Copy to a local file (openai-split.local.yaml), inject the verified mac-new
+# private key, chmod 600, and never commit the injected file.
+#
+# Native WireGuard AllowedIPs=0.0.0.0/0 is still forbidden for handshake tests.
+# Here allowed-ips=['0.0.0.0/0'] only describes what the WG *outbound* may carry
+# after a rule match. System capture is the rule list; fallback is MATCH,DIRECT.
+
+mixed-port: 7890
+bind-address: 127.0.0.1
+allow-lan: false
+ipv6: false
+mode: rule
+log-level: info
+find-process-mode: always
+
+tun:
+  enable: true
+  stack: mixed
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
+  strict-route: false
+  dns-hijack:
+    - any:53
+    - tcp://any:53
+  # Keep LAN / tailscale / WG subnet off the TUN default route.
+  route-exclude-address:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 10.66.66.0/24
+    - 100.64.0.0/10
+
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  ipv6: false
+  enhanced-mode: redir-host
+  default-nameserver:
+    - 1.1.1.1
+    - 8.8.8.8
+  nameserver:
+    - 1.1.1.1
+    - 8.8.8.8
+  proxy-server-nameserver:
+    - 1.1.1.1
+    - 8.8.8.8
+
+proxies:
+  - name: WG-AI-GATEWAY
+    type: wireguard
+    server: 38.244.17.106
+    port: 51820
+    ip: 10.66.66.2
+    private-key: REPLACE_FROM_MAC_NEW_DO_NOT_COMMIT
+    public-key: sRCHVw+s4atumhQ337oC6Yz1lM6dFqCdTpsTt8vqh3g=
+    # pre-shared-key: set only if both sides already use one; never commit it
+    allowed-ips: ['0.0.0.0/0']
+    persistent-keepalive: 25
+    udp: true
+    mtu: 1380
+    remote-dns-resolve: true
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    # empty dialer-proxy: Endpoint uses the physical default route, not TUN/WG
+
+proxy-groups:
+  - name: OPENAI
+    type: select
+    proxies:
+      - WG-AI-GATEWAY
+
+rules:
+  # Endpoint and SSH must never hairpin into the tunnel.
+  - IP-CIDR,38.244.17.106/32,DIRECT
+  - DST-PORT,34096,DIRECT
+  - DST-PORT,51820,DIRECT
+
+  # Official ChatGPT / OpenAI hosts (narrow). Shared CDN (Cloudflare / Stripe /
+  # Intercom / Sendgrid / Sentry / Datadog / Apple) is intentionally omitted.
+  - DOMAIN-SUFFIX,chatgpt.com,OPENAI
+  - DOMAIN-SUFFIX,openai.com,OPENAI
+  - DOMAIN-SUFFIX,oaistatic.com,OPENAI
+  - DOMAIN-SUFFIX,oaiusercontent.com,OPENAI
+  - DOMAIN-SUFFIX,oaistatsig.com,OPENAI
+  - DOMAIN,cdn.openaimerge.com,OPENAI
+  - DOMAIN,auth.openai.com,OPENAI
+  - DOMAIN,auth0.openai.com,OPENAI
+  - DOMAIN,setup.auth.openai.com,OPENAI
+  - DOMAIN,setup.workos.com,OPENAI
+  - DOMAIN,forwarder.workos.com,OPENAI
+
+  # Placeholder: replace with the real executable name/path from run-on-mac.sh.
+  - PROCESS-NAME,ChatGPT,OPENAI
+  # - PROCESS-PATH,/Applications/ChatGPT.app/Contents/MacOS/ChatGPT,OPENAI
+
+  # TEMP verify only — enable one host, curl it, then delete this line.
+  # Do not treat MATCH,DIRECT + local HTTP proxy IP-check sites as WG proof.
+  # - DOMAIN,ifconfig.me,OPENAI
+
+  - MATCH,DIRECT
