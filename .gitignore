@@ -12,3 +12,8 @@ apps/extension/dist
 apps/admin/dist
 .vscode
 *.tsbuildinfo
+
+# WireGuard / Clash local secrets — never commit injected keys
+clash/*.local.yaml
+clash/*.local.yml
+**/cursor-wg-diag-*/
